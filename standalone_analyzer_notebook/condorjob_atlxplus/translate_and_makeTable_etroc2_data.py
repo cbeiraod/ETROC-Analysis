@@ -1,6 +1,9 @@
 ## Import
 from glob import glob
 import os
+import pandas as pd
+import numpy as np
+from datetime import datetime
 
 def find_pattern_multiple_indexs(bitstream):
     pattern = "3c5c"
@@ -101,6 +104,52 @@ def translate_with_indices(input_stream, positions, parent_dir, output, chipID, 
     f.close()
     return residual
 
+def toPandas(ifile, dac, charge, row, col):
+    d = []
+
+    if not os.stat(ifile).st_size == 0:
+        with open(ifile, "r") as infile:
+            for line in infile.readlines():
+                if line.split(' ')[2] == 'HEADER':
+                    pass
+                    # bcid = line.strip().split(' ')[-1]
+                elif line.split(' ')[2] == 'DATA':
+                    # col = int(line.split(' ')[6])
+                    # row = int(line.split(' ')[8])
+                    toa = int(line.split(' ')[10])
+                    tot = int(line.split(' ')[12])
+                    cal = int(line.split(' ')[14])
+                    d.append(
+                        {
+                        'col': col,
+                        'row': row,
+                        'toa': toa,
+                        'tot': tot,
+                        'cal': cal,
+                        'dac': dac,
+                        'charge': charge,
+                        }
+                    )
+                elif line.split(' ')[2] == 'TRAILER':
+                    pass
+
+    if len(d) != 0:
+        df = pd.DataFrame(d)
+        # df = df[df['cal'] < 200]
+        return df
+    else:
+        d.append(
+            {
+            'col': col,
+            'row': row,
+            'toa': np.nan,
+            'tot': np.nan,
+            'cal': np.nan,
+            'dac': dac,
+            }
+        )
+        df = pd.DataFrame(d)
+        return df
 
 def main():
     import argparse
@@ -127,26 +176,47 @@ def main():
     # list directories that want to scan
     dirs=str(args.dirname)
     outdir = dirs+'/output'
-    os.mkdir(outdir)
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
 
-    residual = ''
-    files = glob(dirs+'/*Data_[0-9]*.dat')
-    files = sorted(files)
-
-    for i, ifile in enumerate(files):
+    if len(os.listdir(outdir)) == 0:
         residual = ''
-        # if i > 2: break
-        # Let's make a very long bitstream single line
-        bitstream = residual + ''
-        with open(ifile, 'r') as infile:
-            # make data bitstream in a single line
-            for line in infile.readlines():
-                if line[0:4] == '1100':
-                    bitstream += line.strip()[4:]
+        files = glob(dirs+'/*Data_[0-9]*.dat')
+        files = sorted(files)
 
-        positions = find_pattern_multiple_indexs(bitstream)
-        outname = 'TDC_Data_translated_'+str(i)+'.dat'
-        residual = translate_with_indices(bitstream, positions, outdir, outname, '0x17f0f')
+        for i, ifile in enumerate(files):
+            residual = ''
+            # if i > 2: break
+            # Let's make a very long bitstream single line
+            bitstream = residual + ''
+            with open(ifile, 'r') as infile:
+                # make data bitstream in a single line
+                for line in infile.readlines():
+                    if line[0:4] == '1100':
+                        bitstream += line.strip()[4:]
+
+            positions = find_pattern_multiple_indexs(bitstream)
+            outname = 'TDC_Data_translated_'+str(i)+'.dat'
+            residual = translate_with_indices(bitstream, positions, outdir, outname, '0x17f0f')
+    else:
+        print('Translated files exist. Skip offline translation.')
+
+    raws = []
+    translated_files = glob(outdir+'/*Data_translated_[0-9]*.dat')
+    for jfile in translated_files:
+        info = jfile.split('/')[0].split('_')
+        print(info)
+        dac = info[4].split('DAC')[1]
+        charge = info[5]
+        row = info[-2].split('R')[1]
+        col = info[-1].split('C')[1]
+
+        sub_df = toPandas(jfile, dac, charge, row, col)
+        raws += [sub_df]
+
+    raw_df = pd.concat(raws)
+    outfile = args.dirname+'.csv'
+    raw_df.to_csv(outfile, index=False)
 
 if __name__ == "__main__":
     main()
