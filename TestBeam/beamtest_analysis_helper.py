@@ -30,19 +30,17 @@ class etroc2_analysis_helper():
         self.chip_labels = chip_labels,
 
     ## --------------------------------------
-    def toPandas(
+    def toSingleDataFrame(
             self,
-            path: str,
+            files: list,
             do_blockMix: bool = False,
             do_savedf: bool = False,
         ):
         evt = -1
         previous_bcid = -1
+        df_count = 0
         d = []
 
-        root = '../../ETROC-Data'
-        name_pattern = "*translated*.dat"
-        files = glob(f"{root}/{path}/{name_pattern}")
         files = natsorted(files)
 
         if do_blockMix:
@@ -53,9 +51,11 @@ class etroc2_analysis_helper():
                 for line in infile.readlines():
                     if line.split(' ')[2] == 'HEADER':
                         current_bcid = line.strip().split(' ')[-1]
-                        if current_bcid != previous_bcid:
-                            evt += 1
+                        if current_bcid != previous_bcid or df_count>=3:
+                                evt += 1
+                                df_count = 0
                         previous_bcid = current_bcid
+                        df_count += 1
                     elif line.split(' ')[2] == 'DATA':
                         id  = int(line.split(' ')[1])
                         col = int(line.split(' ')[6])
@@ -85,6 +85,63 @@ class etroc2_analysis_helper():
 
         return df
     ## --------------------------------------
+    def toSingleDataFramePerDirectory(
+            self,
+            path_pattern: str,
+            files: list,
+        ):
+
+        evt = -1
+        previous_bcid = -1
+        df_count = 0
+
+        root = '../../ETROC-Data'
+        name_pattern = "*translated*.dat"
+
+        dirs = glob(f"{root}/{path_pattern}")
+        dirs = natsorted(dirs)
+
+        for dir in dirs:
+            d = []
+            name = dir.split('/')[-1]
+            files = glob(f"{dir}/{name_pattern}")
+
+            for ifile in files:
+                with open(ifile, 'r') as infile:
+                    for line in infile.readlines():
+                        if line.split(' ')[2] == 'HEADER':
+                            current_bcid = line.strip().split(' ')[-1]
+                            if current_bcid != previous_bcid or df_count>=3:
+                                evt += 1
+                                df_count = 0
+                            previous_bcid = current_bcid
+                            df_count += 1
+                        elif line.split(' ')[2] == 'DATA':
+                            id  = int(line.split(' ')[1])
+                            col = int(line.split(' ')[6])
+                            row = int(line.split(' ')[8])
+                            toa = int(line.split(' ')[10])
+                            tot = int(line.split(' ')[12])
+                            cal = int(line.split(' ')[14])
+                            d.append(
+                                {
+                                'evt': evt,
+                                'board': id,
+                                'col': col,
+                                'row': row,
+                                'toa': toa,
+                                'tot': tot,
+                                'cal': cal,
+                                }
+                            )
+                        elif line.split(' ')[2] == 'TRAILER':
+                            pass
+
+            df = pd.DataFrame(d)
+            df.to_parquet(name+'.pqt', index=False)
+            del df
+    ## --------------------------------------
+
 
     ## --------------------------------------
     def making_heatmap_byPandas(
@@ -109,6 +166,11 @@ class etroc2_analysis_helper():
                 fill_value=0  # Fill missing values with 0 (if any)
             )
 
+            if pivot_table.shape[1] != 16:
+                pivot_table = pivot_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+                pivot_table = pivot_table.reindex(columns=np.arange(0,16))
+                pivot_table = pivot_table.fillna(-1)
+
             # Create a heatmap to visualize the count of hits
             fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
             ax.cla()
@@ -121,8 +183,9 @@ class etroc2_analysis_helper():
             for i in range(16):
                 for j in range(16):
                     value = pivot_table.iloc[i, j]
+                    if value == -1: continue
                     text_color = 'black' if value > (pivot_table.values.max() + pivot_table.values.min()) / 2 else 'white'
-                    text = str(value)
+                    text = str("{:.0f}".format(value))
                     plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=17)
 
             hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
