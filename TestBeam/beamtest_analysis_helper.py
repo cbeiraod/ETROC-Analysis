@@ -201,6 +201,51 @@ class etroc2_analysis_helper():
             ax.invert_yaxis()
             plt.minorticks_off()
 
+    def making_3d_heatmap_byPandas(
+            input_df: pd.DataFrame,
+            chipLabels: list,
+            figtitle: list,
+            figtitle_tag: str,
+        ):
+        # Create a 3D subplot
+
+        for idx, id in enumerate(chipLabels):
+
+            # Create the 2D heatmap for the current chip label
+            hits_count_by_col_row_board = input_df[input_df['board'] == int(id)].groupby(['col', 'row'])['evt'].count().reset_index()
+            hits_count_by_col_row_board = hits_count_by_col_row_board.rename(columns={'evt': 'hits'})
+            pivot_table = hits_count_by_col_row_board.pivot_table(index='row', columns='col', values='hits', fill_value=0)
+
+            if pivot_table.shape[1] != 16:
+                continue
+
+            fig = plt.figure(figsize=(15, 10))
+            ax = fig.add_subplot(111, projection='3d')
+
+            # Create a meshgrid for the 3D surface
+            x, y = np.meshgrid(np.arange(16), np.arange(16))
+            z = pivot_table.values
+            dx = dy = 0.75  # Width and depth of the bars
+
+            # Create a 3D surface plot
+            ax.bar3d(x.flatten(), y.flatten(), np.zeros_like(z).flatten(), dx, dy, z.flatten(), shade=True)
+
+            # Customize the 3D plot settings as needed
+            ax.set_xlabel('COL', fontsize=15, labelpad=15)
+            ax.set_ylabel('ROW', fontsize=15, labelpad=15)
+            ax.set_zlabel('Hits', fontsize=15, labelpad=-35)
+            ax.invert_xaxis()
+            ticks = range(0, 16)
+            ax.set_xticks(ticks)
+            ax.set_yticks(ticks)
+            ax.set_xticks(ticks=range(16), labels=[], minor=True)
+            ax.set_yticks(ticks=range(16), labels=[], minor=True)
+            ax.tick_params(axis='x', labelsize=8)  # You can adjust the 'pad' value
+            ax.tick_params(axis='y', labelsize=8)
+            ax.tick_params(axis='z', labelsize=8)
+            ax.set_title(f"Heat map 3D {figtitle[idx]}", fontsize=16)
+            plt.tight_layout()
+
     ## --------------------------------------
     def return_hist(
             self,
