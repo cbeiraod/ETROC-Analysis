@@ -3,19 +3,15 @@ import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import datetime
 import pandas as pd
-from pathlib import Path
 from natsort import natsorted
 from glob import glob
-import scipy.stats as stats
 import hist
-from hist import Hist
 import mplhep as hep
 plt.style.use(hep.style.CMS)
 import boost_histogram as bh
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import colorConverter
-from scipy.optimize import curve_fit
 
 class etroc2_analysis_helper():
 
@@ -202,6 +198,7 @@ class etroc2_analysis_helper():
             plt.minorticks_off()
 
     def making_3d_heatmap_byPandas(
+            self,
             input_df: pd.DataFrame,
             chipLabels: list,
             figtitle: list,
