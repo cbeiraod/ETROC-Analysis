@@ -298,7 +298,10 @@ class etroc2_analysis_helper():
     ):
 
         corr_toas = []
-        coeffs = []
+
+        corr_b0 = input_df['toa_b0'].values
+        corr_b1 = input_df['toa_b1'].values
+        corr_b3 = input_df['toa_b3'].values
 
         del_toa_b0 = (0.5*(input_df['toa_b1'] + input_df['toa_b3']) - input_df['toa_b0']).values
         del_toa_b1 = (0.5*(input_df['toa_b0'] + input_df['toa_b3']) - input_df['toa_b1']).values
@@ -314,29 +317,20 @@ class etroc2_analysis_helper():
             coeff_b3 = np.polyfit(input_df['tot_b3'].values, del_toa_b3, poly_order)
             poly_func_b3 = np.poly1d(coeff_b3)
 
-            corr_b0 = input_df['toa_b0'].values + poly_func_b0(input_df['tot_b0'].values)
-            corr_b1 = input_df['toa_b1'].values + poly_func_b1(input_df['tot_b1'].values)
-            corr_b3 = input_df['toa_b3'].values + poly_func_b3(input_df['tot_b3'].values)
+            corr_b0 = corr_b0 + poly_func_b0(input_df['tot_b0'].values)
+            corr_b1 = corr_b1 + poly_func_b1(input_df['tot_b1'].values)
+            corr_b3 = corr_b3 + poly_func_b3(input_df['tot_b3'].values)
 
             del_toa_b0 = (0.5*(corr_b1 + corr_b3) - corr_b0)
             del_toa_b1 = (0.5*(corr_b0 + corr_b3) - corr_b1)
             del_toa_b3 = (0.5*(corr_b0 + corr_b1) - corr_b3)
 
             if i == iterative_cnt-1:
-
-                coeff_b0 = np.polyfit(input_df['tot_b0'].values, del_toa_b0, poly_order)
-                coeff_b1 = np.polyfit(input_df['tot_b1'].values, del_toa_b1, poly_order)
-                coeff_b3 = np.polyfit(input_df['tot_b3'].values, del_toa_b3, poly_order)
-
-                coeffs.append(coeff_b0)
-                coeffs.append(coeff_b1)
-                coeffs.append(coeff_b3)
-
                 corr_toas.append(corr_b0)
                 corr_toas.append(corr_b1)
                 corr_toas.append(corr_b3)
 
-        return coeffs, corr_toas
+        return corr_toas
 
     ## --------------------------------------
     def making_3d_heatmap_byPandas(
@@ -451,8 +445,10 @@ class etroc2_analysis_helper():
             self,
             input_data: pd.Series,
             input_hist: hist.Hist,
+            std_range_cut: float,
             width_factor: float,
             fig_title: str,
+            use_pred_uncert: bool,
         ):
 
         from lmfit.models import GaussianModel
@@ -467,8 +463,11 @@ class etroc2_analysis_helper():
 
         mod = GaussianModel()
 
-        fit_min = input_data.mean()-width_factor*input_data.std()
-        fit_max = input_data.mean()+width_factor*input_data.std()
+        reduced_data = input_data[(input_data > input_data.mean()-std_range_cut) & (input_data < input_data.mean()+std_range_cut)]
+
+        fit_min = reduced_data.mean()-width_factor*reduced_data.std()
+        fit_max = reduced_data.mean()+width_factor*reduced_data.std()
+        del reduced_data
 
         input_hist_peak = input_hist[(fit_min)*1j:(fit_max)*1j]
         centers = input_hist.axes[0].centers
@@ -479,7 +478,8 @@ class etroc2_analysis_helper():
         hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
         main_ax.set_title(f'{fig_title}', loc="right", size=25)
         main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
-                        ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o", ms=6, capsize=1, capthick=2, alpha=0.8)
+                        ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+                        ms=6, capsize=1, capthick=2, alpha=0.8)
         main_ax.plot(fit_centers, out.best_fit, color="hotpink", ls="-", lw=2, alpha=0.8,
                     label=fr"$\mu:{out.params['center'].value:.3f}, \sigma: {abs(out.params['sigma'].value):.3f}$")
         main_ax.set_ylabel('Counts')
@@ -507,7 +507,10 @@ class etroc2_analysis_helper():
         main_ax.legend(fontsize=20, loc='upper right')
 
         ### Calculate pull
-        pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(input_hist.variances())
+        if use_pred_uncert:
+            pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
+        else:
+            pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(input_hist.variances())
         pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
 
         left_edge = centers[0]
