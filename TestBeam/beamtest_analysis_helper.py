@@ -447,6 +447,92 @@ class etroc2_analysis_helper():
         main_ax.set_title(f'{fig_title}', loc="right", size=25)
 
     ## --------------------------------------
+    def lmfit_gaussfit_with_pulls(
+            self,
+            input_data: pd.Series,
+            input_hist: hist.Hist,
+            width_factor: float,
+            fig_title: str,
+        ):
+
+        from lmfit.models import GaussianModel
+        from lmfit.lineshapes import gaussian
+
+        fig = plt.figure()
+        grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
+
+        main_ax = fig.add_subplot(grid[0])
+        subplot_ax = fig.add_subplot(grid[1], sharex=main_ax)
+        plt.setp(main_ax.get_xticklabels(), visible=False)
+
+        mod = GaussianModel()
+
+        fit_min = input_data.mean()-width_factor*input_data.std()
+        fit_max = input_data.mean()+width_factor*input_data.std()
+
+        input_hist_peak = input_hist[(fit_min)*1j:(fit_max)*1j]
+        centers = input_hist.axes[0].centers
+        fit_centers = input_hist_peak.axes[0].centers
+        pars = mod.guess(input_hist.values(), x=centers)
+        out = mod.fit(input_hist_peak.values(), pars, x=fit_centers)
+
+        hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
+        main_ax.set_title(f'{fig_title}', loc="right", size=25)
+        main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
+                        ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o", ms=6, capsize=1, capthick=2, alpha=0.8)
+        main_ax.plot(fit_centers, out.best_fit, color="hotpink", ls="-", lw=2, alpha=0.8,
+                    label=fr"$\mu:{out.params['center'].value:.3f}, \sigma: {abs(out.params['sigma'].value):.3f}$")
+        main_ax.set_ylabel('Counts')
+        main_ax.set_ylim(-20, None)
+
+        popt = [par for name, par in out.best_values.items()]
+        pcov = out.covar
+
+        if np.isfinite(pcov).all():
+            n_samples = 100
+            vopts = np.random.multivariate_normal(popt, pcov, n_samples)
+            sampled_ydata = np.vstack([gaussian(fit_centers, *vopt).T for vopt in vopts])
+            model_uncert = np.nanstd(sampled_ydata, axis=0)
+        else:
+            model_uncert = np.zeros_like(np.sqrt(input_hist.variances()))
+
+        main_ax.fill_between(
+            fit_centers,
+            out.eval(x=fit_centers) - model_uncert,
+            out.eval(x=fit_centers) + model_uncert,
+            color="hotpink",
+            alpha=0.2,
+            label='Uncertainty'
+        )
+        main_ax.legend(fontsize=20, loc='upper right')
+
+        ### Calculate pull
+        pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(input_hist.variances())
+        pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
+
+        left_edge = centers[0]
+        right_edge = centers[-1]
+
+        # Pull: plot the pulls using Matplotlib bar method
+        width = (right_edge - left_edge) / len(pulls)
+
+        subplot_ax.axvline(fit_centers[0], c='red', lw=2)
+        subplot_ax.axvline(fit_centers[-1], c='red', lw=2)
+        subplot_ax.axhline(1, c='black', lw=0.75)
+        subplot_ax.axhline(0, c='black', lw=1.2)
+        subplot_ax.axhline(-1, c='black', lw=0.75)
+        subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
+        subplot_ax.set_ylim(-2, 2)
+        subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1])
+        subplot_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
+        subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+        subplot_ax.minorticks_off()
+
+        plt.tight_layout()
+
+        return [out.params['sigma'].value, out.params['sigma'].stderr]
+
+    ## --------------------------------------
     def make_pix_inclusive_plots(
             self,
             input_hist: hist.Hist,
