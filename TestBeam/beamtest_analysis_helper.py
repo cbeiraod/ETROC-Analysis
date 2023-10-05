@@ -453,7 +453,7 @@ def lmfit_gaussfit_with_pulls(
     centers = input_hist.axes[0].centers
     fit_centers = input_hist_peak.axes[0].centers
     pars = mod.guess(input_hist.values(), x=centers)
-    out = mod.fit(input_hist_peak.values(), pars, x=fit_centers)
+    out = mod.fit(input_hist_peak.values(), pars, x=fit_centers, weights=1/np.sqrt(input_hist_peak.values()))
 
     hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
     main_ax.set_title(f'{fig_title}', loc="right", size=25)
