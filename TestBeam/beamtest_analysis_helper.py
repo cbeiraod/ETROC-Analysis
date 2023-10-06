@@ -367,10 +367,11 @@ def return_hist(
         input_df: pd.DataFrame,
         chip_names: list,
         chip_labels: list,
+        hist_bins: list = [50, 64, 64]
 ):
-    h = {chip_names[idx]: hist.Hist(hist.axis.Regular(50, 140, 240, name="CAL", label="CAL [LSB]"),
-                hist.axis.Regular(64, 0, 512,  name="TOT", label="TOT [LSB]"),
-                hist.axis.Regular(64, 0, 1024, name="TOA", label="TOA [LSB]"),
+    h = {chip_names[idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
+                hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
+                hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
         )
     for idx, boardID in enumerate(chip_labels)}
     for idx, boardID in enumerate(chip_labels):
