@@ -368,9 +368,9 @@ def return_hist(
         chip_names: list,
         chip_labels: list,
 ):
-    h = {chip_names[idx]: hist.Hist(hist.axis.Regular(50, 140, 240, name="CAL", label="CAL [LSB]"),
-                hist.axis.Regular(64, 0, 512,  name="TOT", label="TOT [LSB]"),
-                hist.axis.Regular(64, 0, 1024, name="TOA", label="TOA [LSB]"),
+    h = {chip_names[idx]: hist.Hist(hist.axis.Regular(100, 140, 240, name="CAL", label="CAL [LSB]"),
+                hist.axis.Regular(128, 0, 512,  name="TOT", label="TOT [LSB]"),
+                hist.axis.Regular(256, 0, 1024, name="TOA", label="TOA [LSB]"),
         )
     for idx, boardID in enumerate(chip_labels)}
     for idx, boardID in enumerate(chip_labels):
