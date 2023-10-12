@@ -665,8 +665,65 @@ def poly3D(max_order, x, y, z, *args):
     return ret_val
 
 
+## --------------------------------------
+def making_pivot(
+        input_df: pd.DataFrame,
+        index: str,
+        columns: str,
+        drop_columns: tuple,
+    ):
+        pivot_data_df = input_df.pivot(
+        index = index,
+        columns = columns,
+        values = list(set(input_df.columns) - drop_columns),
+        )
+        pivot_data_df.columns = ["{}_{}".format(x, y) for x, y in pivot_data_df.columns]
 
+        return pivot_data_df
 
+## --------------------------------------
+def making_scatter_with_plotly(
+        input_df: pd.DataFrame,
+        output_name: str,
+    ):
+    import plotly.express as px
+    fig = px.scatter_matrix(
+        input_df,
+        dimensions=input_df.columns,
+        # labels = labels,
+        # color=color_column,
+        # title = "Scatter plot comparing variables for each board<br><sup>Run: {}{}</sup>".format(run_name, extra_title),
+        opacity = 0.2,
+    )
+
+    ## Delete half of un-needed plots
+    fig.update_traces(
+        diagonal_visible = False,
+        showupperhalf=False,
+        marker = {'size': 3}
+    )
+
+    for k in range(len(fig.data)):
+        fig.data[k].update(
+            selected = dict(
+            marker = dict(
+                #opacity = 1,
+                #color = 'blue',
+                )
+            ),
+            unselected = dict(
+                marker = dict(
+                    #opacity = 0.1,
+                    color="grey"
+                    )
+                ),
+            )
+
+    fig.write_html(
+        f'{output_name}.html',
+        full_html = False,
+        include_plotlyjs = 'cdn',
+    )
 
 
 
