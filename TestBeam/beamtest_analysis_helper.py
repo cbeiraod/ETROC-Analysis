@@ -527,50 +527,78 @@ def make_pix_inclusive_plots(
         show: bool = False,
         tag: str = '',
         title_tag: str = '',
+        slide_friendly: bool = False,
     ):
-    fig = plt.figure(dpi=50, figsize=(20,10))
-    gs = fig.add_gridspec(1,1)
-    ax = fig.add_subplot(gs[0,0])
-    ax.set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=25)
-    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-    input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
-    plt.tight_layout()
-    if(save): plt.savefig(fig_path+"/"+chip_figname+"_CAL_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-    if(show): plt.show()
-    plt.close()
 
-    fig = plt.figure(dpi=50, figsize=(20,10))
-    gs = fig.add_gridspec(1,1)
-    ax = fig.add_subplot(gs[0,0])
-    ax.set_title(f"{chip_figtitle}, TOT{title_tag}", loc="right", size=25)
-    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-    input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
-    plt.tight_layout()
-    if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-    if(show): plt.show()
-    plt.close()
+    if not slide_friendly:
+        fig = plt.figure(dpi=50, figsize=(20,10))
+        gs = fig.add_gridspec(1,1)
+        ax = fig.add_subplot(gs[0,0])
+        ax.set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=25)
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
+        plt.tight_layout()
+        if(save): plt.savefig(fig_path+"/"+chip_figname+"_CAL_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        if(show): plt.show()
+        plt.close()
 
-    fig = plt.figure(dpi=50, figsize=(20,10))
-    gs = fig.add_gridspec(1,1)
-    ax = fig.add_subplot(gs[0,0])
-    ax.set_title(f"{chip_figtitle}, TOA{title_tag}", loc="right", size=25)
-    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-    input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
-    plt.tight_layout()
-    if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-    if(show): plt.show()
-    plt.close()
+        fig = plt.figure(dpi=50, figsize=(20,10))
+        gs = fig.add_gridspec(1,1)
+        ax = fig.add_subplot(gs[0,0])
+        ax.set_title(f"{chip_figtitle}, TOT{title_tag}", loc="right", size=25)
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+        plt.tight_layout()
+        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        if(show): plt.show()
+        plt.close()
 
-    fig = plt.figure(dpi=50, figsize=(20,20))
-    gs = fig.add_gridspec(1,1)
-    ax = fig.add_subplot(gs[0,0])
-    ax.set_title(f"{chip_figtitle}, TOA v TOT{title_tag}", loc="right", size=25)
-    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-    input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
-    plt.tight_layout()
-    if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-    if(show): plt.show()
-    plt.close()
+        fig = plt.figure(dpi=50, figsize=(20,10))
+        gs = fig.add_gridspec(1,1)
+        ax = fig.add_subplot(gs[0,0])
+        ax.set_title(f"{chip_figtitle}, TOA{title_tag}", loc="right", size=25)
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+        plt.tight_layout()
+        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        if(show): plt.show()
+        plt.close()
+
+        fig = plt.figure(dpi=50, figsize=(20,20))
+        gs = fig.add_gridspec(1,1)
+        ax = fig.add_subplot(gs[0,0])
+        ax.set_title(f"{chip_figtitle}, TOA v TOT{title_tag}", loc="right", size=25)
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+        plt.tight_layout()
+        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        if(show): plt.show()
+        plt.close()
+
+    else:
+        fig = plt.figure(dpi=100, figsize=(25,15))
+        gs = fig.add_gridspec(2,2)
+
+        for i, plot_info in enumerate(gs):
+            ax = fig.add_subplot(plot_info)
+            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
+            if i == 0:
+                ax.set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=14)
+                input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
+            elif i == 1:
+                ax.set_title(f"{chip_figtitle}, TOT{title_tag}", loc="right", size=14)
+                input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+            elif i == 2:
+                ax.set_title(f"{chip_figtitle}, TOA{title_tag}", loc="right", size=14)
+                input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+            elif i == 3:
+                ax.set_title(f"{chip_figtitle}, TOA v TOT{title_tag}", loc="right", size=14)
+                input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+
+        plt.tight_layout()
+        if(save): plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        if(show): plt.show()
+        plt.close()
 
 ## --------------------------------------
 def event_display_withPandas(
