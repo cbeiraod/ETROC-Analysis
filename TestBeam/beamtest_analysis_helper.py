@@ -576,20 +576,20 @@ def make_pix_inclusive_plots(
         plt.close()
 
     else:
-        fig = plt.figure(dpi=100, figsize=(25,15))
+        fig = plt.figure(dpi=100, figsize=(30,13))
         gs = fig.add_gridspec(2,2)
 
         for i, plot_info in enumerate(gs):
             ax = fig.add_subplot(plot_info)
             hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
             if i == 0:
-                ax.set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=14)
+                ax.set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=15)
                 input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
             elif i == 1:
-                ax.set_title(f"{chip_figtitle}, TOT{title_tag}", loc="right", size=14)
+                ax.set_title(f"{chip_figtitle}, TOT{title_tag}", loc="right", size=15)
                 input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
             elif i == 2:
-                ax.set_title(f"{chip_figtitle}, TOA{title_tag}", loc="right", size=14)
+                ax.set_title(f"{chip_figtitle}, TOA{title_tag}", loc="right", size=15)
                 input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
             elif i == 3:
                 ax.set_title(f"{chip_figtitle}, TOA v TOT{title_tag}", loc="right", size=14)
