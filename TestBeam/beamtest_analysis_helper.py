@@ -42,7 +42,7 @@ def toSingleDataFrame(
     for ifile in files:
         file_d = copy.deepcopy(d)
         with open(ifile, 'r') as infile:
-            for line in infile.readlines():
+            for line in infile:
                 if line.split(' ')[2] == 'HEADER':
                     current_bcid = line.strip().split(' ')[-1]
                     if current_bcid != previous_bcid or df_count>=3:
@@ -69,6 +69,8 @@ def toSingleDataFrame(
         if len(file_d['evt']) > 0:
             file_df = pd.DataFrame(file_d)
             df = pd.concat((df, file_df), ignore_index=True)
+            del file_df
+        del file_d
 
     ## Under develop
     if do_savedf:
