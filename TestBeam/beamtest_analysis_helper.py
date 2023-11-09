@@ -12,6 +12,7 @@ import boost_histogram as bh
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import colorConverter
+import copy
 
 ## --------------------------------------
 def toSingleDataFrame(
@@ -33,11 +34,13 @@ def toSingleDataFrame(
     }
 
     files = natsorted(files)
+    df = pd.DataFrame(d)
 
     if do_blockMix:
         files = files[1:]
 
     for ifile in files:
+        file_d = copy.deepcopy(d)
         with open(ifile, 'r') as infile:
             for line in infile.readlines():
                 if line.split(' ')[2] == 'HEADER':
@@ -54,17 +57,18 @@ def toSingleDataFrame(
                     toa = int(line.split(' ')[10])
                     tot = int(line.split(' ')[12])
                     cal = int(line.split(' ')[14])
-                    d['evt'].append(evt)
-                    d['board'].append(id)
-                    d['row'].append(row)
-                    d['col'].append(col)
-                    d['toa'].append(toa)
-                    d['tot'].append(tot)
-                    d['cal'].append(cal)
+                    file_d['evt'].append(evt)
+                    file_d['board'].append(id)
+                    file_d['row'].append(row)
+                    file_d['col'].append(col)
+                    file_d['toa'].append(toa)
+                    file_d['tot'].append(tot)
+                    file_d['cal'].append(cal)
                 elif line.split(' ')[2] == 'TRAILER':
                     pass
-
-    df = pd.DataFrame(d)
+        if len(file_d['evt']) > 0:
+            file_df = pd.DataFrame(file_d)
+            df = pd.concat((df, file_df), ignore_index=True)
 
     ## Under develop
     if do_savedf:
