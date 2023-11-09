@@ -22,7 +22,15 @@ def toSingleDataFrame(
     evt = -1
     previous_bcid = -1
     df_count = 0
-    d = []
+    d = {
+        'evt': [],
+        'board': [],
+        'col': [],
+        'row': [],
+        'toa': [],
+        'tot': [],
+        'cal': [],
+    }
 
     files = natsorted(files)
 
@@ -46,17 +54,13 @@ def toSingleDataFrame(
                     toa = int(line.split(' ')[10])
                     tot = int(line.split(' ')[12])
                     cal = int(line.split(' ')[14])
-                    d.append(
-                        {
-                        'evt': evt,
-                        'board': id,
-                        'col': col,
-                        'row': row,
-                        'toa': toa,
-                        'tot': tot,
-                        'cal': cal,
-                        }
-                    )
+                    d['evt'].append(evt)
+                    d['board'].append(id)
+                    d['row'].append(row)
+                    d['col'].append(col)
+                    d['toa'].append(toa)
+                    d['tot'].append(tot)
+                    d['cal'].append(cal)
                 elif line.split(' ')[2] == 'TRAILER':
                     pass
 
