@@ -82,16 +82,24 @@ def toSingleDataFrame(
 def toSingleDataFramePerDirectory(
         root: str,
         path_pattern: str,
+        data_qinj: bool = False,
+        save_to_csv: bool = False,
+        debugging: bool = False,
     ):
 
     evt = -1
     previous_bcid = -1
     df_count = 0
     name_pattern = "*translated*.dat"
+    if data_qinj:
+        name_pattern = "*translated_[1-9]*.dat"
 
     dirs = glob(f"{root}/{path_pattern}")
     dirs = natsorted(dirs)
     print(dirs[:3])
+
+    if debugging:
+        dirs = dirs[:2]
 
     d = {
         'evt': [],
@@ -139,7 +147,13 @@ def toSingleDataFramePerDirectory(
                 file_df = pd.DataFrame(file_d)
                 df = pd.concat((df, file_df), ignore_index=True)
 
-        df.to_parquet(name+'.pqt', index=False)
+        df = df.astype('int')
+        if data_qinj:
+            df.drop(columns=['evt', 'board'], inplace=True)
+        if save_to_csv:
+            df.to_csv(name+'.csv', index=False)
+        else:
+            df.to_parquet(name+'.pqt', index=False)
         del df
 
 ## --------------------------------------
