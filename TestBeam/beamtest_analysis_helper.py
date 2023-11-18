@@ -79,6 +79,70 @@ def toSingleDataFrame(
     return df
 
 ## --------------------------------------
+def toSingleDataFrame_newEventModel(
+        files: list,
+        do_blockMix: bool = False,
+        do_savedf: bool = False,
+    ):
+    evt = -1
+    d = {
+        'evt': [],
+        'board': [],
+        'col': [],
+        'row': [],
+        'toa': [],
+        'tot': [],
+        'cal': [],
+    }
+
+    files = natsorted(files)
+    df = pd.DataFrame(d)
+
+    if do_blockMix:
+        files = files[1:]
+
+    for ifile in files:
+        file_d = copy.deepcopy(d)
+        with open(ifile, 'r') as infile:
+            for line in infile:
+                if line.split(' ')[0] == 'EH':
+                    evt = int(line.split(' ')[2])
+                elif line.split(' ')[0] == 'H':
+                    pass
+                    # bcid = int(line.split(' ')[-1])
+                elif line.split(' ')[0] == 'D':
+                    id  = int(line.split(' ')[1])
+                    col = int(line.split(' ')[-5])
+                    row = int(line.split(' ')[-4])
+                    toa = int(line.split(' ')[-3])
+                    tot = int(line.split(' ')[-2])
+                    cal = int(line.split(' ')[-1])
+                    file_d['evt'].append(evt)
+                    file_d['board'].append(id)
+                    file_d['row'].append(row)
+                    file_d['col'].append(col)
+                    file_d['toa'].append(toa)
+                    file_d['tot'].append(tot)
+                    file_d['cal'].append(cal)
+                elif line.split(' ')[0] == 'T':
+                    pass
+                elif line.split(' ')[0] == 'ET':
+                    pass
+        if len(file_d['evt']) > 0:
+            file_df = pd.DataFrame(file_d)
+            df = pd.concat((df, file_df), ignore_index=True)
+            del file_df
+        del file_d
+
+    df = df.astype('int')
+    ## Under develop
+    if do_savedf:
+        pass
+
+    return df
+
+
+## --------------------------------------
 def toSingleDataFramePerDirectory(
         root: str,
         path_pattern: str,
