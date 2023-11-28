@@ -52,8 +52,8 @@ def toSingleDataFrame(
                     df_count += 1
                 elif line.split(' ')[2] == 'DATA':
                     id  = int(line.split(' ')[1])
-                    col = int(line.split(' ')[6])
-                    row = int(line.split(' ')[8])
+                    col = int(line.split(' ')[8])
+                    row = int(line.split(' ')[6])
                     toa = int(line.split(' ')[10])
                     tot = int(line.split(' ')[12])
                     cal = int(line.split(' ')[14])
@@ -112,8 +112,8 @@ def toSingleDataFrame_newEventModel(
                     # bcid = int(line.split(' ')[-1])
                 elif line.split(' ')[0] == 'D':
                     id  = int(line.split(' ')[1])
-                    col = int(line.split(' ')[-5])
-                    row = int(line.split(' ')[-4])
+                    col = int(line.split(' ')[-4])
+                    row = int(line.split(' ')[-5])
                     toa = int(line.split(' ')[-3])
                     tot = int(line.split(' ')[-2])
                     cal = int(line.split(' ')[-1])
