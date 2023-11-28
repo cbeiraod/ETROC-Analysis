@@ -221,6 +221,86 @@ def toSingleDataFramePerDirectory(
         del df
 
 ## --------------------------------------
+def toSingleDataFramePerDirectory_newEventModel(
+        root: str,
+        path_pattern: str,
+        data_qinj: bool = False,
+        save_to_csv: bool = False,
+        debugging: bool = False,
+    ):
+
+    evt = -1
+    previous_bcid = -1
+    df_count = 0
+    name_pattern = "*translated*.nem"
+    if data_qinj:
+        name_pattern = "*translated_[1-9]*.nem"
+
+    dirs = glob(f"{root}/{path_pattern}")
+    dirs = natsorted(dirs)
+    print(dirs[:3])
+
+    if debugging:
+        dirs = dirs[:2]
+
+    d = {
+        'evt': [],
+        'board': [],
+        'col': [],
+        'row': [],
+        'toa': [],
+        'tot': [],
+        'cal': [],
+    }
+
+    for dir in dirs:
+        df = pd.DataFrame(d)
+        name = dir.split('/')[-1]
+        files = glob(f"{dir}/{name_pattern}")
+
+        for ifile in files:
+            file_d = copy.deepcopy(d)
+            with open(ifile, 'r') as infile:
+                for line in infile:
+                    if line.split(' ')[0] == 'EH':
+                        evt = int(line.split(' ')[2])
+                    elif line.split(' ')[0] == 'H':
+                        pass
+                        # bcid = int(line.split(' ')[-1])
+                    elif line.split(' ')[0] == 'D':
+                        id  = int(line.split(' ')[1])
+                        col = int(line.split(' ')[-4])
+                        row = int(line.split(' ')[-5])
+                        toa = int(line.split(' ')[-3])
+                        tot = int(line.split(' ')[-2])
+                        cal = int(line.split(' ')[-1])
+                        file_d['evt'].append(evt)
+                        file_d['board'].append(id)
+                        file_d['row'].append(row)
+                        file_d['col'].append(col)
+                        file_d['toa'].append(toa)
+                        file_d['tot'].append(tot)
+                        file_d['cal'].append(cal)
+                    elif line.split(' ')[0] == 'T':
+                        pass
+                    elif line.split(' ')[0] == 'ET':
+                        pass
+            if len(file_d['evt']) > 0:
+                file_df = pd.DataFrame(file_d)
+                df = pd.concat((df, file_df), ignore_index=True)
+                del file_df
+            del file_d
+
+        df = df.astype('int')
+        if data_qinj:
+            df.drop(columns=['evt', 'board'], inplace=True)
+        if save_to_csv:
+            df.to_csv(name+'.csv', index=False)
+        else:
+            df.to_parquet(name+'.pqt', index=False)
+        del df
+
+## --------------------------------------
 def making_heatmap_byPandas(
         input_df: pd.DataFrame,
         chipLabels: list,
