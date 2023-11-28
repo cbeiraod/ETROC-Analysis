@@ -358,6 +358,72 @@ def making_heatmap_byPandas(
         plt.minorticks_off()
 
 ## --------------------------------------
+def make_TDC_summary_table(
+        input_df: pd.DataFrame,
+        var: str
+    ):
+    sum_group = input_df.groupby(["col", "row"]).agg({var:['mean','std']})
+    sum_group.columns = sum_group.columns.droplevel()
+    sum_group.reset_index(inplace=True)
+
+    table_mean = sum_group.pivot_table(index='row', columns='col', values='mean')
+    table_mean = table_mean.round(1)
+
+    table_mean = table_mean.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+    table_mean = table_mean.reindex(columns=np.arange(0,16))
+
+    table_std = sum_group.pivot_table(index='row', columns='col', values='std')
+    table_std = table_std.round(2)
+
+    table_std = table_std.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+    table_std = table_std.reindex(columns=np.arange(0,16))
+
+    plt.rcParams["xtick.major.size"] = 2.5
+    plt.rcParams["ytick.major.size"] = 2.5
+    plt.rcParams['xtick.minor.visible'] = False
+    plt.rcParams['ytick.minor.visible'] = False
+
+    fig, axes = plt.subplots(1, 2, figsize=(20, 10))
+
+    im1 = axes[0].imshow(table_mean, vmin=1)
+    im2 = axes[1].imshow(table_std, vmin=1)
+
+    axes[0].set_title(f'{var.upper()} Mean')
+    axes[1].set_title(f'{var.upper()} Std')
+
+    axes[0].set_xticks(np.arange(0,16))
+    axes[0].set_yticks(np.arange(0,16))
+    axes[1].set_xticks(np.arange(0,16))
+    axes[1].set_yticks(np.arange(0,16))
+
+    axes[0].invert_xaxis()
+    axes[0].invert_yaxis()
+    axes[1].invert_xaxis()
+    axes[1].invert_yaxis()
+
+    cbar1 = fig.colorbar(im1, ax=axes[0], shrink=0.6)
+    cbar2 = fig.colorbar(im2, ax=axes[1], shrink=0.6)
+
+    # i for col, j for row
+    for i in range(16):
+        for j in range(16):
+            if np.isnan(table_mean.iloc[i,j]):
+                continue
+            axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12)
+
+    for i in range(16):
+        for j in range(16):
+            if np.isnan(table_std.iloc[i,j]):
+                continue
+            axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color='white', fontweight="bold", fontsize=12)
+
+    # axes.tick_params(axis='x', which='both', length=5, labelsize=17)
+    # axes.tick_params(axis='y', which='both', length=5, labelsize=17)
+    plt.minorticks_off()
+    plt.tight_layout()
+
+
+## --------------------------------------
 def singlehit_event_clear_func(
         input_df: pd.DataFrame
     ):
