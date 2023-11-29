@@ -26,8 +26,8 @@ def toSingleDataFrame(
     d = {
         'evt': [],
         'board': [],
-        'col': [],
         'row': [],
+        'col': [],
         'toa': [],
         'tot': [],
         'cal': [],
@@ -88,8 +88,8 @@ def toSingleDataFrame_newEventModel(
     d = {
         'evt': [],
         'board': [],
-        'col': [],
         'row': [],
+        'col': [],
         'toa': [],
         'tot': [],
         'cal': [],
@@ -168,8 +168,8 @@ def toSingleDataFramePerDirectory(
     d = {
         'evt': [],
         'board': [],
-        'col': [],
         'row': [],
+        'col': [],
         'toa': [],
         'tot': [],
         'cal': [],
@@ -246,8 +246,8 @@ def toSingleDataFramePerDirectory_newEventModel(
     d = {
         'evt': [],
         'board': [],
-        'col': [],
         'row': [],
+        'col': [],
         'toa': [],
         'tot': [],
         'cal': [],
