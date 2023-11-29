@@ -383,13 +383,16 @@ def make_TDC_summary_table(
     plt.rcParams['xtick.minor.visible'] = False
     plt.rcParams['ytick.minor.visible'] = False
 
-    fig, axes = plt.subplots(1, 2, figsize=(20, 10))
+    fig, axes = plt.subplots(1, 2, figsize=(20, 20))
 
     im1 = axes[0].imshow(table_mean, vmin=1)
     im2 = axes[1].imshow(table_std, vmin=1)
 
-    axes[0].set_title(f'{var.upper()} Mean')
-    axes[1].set_title(f'{var.upper()} Std')
+    hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
+
+    axes[0].set_title(f'{var.upper()} Mean', loc="right")
+    axes[1].set_title(f'{var.upper()} Std', loc="right")
 
     axes[0].set_xticks(np.arange(0,16))
     axes[0].set_yticks(np.arange(0,16))
@@ -401,24 +404,21 @@ def make_TDC_summary_table(
     axes[1].invert_xaxis()
     axes[1].invert_yaxis()
 
-    cbar1 = fig.colorbar(im1, ax=axes[0], shrink=0.6)
-    cbar2 = fig.colorbar(im2, ax=axes[1], shrink=0.6)
-
     # i for col, j for row
     for i in range(16):
         for j in range(16):
             if np.isnan(table_mean.iloc[i,j]):
                 continue
-            axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12)
+            text_color = 'black' if table_mean.iloc[i,j] > (table_mean.stack().max() + table_mean.stack().min()) / 2 else 'white'
+            axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
 
     for i in range(16):
         for j in range(16):
             if np.isnan(table_std.iloc[i,j]):
                 continue
-            axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color='white', fontweight="bold", fontsize=12)
+            text_color = 'black' if table_std.iloc[i,j] > (table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
+            axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
 
-    # axes.tick_params(axis='x', which='both', length=5, labelsize=17)
-    # axes.tick_params(axis='y', which='both', length=5, labelsize=17)
     plt.minorticks_off()
     plt.tight_layout()
 
