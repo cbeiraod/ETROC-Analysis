@@ -360,67 +360,74 @@ def making_heatmap_byPandas(
 ## --------------------------------------
 def make_TDC_summary_table(
         input_df: pd.DataFrame,
+        chipLabels: list,
         var: str
     ):
-    sum_group = input_df.groupby(["col", "row"]).agg({var:['mean','std']})
-    sum_group.columns = sum_group.columns.droplevel()
-    sum_group.reset_index(inplace=True)
 
-    table_mean = sum_group.pivot_table(index='row', columns='col', values='mean')
-    table_mean = table_mean.round(1)
+    for idx, id in enumerate(chipLabels):
 
-    table_mean = table_mean.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
-    table_mean = table_mean.reindex(columns=np.arange(0,16))
+        if input_df[input_df['board'] == int(id)].empty:
+            continue
 
-    table_std = sum_group.pivot_table(index='row', columns='col', values='std')
-    table_std = table_std.round(2)
+        sum_group = input_df[input_df['board'] == int(id)].groupby(["col", "row"]).agg({var:['mean','std']})
+        sum_group.columns = sum_group.columns.droplevel()
+        sum_group.reset_index(inplace=True)
 
-    table_std = table_std.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
-    table_std = table_std.reindex(columns=np.arange(0,16))
+        table_mean = sum_group.pivot_table(index='row', columns='col', values='mean')
+        table_mean = table_mean.round(1)
 
-    plt.rcParams["xtick.major.size"] = 2.5
-    plt.rcParams["ytick.major.size"] = 2.5
-    plt.rcParams['xtick.minor.visible'] = False
-    plt.rcParams['ytick.minor.visible'] = False
+        table_mean = table_mean.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+        table_mean = table_mean.reindex(columns=np.arange(0,16))
 
-    fig, axes = plt.subplots(1, 2, figsize=(20, 20))
+        table_std = sum_group.pivot_table(index='row', columns='col', values='std')
+        table_std = table_std.round(2)
 
-    im1 = axes[0].imshow(table_mean, vmin=1)
-    im2 = axes[1].imshow(table_std, vmin=1)
+        table_std = table_std.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+        table_std = table_std.reindex(columns=np.arange(0,16))
 
-    hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
-    hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
+        plt.rcParams["xtick.major.size"] = 2.5
+        plt.rcParams["ytick.major.size"] = 2.5
+        plt.rcParams['xtick.minor.visible'] = False
+        plt.rcParams['ytick.minor.visible'] = False
 
-    axes[0].set_title(f'{var.upper()} Mean', loc="right")
-    axes[1].set_title(f'{var.upper()} Std', loc="right")
+        fig, axes = plt.subplots(1, 2, figsize=(20, 20))
 
-    axes[0].set_xticks(np.arange(0,16))
-    axes[0].set_yticks(np.arange(0,16))
-    axes[1].set_xticks(np.arange(0,16))
-    axes[1].set_yticks(np.arange(0,16))
+        im1 = axes[0].imshow(table_mean, vmin=1)
+        im2 = axes[1].imshow(table_std, vmin=1)
 
-    axes[0].invert_xaxis()
-    axes[0].invert_yaxis()
-    axes[1].invert_xaxis()
-    axes[1].invert_yaxis()
+        hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
 
-    # i for col, j for row
-    for i in range(16):
-        for j in range(16):
-            if np.isnan(table_mean.iloc[i,j]):
-                continue
-            text_color = 'black' if table_mean.iloc[i,j] > (table_mean.stack().max() + table_mean.stack().min()) / 2 else 'white'
-            axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
+        axes[0].set_title(f'{var.upper()} Mean', loc="right")
+        axes[1].set_title(f'{var.upper()} Std', loc="right")
 
-    for i in range(16):
-        for j in range(16):
-            if np.isnan(table_std.iloc[i,j]):
-                continue
-            text_color = 'black' if table_std.iloc[i,j] > (table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
-            axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
+        axes[0].set_xticks(np.arange(0,16))
+        axes[0].set_yticks(np.arange(0,16))
+        axes[1].set_xticks(np.arange(0,16))
+        axes[1].set_yticks(np.arange(0,16))
 
-    plt.minorticks_off()
-    plt.tight_layout()
+        axes[0].invert_xaxis()
+        axes[0].invert_yaxis()
+        axes[1].invert_xaxis()
+        axes[1].invert_yaxis()
+
+        # i for col, j for row
+        for i in range(16):
+            for j in range(16):
+                if np.isnan(table_mean.iloc[i,j]):
+                    continue
+                text_color = 'black' if table_mean.iloc[i,j] > (table_mean.stack().max() + table_mean.stack().min()) / 2 else 'white'
+                axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
+
+        for i in range(16):
+            for j in range(16):
+                if np.isnan(table_std.iloc[i,j]):
+                    continue
+                text_color = 'black' if table_std.iloc[i,j] > (table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
+                axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
+
+        plt.minorticks_off()
+        plt.tight_layout()
 
 
 ## --------------------------------------
