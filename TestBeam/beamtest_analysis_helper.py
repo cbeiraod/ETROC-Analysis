@@ -434,20 +434,18 @@ def make_TDC_summary_table(
 def singlehit_event_clear_func(
         input_df: pd.DataFrame
     ):
-    # Group the DataFrame by 'evt' and count unique 'board' values in each group
-    unique_board_counts = input_df.groupby('evt')['board'].nunique()
-
-    ## event has two unique board ID
-    event_numbers_with_three_unique_boards = unique_board_counts[unique_board_counts == 3].index
-    subset_df = input_df[input_df['evt'].isin(event_numbers_with_three_unique_boards)]
-    subset_df.reset_index(inplace=True, drop=True)
 
     ## event has one hit from each board
-    event_board_counts = subset_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-    selected_event_numbers = event_board_counts[(event_board_counts[0] == 1) & (event_board_counts[1] == 1) & (event_board_counts[3] == 1)].index
-    selected_subset_df = subset_df[subset_df['evt'].isin(selected_event_numbers)]
+    event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+    event_selection_col = None
+    for board in event_board_counts:
+        if event_selection_col is None:
+            event_selection_col = (event_board_counts[board] == 1)
+        else:
+            event_selection_col = event_selection_col & (event_board_counts[board] == 1)
+    selected_event_numbers = event_board_counts[event_selection_col].index
+    selected_subset_df = input_df[input_df['evt'].isin(selected_event_numbers)]
     selected_subset_df.reset_index(inplace=True, drop=True)
-    del subset_df
 
     return selected_subset_df
 
