@@ -297,7 +297,7 @@ def toSingleDataFramePerDirectory_newEventModel(
         if save_to_csv:
             df.to_csv(name+'.csv', index=False)
         else:
-            df.to_parquet(name+'.pqt', index=False)
+            df.to_feather(name+'.feather')
         del df
 
 ## --------------------------------------
