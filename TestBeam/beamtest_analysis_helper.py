@@ -85,6 +85,7 @@ def toSingleDataFrame_newEventModel(
         do_savedf: bool = False,
     ):
     evt = -1
+    previous_evt = -1
     d = {
         'evt': [],
         'board': [],
@@ -106,7 +107,11 @@ def toSingleDataFrame_newEventModel(
         with open(ifile, 'r') as infile:
             for line in infile:
                 if line.split(' ')[0] == 'EH':
-                    evt = int(line.split(' ')[2])
+                    tmp_evt = int(line.split(' ')[2])
+                    if previous_evt != tmp_evt:
+                        evt += 1
+                        previous_evt = tmp_evt
+                        pass
                 elif line.split(' ')[0] == 'H':
                     pass
                     # bcid = int(line.split(' ')[-1])
@@ -230,8 +235,7 @@ def toSingleDataFramePerDirectory_newEventModel(
     ):
 
     evt = -1
-    previous_bcid = -1
-    df_count = 0
+    previous_evt = -1
     name_pattern = "*translated*.nem"
     if data_qinj:
         name_pattern = "*translated_[1-9]*.nem"
@@ -241,7 +245,7 @@ def toSingleDataFramePerDirectory_newEventModel(
     print(dirs[:3])
 
     if debugging:
-        dirs = dirs[:2]
+        dirs = dirs[:1]
 
     d = {
         'evt': [],
@@ -263,7 +267,10 @@ def toSingleDataFramePerDirectory_newEventModel(
             with open(ifile, 'r') as infile:
                 for line in infile:
                     if line.split(' ')[0] == 'EH':
-                        evt = int(line.split(' ')[2])
+                        tmp_evt = int(line.split(' ')[2])
+                        if previous_evt != tmp_evt:
+                            evt += 1
+                            previous_evt = tmp_evt
                     elif line.split(' ')[0] == 'H':
                         pass
                         # bcid = int(line.split(' ')[-1])
@@ -357,6 +364,23 @@ def making_heatmap_byPandas(
         ax.invert_yaxis()
         plt.minorticks_off()
 
+
+## --------------------------------------
+def make_number_of_fired_board(
+        input_df: pd.DataFrame,
+    ):
+
+    h = hist.Hist(hist.axis.Regular(5, 0, 5, name="num_board", label="Number of fired board per event"))
+    h.fill(input_df.groupby('evt')['board'].nunique())
+
+    fig = plt.figure(dpi=50, figsize=(14,12))
+    gs = fig.add_gridspec(1,1)
+    ax = fig.add_subplot(gs[0,0])
+    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    h.plot1d(ax=ax, lw=2)
+    plt.tight_layout()
+    del h
+
 ## --------------------------------------
 def make_TDC_summary_table(
         input_df: pd.DataFrame,
@@ -428,6 +452,38 @@ def make_TDC_summary_table(
 
         plt.minorticks_off()
         plt.tight_layout()
+
+## --------------------------------------
+def df_for_efficiency_with_single_board(
+        input_df: pd.DataFrame,
+        pixel: set = (8, 8), # (row, col)
+        board_id: int = 0,
+    ):
+
+    df_tmp = input_df.set_index('evt')
+    selection = (df_tmp['board'] == board_id) & (df_tmp['row'] == pixel[0]) & (df_tmp['col'] == pixel[1])
+    new_df = input_df.loc[input_df['evt'].isin(df_tmp.loc[selection].index)]
+
+    del df_tmp, selection
+    return new_df
+
+
+## --------------------------------------
+def df_for_efficiency_with_two_boards(
+        input_df: pd.DataFrame,
+        pixel: set = (8, 8), # (row, col)
+        board_ids: set = (0, 3), #(board 1, board 2)
+    ):
+
+    df_tmp = input_df.set_index('evt')
+    selection1 = (df_tmp['board'] == board_ids[0]) & (df_tmp['row'] == pixel[0]) & (df_tmp['col'] == pixel[1])
+    selection2 = (df_tmp['board'] == board_ids[1]) & (df_tmp['row'] == pixel[0]) & (df_tmp['col'] == pixel[1])
+
+    filtered_index = list(set(df_tmp.loc[selection1].index).intersection(df_tmp.loc[selection2].index))
+    new_df = input_df.loc[input_df['evt'].isin(filtered_index)]
+
+    del df_tmp, filtered_index, selection1, selection2
+    return new_df
 
 
 ## --------------------------------------
@@ -524,7 +580,49 @@ def find_maximum_event_combination(
     return result_df
 
 ## --------------------------------------
-def iterative_timewalk_correction(
+def three_board_iterative_timewalk_correction(
+    input_df: pd.DataFrame,
+    iterative_cnt: int,
+    poly_order: int,
+    board_list: list,
+):
+
+    corr_toas = []
+    corr_b0 = input_df[f'toa_b{board_list[0]}'].values
+    corr_b1 = input_df[f'toa_b{board_list[1]}'].values
+    corr_b2 = input_df[f'toa_b{board_list[2]}'].values
+
+    del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
+    del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
+    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
+
+    for i in range(iterative_cnt):
+        coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+        poly_func_b0 = np.poly1d(coeff_b0)
+
+        coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+        poly_func_b1 = np.poly1d(coeff_b1)
+
+        coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+        poly_func_b2 = np.poly1d(coeff_b2)
+
+        corr_b0 = corr_b0 + poly_func_b0(input_df[f'tot_b{board_list[0]}'].values)
+        corr_b1 = corr_b1 + poly_func_b1(input_df[f'tot_b{board_list[1]}'].values)
+        corr_b2 = corr_b2 + poly_func_b2(input_df[f'tot_b{board_list[2]}'].values)
+
+        del_toa_b0 = (0.5*(corr_b1 + corr_b2) - corr_b0)
+        del_toa_b1 = (0.5*(corr_b0 + corr_b2) - corr_b1)
+        del_toa_b2 = (0.5*(corr_b0 + corr_b1) - corr_b2)
+
+        if i == iterative_cnt-1:
+            corr_toas.append(corr_b0)
+            corr_toas.append(corr_b1)
+            corr_toas.append(corr_b2)
+
+    return corr_toas
+
+## --------------------------------------
+def four_board_iterative_timewalk_correction(
     input_df: pd.DataFrame,
     iterative_cnt: int,
     poly_order: int,
@@ -533,11 +631,13 @@ def iterative_timewalk_correction(
     corr_toas = []
     corr_b0 = input_df['toa_b0'].values
     corr_b1 = input_df['toa_b1'].values
+    corr_b2 = input_df['toa_b2'].values
     corr_b3 = input_df['toa_b3'].values
 
-    del_toa_b0 = (0.5*(input_df['toa_b1'] + input_df['toa_b3']) - input_df['toa_b0']).values
-    del_toa_b1 = (0.5*(input_df['toa_b0'] + input_df['toa_b3']) - input_df['toa_b1']).values
-    del_toa_b3 = (0.5*(input_df['toa_b0'] + input_df['toa_b1']) - input_df['toa_b3']).values
+    del_toa_b3 = ((1/3)*(input_df['toa_b0'] + input_df['toa_b1'] + input_df['toa_b2']) - input_df['toa_b3']).values
+    del_toa_b2 = ((1/3)*(input_df['toa_b0'] + input_df['toa_b1'] + input_df['toa_b3']) - input_df['toa_b2']).values
+    del_toa_b1 = ((1/3)*(input_df['toa_b0'] + input_df['toa_b3'] + input_df['toa_b2']) - input_df['toa_b1']).values
+    del_toa_b0 = ((1/3)*(input_df['toa_b3'] + input_df['toa_b1'] + input_df['toa_b2']) - input_df['toa_b0']).values
 
     for i in range(iterative_cnt):
         coeff_b0 = np.polyfit(input_df['tot_b0'].values, del_toa_b0, poly_order)
@@ -546,20 +646,26 @@ def iterative_timewalk_correction(
         coeff_b1 = np.polyfit(input_df['tot_b1'].values, del_toa_b1, poly_order)
         poly_func_b1 = np.poly1d(coeff_b1)
 
+        coeff_b2 = np.polyfit(input_df['tot_b2'].values, del_toa_b2, poly_order)
+        poly_func_b2 = np.poly1d(coeff_b2)
+
         coeff_b3 = np.polyfit(input_df['tot_b3'].values, del_toa_b3, poly_order)
         poly_func_b3 = np.poly1d(coeff_b3)
 
         corr_b0 = corr_b0 + poly_func_b0(input_df['tot_b0'].values)
         corr_b1 = corr_b1 + poly_func_b1(input_df['tot_b1'].values)
+        corr_b2 = corr_b2 + poly_func_b2(input_df['tot_b2'].values)
         corr_b3 = corr_b3 + poly_func_b3(input_df['tot_b3'].values)
 
-        del_toa_b0 = (0.5*(corr_b1 + corr_b3) - corr_b0)
-        del_toa_b1 = (0.5*(corr_b0 + corr_b3) - corr_b1)
-        del_toa_b3 = (0.5*(corr_b0 + corr_b1) - corr_b3)
+        del_toa_b3 = ((1/3)*(corr_b0 + corr_b1 + corr_b2) - corr_b3)
+        del_toa_b2 = ((1/3)*(corr_b0 + corr_b1 + corr_b3) - corr_b2)
+        del_toa_b1 = ((1/3)*(corr_b0 + corr_b3 + corr_b2) - corr_b1)
+        del_toa_b0 = ((1/3)*(corr_b3 + corr_b1 + corr_b2) - corr_b0)
 
         if i == iterative_cnt-1:
             corr_toas.append(corr_b0)
             corr_toas.append(corr_b1)
+            corr_toas.append(corr_b2)
             corr_toas.append(corr_b3)
 
     return corr_toas
@@ -628,10 +734,31 @@ def return_hist(
 
     return h
 ## --------------------------------------
-def return_resolution_ps(sig_a, err_a, sig_b, err_b, sig_c, err_c):
+def return_resolution_three_board(sig_a, err_a, sig_b, err_b, sig_c, err_c):
     res = np.sqrt(0.5)*(np.sqrt(sig_a**2 + sig_b**2 - sig_c**2))
     var_res = (1/4)*(1/res**2)*(((sig_a**2)*(err_a**2))+((sig_b**2)*(err_b**2))+((sig_c**2)*(err_c**2)))
     return res*1e3, np.sqrt(var_res)*1e3
+
+## --------------------------------------
+def return_resolution_four_board(
+        fit_params: dict,
+        var: list,
+    ):
+    if len(fit_params) != 6:
+        raise ValueError('Need 6 parameters for calculating time resolution')
+
+    resolution = np.sqrt(
+        (1/6)*(
+            2*fit_params[var[0]][0]**2+
+            2*fit_params[var[1]][0]**2+
+            2*fit_params[var[2]][0]**2
+            -fit_params[var[3]][0]**2
+            -fit_params[var[4]][0]**2
+            -fit_params[var[5]][0]**2
+        )
+    )*1e3
+
+    return resolution
 
 ## --------------------------------------
 def draw_hist_plot_pull(
@@ -679,6 +806,8 @@ def lmfit_gaussfit_with_pulls(
         fig_title: str,
         use_pred_uncert: bool,
         no_show_fit: bool,
+        no_draw: bool,
+        get_chisqure: bool = False,
     ):
 
     from lmfit.models import GaussianModel
@@ -697,88 +826,94 @@ def lmfit_gaussfit_with_pulls(
     pars = mod.guess(input_hist.values(), x=centers)
     out = mod.fit(input_hist_peak.values(), pars, x=fit_centers, weights=1/np.sqrt(input_hist_peak.values()))
 
-    popt = [par for name, par in out.best_values.items()]
-    pcov = out.covar
+    if not no_draw:
 
-    if np.isfinite(pcov).all():
-        n_samples = 100
-        vopts = np.random.multivariate_normal(popt, pcov, n_samples)
-        sampled_ydata = np.vstack([gaussian(fit_centers, *vopt).T for vopt in vopts])
-        model_uncert = np.nanstd(sampled_ydata, axis=0)
+        popt = [par for name, par in out.best_values.items()]
+        pcov = out.covar
+
+        if np.isfinite(pcov).all():
+            n_samples = 100
+            vopts = np.random.multivariate_normal(popt, pcov, n_samples)
+            sampled_ydata = np.vstack([gaussian(fit_centers, *vopt).T for vopt in vopts])
+            model_uncert = np.nanstd(sampled_ydata, axis=0)
+        else:
+            model_uncert = np.zeros_like(np.sqrt(input_hist.variances()))
+
+        ### Calculate pull
+        if use_pred_uncert:
+            pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
+        else:
+            pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(input_hist.variances())
+        pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
+
+        left_edge = centers[0]
+        right_edge = centers[-1]
+
+        # Pull: plot the pulls using Matplotlib bar method
+        width = (right_edge - left_edge) / len(pulls)
+
+        fig = plt.figure()
+
+        if no_show_fit:
+            grid = fig.add_gridspec(1, 1, hspace=0)
+            main_ax = fig.add_subplot(grid[0])
+            hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
+            main_ax.set_title(f'{fig_title}', loc="right", size=25)
+            main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
+                            ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+                            ms=6, capsize=1, capthick=2, alpha=0.8)
+            main_ax.plot(fit_centers, out.best_fit, color="hotpink", ls="-", lw=2, alpha=0.8,
+                        label=fr"$\mu:{out.params['center'].value:.3f}, \sigma: {abs(out.params['sigma'].value):.3f}$")
+            main_ax.set_ylabel('Counts')
+            main_ax.set_ylim(-20, None)
+            main_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
+            plt.tight_layout()
+
+        else:
+            grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
+            main_ax = fig.add_subplot(grid[0])
+            subplot_ax = fig.add_subplot(grid[1], sharex=main_ax)
+            plt.setp(main_ax.get_xticklabels(), visible=False)
+            hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
+
+            main_ax.set_title(f'{fig_title}', loc="right", size=25)
+            main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
+                            ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+                            ms=6, capsize=1, capthick=2, alpha=0.8)
+            main_ax.plot(fit_centers, out.best_fit, color="hotpink", ls="-", lw=2, alpha=0.8,
+                        label=fr"$\mu:{out.params['center'].value:.3f}, \sigma: {abs(out.params['sigma'].value):.3f}$")
+            main_ax.set_ylabel('Counts')
+            main_ax.set_ylim(-20, None)
+
+            main_ax.fill_between(
+                fit_centers,
+                out.eval(x=fit_centers) - model_uncert,
+                out.eval(x=fit_centers) + model_uncert,
+                color="hotpink",
+                alpha=0.2,
+                label='Uncertainty'
+            )
+            main_ax.legend(fontsize=20, loc='upper right')
+
+            subplot_ax.axvline(fit_centers[0], c='red', lw=2)
+            subplot_ax.axvline(fit_centers[-1], c='red', lw=2)
+            subplot_ax.axhline(1, c='black', lw=0.75)
+            subplot_ax.axhline(0, c='black', lw=1.2)
+            subplot_ax.axhline(-1, c='black', lw=0.75)
+            subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
+            subplot_ax.set_ylim(-2, 2)
+            subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1])
+            subplot_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
+            subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+            subplot_ax.minorticks_off()
+
+            plt.tight_layout()
+
+    if get_chisqure:
+        return [out.params['sigma'].value, out.params['sigma'].stderr, out.chisqr/(out.ndata-1)]
     else:
-        model_uncert = np.zeros_like(np.sqrt(input_hist.variances()))
+        return [out.params['sigma'].value, out.params['sigma'].stderr]
 
-    ### Calculate pull
-    if use_pred_uncert:
-        pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
-    else:
-        pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(input_hist.variances())
-    pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
-
-    left_edge = centers[0]
-    right_edge = centers[-1]
-
-    # Pull: plot the pulls using Matplotlib bar method
-    width = (right_edge - left_edge) / len(pulls)
-
-    fig = plt.figure()
-
-    if no_show_fit:
-        grid = fig.add_gridspec(1, 1, hspace=0)
-        main_ax = fig.add_subplot(grid[0])
-        hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
-        main_ax.set_title(f'{fig_title}', loc="right", size=25)
-        main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
-                        ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
-                        ms=6, capsize=1, capthick=2, alpha=0.8)
-        main_ax.plot(fit_centers, out.best_fit, color="hotpink", ls="-", lw=2, alpha=0.8,
-                    label=fr"$\mu:{out.params['center'].value:.3f}, \sigma: {abs(out.params['sigma'].value):.3f}$")
-        main_ax.set_ylabel('Counts')
-        main_ax.set_ylim(-20, None)
-        main_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
-        plt.tight_layout()
-
-    else:
-        grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
-        main_ax = fig.add_subplot(grid[0])
-        subplot_ax = fig.add_subplot(grid[1], sharex=main_ax)
-        plt.setp(main_ax.get_xticklabels(), visible=False)
-        hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
-
-        main_ax.set_title(f'{fig_title}', loc="right", size=25)
-        main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
-                        ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
-                        ms=6, capsize=1, capthick=2, alpha=0.8)
-        main_ax.plot(fit_centers, out.best_fit, color="hotpink", ls="-", lw=2, alpha=0.8,
-                    label=fr"$\mu:{out.params['center'].value:.3f}, \sigma: {abs(out.params['sigma'].value):.3f}$")
-        main_ax.set_ylabel('Counts')
-        main_ax.set_ylim(-20, None)
-
-        main_ax.fill_between(
-            fit_centers,
-            out.eval(x=fit_centers) - model_uncert,
-            out.eval(x=fit_centers) + model_uncert,
-            color="hotpink",
-            alpha=0.2,
-            label='Uncertainty'
-        )
-        main_ax.legend(fontsize=20, loc='upper right')
-
-        subplot_ax.axvline(fit_centers[0], c='red', lw=2)
-        subplot_ax.axvline(fit_centers[-1], c='red', lw=2)
-        subplot_ax.axhline(1, c='black', lw=0.75)
-        subplot_ax.axhline(0, c='black', lw=1.2)
-        subplot_ax.axhline(-1, c='black', lw=0.75)
-        subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
-        subplot_ax.set_ylim(-2, 2)
-        subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1])
-        subplot_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
-        subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
-        subplot_ax.minorticks_off()
-
-        plt.tight_layout()
-
-    return [out.params['sigma'].value, out.params['sigma'].stderr]
 
 ## --------------------------------------
 def make_pix_inclusive_plots(
@@ -1017,6 +1152,372 @@ def making_scatter_with_plotly(
         include_plotlyjs = 'cdn',
     )
 
+## --------------------------------------
+def four_board_single_hit_single_track_time_resolution_by_looping(
+        input_df: pd.DataFrame,
+        track_df: pd.DataFrame,
+        chip_labels: list,
+    ):
+    from tqdm import tqdm
+
+    output_dict = {
+        'row0': [],
+        'col0': [],
+        'row1': [],
+        'col1': [],
+        'row2': [],
+        'col2': [],
+        'row3': [],
+        'col3': [],
+        'res0': [],
+        'res1': [],
+        'res2': [],
+        'res3': [],
+        'chi01': [],
+        'chi02': [],
+        'chi03': [],
+        'chi12': [],
+        'chi13': [],
+        'chi23': [],
+    }
+
+    for i in tqdm(range(len(track_df))):
+
+        pix_dict = {
+            # board ID: [row, col]
+            0: [track_df.iloc[i]['row_0'], track_df.iloc[i]['col_0']],
+            1: [track_df.iloc[i]['row_1'], track_df.iloc[i]['col_1']],
+            2: [track_df.iloc[i]['row_2'], track_df.iloc[i]['col_2']],
+            3: [track_df.iloc[i]['row_3'], track_df.iloc[i]['col_3']],
+        }
+
+        pix_filtered_df = pixel_filter(input_df, pix_dict)
+
+        tdc_cuts = {
+            # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
+            0: [pix_filtered_df.loc[pix_filtered_df['board'] == 0]['cal'].mean()-2*pix_filtered_df.loc[pix_filtered_df['board'] == 0]['cal'].std(), pix_filtered_df.loc[pix_filtered_df['board'] == 0]['cal'].mean()+2*pix_filtered_df.loc[pix_filtered_df['board'] == 0]['cal'].std(), 100, 450,    0, 600],
+            1: [pix_filtered_df.loc[pix_filtered_df['board'] == 1]['cal'].mean()-2*pix_filtered_df.loc[pix_filtered_df['board'] == 1]['cal'].std(), pix_filtered_df.loc[pix_filtered_df['board'] == 1]['cal'].mean()+2*pix_filtered_df.loc[pix_filtered_df['board'] == 1]['cal'].std(),   0, 1100,   0, 600],
+            2: [pix_filtered_df.loc[pix_filtered_df['board'] == 2]['cal'].mean()-2*pix_filtered_df.loc[pix_filtered_df['board'] == 2]['cal'].std(), pix_filtered_df.loc[pix_filtered_df['board'] == 2]['cal'].mean()+2*pix_filtered_df.loc[pix_filtered_df['board'] == 2]['cal'].std(),   0, 1100,   0, 600],
+            3: [pix_filtered_df.loc[pix_filtered_df['board'] == 3]['cal'].mean()-2*pix_filtered_df.loc[pix_filtered_df['board'] == 3]['cal'].std(), pix_filtered_df.loc[pix_filtered_df['board'] == 3]['cal'].mean()+2*pix_filtered_df.loc[pix_filtered_df['board'] == 3]['cal'].std(),   0, 1100,   0, 600], # pixel ()
+        }
+
+        tdc_filtered_df = tdc_event_selection(pix_filtered_df, tdc_cuts)
+        tdc_filtered_df = singlehit_event_clear_func(tdc_filtered_df)
+        del pix_filtered_df,
+
+        cal_means = {boardID:{} for boardID in chip_labels}
+
+        for boardID in chip_labels:
+            groups = tdc_filtered_df.loc[tdc_filtered_df['board'] == int(boardID)].groupby(['row', 'col'])
+            for (row, col), group in groups:
+                cal_mean = group['cal'].mean()
+                cal_means[boardID][(row, col)] = cal_mean
+            del groups
+
+        bin0 = (3.125/cal_means["0"][(pix_dict[0][0], pix_dict[0][1])])
+        bin1 = (3.125/cal_means["1"][(pix_dict[1][0], pix_dict[1][1])])
+        bin2 = (3.125/cal_means["2"][(pix_dict[2][0], pix_dict[2][1])])
+        bin3 = (3.125/cal_means["3"][(pix_dict[3][0], pix_dict[3][1])])
+
+        del pix_dict, tdc_cuts
+
+        toa_in_time_b0 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 0]['toa'] * bin0
+        toa_in_time_b1 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 1]['toa'] * bin1
+        toa_in_time_b2 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 2]['toa'] * bin2
+        toa_in_time_b3 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 3]['toa'] * bin3
+
+        tot_in_time_b0 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 0]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 0]['tot']/32)) * bin0
+        tot_in_time_b1 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 1]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 1]['tot']/32)) * bin1
+        tot_in_time_b2 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 2]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 2]['tot']/32)) * bin2
+        tot_in_time_b3 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 3]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 3]['tot']/32)) * bin3
+
+        d = {
+            'evt': tdc_filtered_df['evt'].unique(),
+            'toa_b0': toa_in_time_b0.to_numpy(),
+            'tot_b0': tot_in_time_b0.to_numpy(),
+            'toa_b1': toa_in_time_b1.to_numpy(),
+            'tot_b1': tot_in_time_b1.to_numpy(),
+            'toa_b2': toa_in_time_b2.to_numpy(),
+            'tot_b2': tot_in_time_b2.to_numpy(),
+            'toa_b3': toa_in_time_b3.to_numpy(),
+            'tot_b3': tot_in_time_b3.to_numpy(),
+        }
+
+        df_in_time = pd.DataFrame(data=d)
+        del d, tdc_filtered_df
+        del toa_in_time_b0, toa_in_time_b1, toa_in_time_b2, toa_in_time_b3
+        del tot_in_time_b0, tot_in_time_b1, tot_in_time_b2, tot_in_time_b3
+
+        corr_toas = four_board_iterative_timewalk_correction(df_in_time, 5, 3)
+
+        tmp_dict = {
+            'evt': df_in_time['evt'].values,
+            'corr_toa_b0': corr_toas[0],
+            'corr_toa_b1': corr_toas[1],
+            'corr_toa_b2': corr_toas[2],
+            'corr_toa_b3': corr_toas[3],
+        }
+
+        df_in_time_corr = pd.DataFrame(tmp_dict)
+        del tmp_dict, df_in_time
+
+        diff_b01 = df_in_time_corr['corr_toa_b0'] - df_in_time_corr['corr_toa_b1']
+        diff_b02 = df_in_time_corr['corr_toa_b0'] - df_in_time_corr['corr_toa_b2']
+        diff_b03 = df_in_time_corr['corr_toa_b0'] - df_in_time_corr['corr_toa_b3']
+        diff_b12 = df_in_time_corr['corr_toa_b1'] - df_in_time_corr['corr_toa_b2']
+        diff_b13 = df_in_time_corr['corr_toa_b1'] - df_in_time_corr['corr_toa_b3']
+        diff_b23 = df_in_time_corr['corr_toa_b2'] - df_in_time_corr['corr_toa_b3']
+
+        dTOA_b01 = hist.Hist(hist.axis.Regular(80, diff_b01.mean().round(2)-0.8, diff_b01.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+        dTOA_b02 = hist.Hist(hist.axis.Regular(80, diff_b02.mean().round(2)-0.8, diff_b02.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+        dTOA_b03 = hist.Hist(hist.axis.Regular(80, diff_b03.mean().round(2)-0.8, diff_b03.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+        dTOA_b12 = hist.Hist(hist.axis.Regular(80, diff_b12.mean().round(2)-0.8, diff_b12.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+        dTOA_b13 = hist.Hist(hist.axis.Regular(80, diff_b13.mean().round(2)-0.8, diff_b13.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+        dTOA_b23 = hist.Hist(hist.axis.Regular(80, diff_b23.mean().round(2)-0.8, diff_b23.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+
+        dTOA_b01.fill(diff_b01)
+        dTOA_b02.fill(diff_b02)
+        dTOA_b03.fill(diff_b03)
+        dTOA_b12.fill(diff_b12)
+        dTOA_b13.fill(diff_b13)
+        dTOA_b23.fill(diff_b23)
+
+        del df_in_time_corr
+
+        fit_params_lmfit = {}
+        params = lmfit_gaussfit_with_pulls(diff_b01, dTOA_b01, std_range_cut=0.4, width_factor=1.25, fig_title='Board 0 - Board 1',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['01'] = params
+        params = lmfit_gaussfit_with_pulls(diff_b02, dTOA_b02, std_range_cut=0.4, width_factor=1.25, fig_title='Board 0 - Board 2',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['02'] = params
+        params = lmfit_gaussfit_with_pulls(diff_b03, dTOA_b03, std_range_cut=0.4, width_factor=1.25, fig_title='Board 0 - Board 3',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['03'] = params
+        params = lmfit_gaussfit_with_pulls(diff_b12, dTOA_b12, std_range_cut=0.4, width_factor=1.25, fig_title='Board 1 - Board 2',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['12'] = params
+        params = lmfit_gaussfit_with_pulls(diff_b13, dTOA_b13, std_range_cut=0.4, width_factor=1.25, fig_title='Board 1 - Board 3',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['13'] = params
+        params = lmfit_gaussfit_with_pulls(diff_b23, dTOA_b23, std_range_cut=0.4, width_factor=1.25, fig_title='Board 2 - Board 3',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['23'] = params
+
+        del params
+        del dTOA_b01, dTOA_b02, dTOA_b03, dTOA_b12, dTOA_b13, dTOA_b23
+        del diff_b01, diff_b02, diff_b03, diff_b12, diff_b13, diff_b23
+
+        res_b0 = return_resolution_four_board(fit_params_lmfit, ['01', '02', '03', '12', '13', '23'])
+        res_b1 = return_resolution_four_board(fit_params_lmfit, ['01', '12', '13', '02', '03', '23'])
+        res_b2 = return_resolution_four_board(fit_params_lmfit, ['02', '12', '23', '01', '03', '13'])
+        res_b3 = return_resolution_four_board(fit_params_lmfit, ['03', '13', '23', '01', '02', '12'])
+
+        output_dict['row0'].append(track_df.iloc[i]['row_0'])
+        output_dict['col0'].append(track_df.iloc[i]['col_0'])
+        output_dict['row1'].append(track_df.iloc[i]['row_1'])
+        output_dict['col1'].append(track_df.iloc[i]['col_1'])
+        output_dict['row2'].append(track_df.iloc[i]['row_2'])
+        output_dict['col2'].append(track_df.iloc[i]['col_2'])
+        output_dict['row3'].append(track_df.iloc[i]['row_3'])
+        output_dict['col3'].append(track_df.iloc[i]['col_3'])
+        output_dict['res0'].append(res_b0)
+        output_dict['res1'].append(res_b1)
+        output_dict['res2'].append(res_b2)
+        output_dict['res3'].append(res_b3)
+        output_dict['chi01'].append(fit_params_lmfit['01'][2])
+        output_dict['chi02'].append(fit_params_lmfit['02'][2])
+        output_dict['chi03'].append(fit_params_lmfit['03'][2])
+        output_dict['chi12'].append(fit_params_lmfit['12'][2])
+        output_dict['chi13'].append(fit_params_lmfit['13'][2])
+        output_dict['chi23'].append(fit_params_lmfit['23'][2])
+
+        del res_b0, res_b1, res_b2, res_b3, fit_params_lmfit
+
+    summary_df = pd.DataFrame(data=output_dict)
+    del output_dict
+    return summary_df
+
+## --------------------------------------
+def bootstrap_single_track_time_resolution(
+        input_df: pd.DataFrame,
+        chip_labels: list,
+        pixel_dict: dict,
+        output_list: list,
+        iteration: int = 10,
+    ):
+
+    output = {
+        # 'iteration': None,
+        'row0': None,
+        'col0': None,
+        'row1': None,
+        'col1': None,
+        'row2': None,
+        'col2': None,
+        'row3': None,
+        'col3': None,
+        'res0': None,
+        'res1': None,
+        'res2': None,
+        'res3': None,
+        'chi01': None,
+        'chi02': None,
+        'chi03': None,
+        'chi12': None,
+        'chi13': None,
+        'chi23': None,
+    }
+
+    pix_filtered_df = pixel_filter(input_df, pixel_dict)
+    n = int(pix_filtered_df['evt'].unique().size/2)
+
+    for idx in range(iteration):
+
+        indices = np.random.choice(pix_filtered_df['evt'].unique(), n, replace=False)
+        random_df = pix_filtered_df.loc[pix_filtered_df['evt'].isin(indices)]
+
+        tdc_cuts = {
+            # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
+            0: [random_df.loc[random_df['board'] == 0]['cal'].mean()-2*random_df.loc[random_df['board'] == 0]['cal'].std(), random_df.loc[random_df['board'] == 0]['cal'].mean()+2*random_df.loc[random_df['board'] == 0]['cal'].std(), 100, 450,    0, 600],
+            1: [random_df.loc[random_df['board'] == 1]['cal'].mean()-2*random_df.loc[random_df['board'] == 1]['cal'].std(), random_df.loc[random_df['board'] == 1]['cal'].mean()+2*random_df.loc[random_df['board'] == 1]['cal'].std(),   0, 1100,   0, 600],
+            2: [random_df.loc[random_df['board'] == 2]['cal'].mean()-2*random_df.loc[random_df['board'] == 2]['cal'].std(), random_df.loc[random_df['board'] == 2]['cal'].mean()+2*random_df.loc[random_df['board'] == 2]['cal'].std(),   0, 1100,   0, 600],
+            3: [random_df.loc[random_df['board'] == 3]['cal'].mean()-2*random_df.loc[random_df['board'] == 3]['cal'].std(), random_df.loc[random_df['board'] == 3]['cal'].mean()+2*random_df.loc[random_df['board'] == 3]['cal'].std(),   0, 1100,   0, 600], # pixel ()
+        }
+
+        tdc_filtered_df = tdc_event_selection(random_df, tdc_cuts)
+        tdc_filtered_df = singlehit_event_clear_func(tdc_filtered_df)
+        del random_df, tdc_cuts
+
+        cal_means = {boardID:{} for boardID in chip_labels}
+
+        for boardID in chip_labels:
+            groups = tdc_filtered_df.loc[tdc_filtered_df['board'] == int(boardID)].groupby(['row', 'col'])
+            for (row, col), group in groups:
+                cal_mean = group['cal'].mean()
+                cal_means[boardID][(row, col)] = cal_mean
+            del groups
+
+        bin0 = (3.125/cal_means["0"][(pixel_dict[0][0], pixel_dict[0][1])])
+        bin1 = (3.125/cal_means["1"][(pixel_dict[1][0], pixel_dict[1][1])])
+        bin2 = (3.125/cal_means["2"][(pixel_dict[2][0], pixel_dict[2][1])])
+        bin3 = (3.125/cal_means["3"][(pixel_dict[3][0], pixel_dict[3][1])])
+
+        toa_in_time_b0 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 0]['toa'] * bin0
+        toa_in_time_b1 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 1]['toa'] * bin1
+        toa_in_time_b2 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 2]['toa'] * bin2
+        toa_in_time_b3 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 3]['toa'] * bin3
+
+        tot_in_time_b0 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 0]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 0]['tot']/32)) * bin0
+        tot_in_time_b1 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 1]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 1]['tot']/32)) * bin1
+        tot_in_time_b2 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 2]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 2]['tot']/32)) * bin2
+        tot_in_time_b3 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 3]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 3]['tot']/32)) * bin3
+
+        d = {
+            'evt': tdc_filtered_df['evt'].unique(),
+            'toa_b0': toa_in_time_b0.to_numpy(),
+            'tot_b0': tot_in_time_b0.to_numpy(),
+            'toa_b1': toa_in_time_b1.to_numpy(),
+            'tot_b1': tot_in_time_b1.to_numpy(),
+            'toa_b2': toa_in_time_b2.to_numpy(),
+            'tot_b2': tot_in_time_b2.to_numpy(),
+            'toa_b3': toa_in_time_b3.to_numpy(),
+            'tot_b3': tot_in_time_b3.to_numpy(),
+        }
+
+        df_in_time = pd.DataFrame(data=d)
+        del d, tdc_filtered_df
+        del toa_in_time_b0, toa_in_time_b1, toa_in_time_b2, toa_in_time_b3
+        del tot_in_time_b0, tot_in_time_b1, tot_in_time_b2, tot_in_time_b3
+
+        corr_toas = four_board_iterative_timewalk_correction(df_in_time, 5, 3)
+
+        tmp_dict = {
+            'evt': df_in_time['evt'].values,
+            'corr_toa_b0': corr_toas[0],
+            'corr_toa_b1': corr_toas[1],
+            'corr_toa_b2': corr_toas[2],
+            'corr_toa_b3': corr_toas[3],
+        }
+
+        df_in_time_corr = pd.DataFrame(tmp_dict)
+        del tmp_dict, df_in_time
+
+        diff_b01 = df_in_time_corr['corr_toa_b0'] - df_in_time_corr['corr_toa_b1']
+        diff_b02 = df_in_time_corr['corr_toa_b0'] - df_in_time_corr['corr_toa_b2']
+        diff_b03 = df_in_time_corr['corr_toa_b0'] - df_in_time_corr['corr_toa_b3']
+        diff_b12 = df_in_time_corr['corr_toa_b1'] - df_in_time_corr['corr_toa_b2']
+        diff_b13 = df_in_time_corr['corr_toa_b1'] - df_in_time_corr['corr_toa_b3']
+        diff_b23 = df_in_time_corr['corr_toa_b2'] - df_in_time_corr['corr_toa_b3']
+
+        dTOA_b01 = hist.Hist(hist.axis.Regular(80, diff_b01.mean().round(2)-0.8, diff_b01.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+        dTOA_b02 = hist.Hist(hist.axis.Regular(80, diff_b02.mean().round(2)-0.8, diff_b02.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+        dTOA_b03 = hist.Hist(hist.axis.Regular(80, diff_b03.mean().round(2)-0.8, diff_b03.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+        dTOA_b12 = hist.Hist(hist.axis.Regular(80, diff_b12.mean().round(2)-0.8, diff_b12.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+        dTOA_b13 = hist.Hist(hist.axis.Regular(80, diff_b13.mean().round(2)-0.8, diff_b13.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+        dTOA_b23 = hist.Hist(hist.axis.Regular(80, diff_b23.mean().round(2)-0.8, diff_b23.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+
+        dTOA_b01.fill(diff_b01)
+        dTOA_b02.fill(diff_b02)
+        dTOA_b03.fill(diff_b03)
+        dTOA_b12.fill(diff_b12)
+        dTOA_b13.fill(diff_b13)
+        dTOA_b23.fill(diff_b23)
+
+        del df_in_time_corr
+
+        fit_params_lmfit = {}
+        params = lmfit_gaussfit_with_pulls(diff_b01, dTOA_b01, std_range_cut=0.4, width_factor=1.25, fig_title='Board 0 - Board 1',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['01'] = params
+        params = lmfit_gaussfit_with_pulls(diff_b02, dTOA_b02, std_range_cut=0.4, width_factor=1.25, fig_title='Board 0 - Board 2',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['02'] = params
+        params = lmfit_gaussfit_with_pulls(diff_b03, dTOA_b03, std_range_cut=0.4, width_factor=1.25, fig_title='Board 0 - Board 3',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['03'] = params
+        params = lmfit_gaussfit_with_pulls(diff_b12, dTOA_b12, std_range_cut=0.4, width_factor=1.25, fig_title='Board 1 - Board 2',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['12'] = params
+        params = lmfit_gaussfit_with_pulls(diff_b13, dTOA_b13, std_range_cut=0.4, width_factor=1.25, fig_title='Board 1 - Board 3',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['13'] = params
+        params = lmfit_gaussfit_with_pulls(diff_b23, dTOA_b23, std_range_cut=0.4, width_factor=1.25, fig_title='Board 2 - Board 3',
+                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
+        fit_params_lmfit['23'] = params
+
+        del params
+        del dTOA_b01, dTOA_b02, dTOA_b03, dTOA_b12, dTOA_b13, dTOA_b23
+        del diff_b01, diff_b02, diff_b03, diff_b12, diff_b13, diff_b23
+
+        res_b0 = return_resolution_four_board(fit_params_lmfit, ['01', '02', '03', '12', '13', '23'])
+        res_b1 = return_resolution_four_board(fit_params_lmfit, ['01', '12', '13', '02', '03', '23'])
+        res_b2 = return_resolution_four_board(fit_params_lmfit, ['02', '12', '23', '01', '03', '13'])
+        res_b3 = return_resolution_four_board(fit_params_lmfit, ['03', '13', '23', '01', '02', '12'])
+
+        # output['iteration'] = idx
+        output['row0'] = pixel_dict[0][0]
+        output['col0'] = pixel_dict[0][1]
+        output['row1'] = pixel_dict[1][0]
+        output['col1'] = pixel_dict[1][1]
+        output['row2'] = pixel_dict[2][0]
+        output['col2'] = pixel_dict[2][1]
+        output['row3'] = pixel_dict[3][0]
+        output['col3'] = pixel_dict[3][1]
+        output['res0'] = res_b0
+        output['res1'] = res_b1
+        output['res2'] = res_b2
+        output['res3'] = res_b3
+        output['chi01'] = fit_params_lmfit['01'][2]
+        output['chi02'] = fit_params_lmfit['02'][2]
+        output['chi03'] = fit_params_lmfit['03'][2]
+        output['chi12'] = fit_params_lmfit['12'][2]
+        output['chi13'] = fit_params_lmfit['13'][2]
+        output['chi23'] = fit_params_lmfit['23'][2]
+
+        del res_b0, res_b1, res_b2, res_b3, fit_params_lmfit
+
+        output_list.append(output)
 
 
 ## --------------------------------------
