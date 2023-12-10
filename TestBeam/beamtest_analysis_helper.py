@@ -715,6 +715,30 @@ def tdc_event_selection(
     return tdc_filtered_df
 
 ## --------------------------------------
+def tdc_event_selection_pivot(
+        input_df: pd.DataFrame,
+        tdc_cuts_dict: dict
+    ):
+    # Create boolean masks for each board's filtering criteria
+    masks = {}
+    for board, cuts in tdc_cuts_dict.items():
+        mask = (
+            input_df['cal'][board].between(cuts[0], cuts[1]) &
+            input_df['toa'][board].between(cuts[2], cuts[3]) &
+            input_df['tot'][board].between(cuts[4], cuts[5])
+        )
+        masks[board] = mask
+
+    # Combine the masks using logical AND
+    combined_mask = pd.concat(masks, axis=1).all(axis=1)
+    del masks
+
+    # Apply the combined mask to the DataFrame
+    tdc_filtered_df = input_df[combined_mask].reset_index(drop=True)
+    del combined_mask
+    return tdc_filtered_df
+
+## --------------------------------------
 def pixel_filter(
         input_df: pd.DataFrame,
         pixel_dict: dict
@@ -772,7 +796,7 @@ def three_board_iterative_timewalk_correction(
     board_list: list,
 ):
 
-    corr_toas = []
+    corr_toas = {}
     corr_b0 = input_df[f'toa_b{board_list[0]}'].values
     corr_b1 = input_df[f'toa_b{board_list[1]}'].values
     corr_b2 = input_df[f'toa_b{board_list[2]}'].values
@@ -800,9 +824,9 @@ def three_board_iterative_timewalk_correction(
         del_toa_b2 = (0.5*(corr_b0 + corr_b1) - corr_b2)
 
         if i == iterative_cnt-1:
-            corr_toas.append(corr_b0)
-            corr_toas.append(corr_b1)
-            corr_toas.append(corr_b2)
+            corr_toas[f'toa_b{board_list[0]}'] = corr_b0
+            corr_toas[f'toa_b{board_list[1]}'] = corr_b1
+            corr_toas[f'toa_b{board_list[2]}'] = corr_b2
 
     return corr_toas
 
@@ -919,10 +943,19 @@ def return_hist(
 
     return h
 ## --------------------------------------
-def return_resolution_three_board(sig_a, err_a, sig_b, err_b, sig_c, err_c):
-    res = np.sqrt(0.5)*(np.sqrt(sig_a**2 + sig_b**2 - sig_c**2))
-    var_res = (1/4)*(1/res**2)*(((sig_a**2)*(err_a**2))+((sig_b**2)*(err_b**2))+((sig_c**2)*(err_c**2)))
-    return res*1e3, np.sqrt(var_res)*1e3
+def return_resolution_three_board(
+        fit_params: dict,
+        var: list,
+        board_list:list,
+    ):
+
+    results = {
+        board_list[0]: np.sqrt((1/2)*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
+        board_list[1]: np.sqrt((1/2)*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
+        board_list[2]: np.sqrt((1/2)*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
+    }
+
+    return results
 
 ## --------------------------------------
 def return_resolution_four_board(
@@ -993,13 +1026,19 @@ def lmfit_gaussfit_with_pulls(
         no_show_fit: bool,
         no_draw: bool,
         get_chisqure: bool = False,
+        skip_reduce: bool = False,
     ):
 
     from lmfit.models import GaussianModel
     from lmfit.lineshapes import gaussian
 
-    mod = GaussianModel()
-    reduced_data = input_data[(input_data > input_data.mean()-std_range_cut) & (input_data < input_data.mean()+std_range_cut)]
+    mod = GaussianModel(nan_policy='omit')
+
+    if skip_reduce:
+        reduced_data = input_data
+    else:
+        reduced_data = input_data[(input_data > input_data.mean()-std_range_cut) & (input_data < input_data.mean()+std_range_cut)]
+
 
     fit_min = reduced_data.mean()-width_factor*reduced_data.std()
     fit_max = reduced_data.mean()+width_factor*reduced_data.std()
@@ -1283,11 +1322,16 @@ def making_pivot(
         index: str,
         columns: str,
         drop_columns: tuple,
+        ignore_boards: list[int] = None
     ):
-        pivot_data_df = input_df.pivot(
+        ana_df = input_df
+        if ignore_boards is not None:
+            for board in ignore_boards:
+                ana_df = ana_df.loc[ana_df['board'] != board].copy()
+        pivot_data_df = ana_df.pivot(
         index = index,
         columns = columns,
-        values = list(set(input_df.columns) - drop_columns),
+        values = list(set(ana_df.columns) - drop_columns),
         )
         pivot_data_df.columns = ["{}_{}".format(x, y) for x, y in pivot_data_df.columns]
 
@@ -1525,185 +1569,124 @@ def four_board_single_hit_single_track_time_resolution_by_looping(
 
 ## --------------------------------------
 def bootstrap_single_track_time_resolution(
-        input_df: pd.DataFrame,
-        chip_labels: list,
-        pixel_dict: dict,
-        output_list: list,
+        list_of_pivots: list,
+        board_to_analyze: list[int],
         iteration: int = 10,
+        sampling_fraction: float = 0.75,
     ):
+    from tqdm import tqdm
 
-    output = {
-        # 'iteration': None,
-        'row0': None,
-        'col0': None,
-        'row1': None,
-        'col1': None,
-        'row2': None,
-        'col2': None,
-        'row3': None,
-        'col3': None,
-        'res0': None,
-        'res1': None,
-        'res2': None,
-        'res3': None,
-        'chi01': None,
-        'chi02': None,
-        'chi03': None,
-        'chi12': None,
-        'chi13': None,
-        'chi23': None,
-    }
+    final_dict = {}
 
-    pix_filtered_df = pixel_filter(input_df, pixel_dict)
-    n = int(pix_filtered_df['evt'].unique().size/2)
+    for idx in board_to_analyze:
+        final_dict[f'row{idx}'] = []
+        final_dict[f'col{idx}'] = []
+        final_dict[f'res{idx}'] = []
+        final_dict[f'err{idx}'] = []
 
-    for idx in range(iteration):
+    for itable in tqdm(list_of_pivots):
 
-        indices = np.random.choice(pix_filtered_df['evt'].unique(), n, replace=False)
-        random_df = pix_filtered_df.loc[pix_filtered_df['evt'].isin(indices)]
+        sum_arr = {}
+        sum_square_arr = {}
+        counter = 0
 
-        tdc_cuts = {
-            # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
-            0: [random_df.loc[random_df['board'] == 0]['cal'].mean()-2*random_df.loc[random_df['board'] == 0]['cal'].std(), random_df.loc[random_df['board'] == 0]['cal'].mean()+2*random_df.loc[random_df['board'] == 0]['cal'].std(), 100, 450,    0, 600],
-            1: [random_df.loc[random_df['board'] == 1]['cal'].mean()-2*random_df.loc[random_df['board'] == 1]['cal'].std(), random_df.loc[random_df['board'] == 1]['cal'].mean()+2*random_df.loc[random_df['board'] == 1]['cal'].std(),   0, 1100,   0, 600],
-            2: [random_df.loc[random_df['board'] == 2]['cal'].mean()-2*random_df.loc[random_df['board'] == 2]['cal'].std(), random_df.loc[random_df['board'] == 2]['cal'].mean()+2*random_df.loc[random_df['board'] == 2]['cal'].std(),   0, 1100,   0, 600],
-            3: [random_df.loc[random_df['board'] == 3]['cal'].mean()-2*random_df.loc[random_df['board'] == 3]['cal'].std(), random_df.loc[random_df['board'] == 3]['cal'].mean()+2*random_df.loc[random_df['board'] == 3]['cal'].std(),   0, 1100,   0, 600], # pixel ()
-        }
+        for idx in board_to_analyze:
+            sum_arr[idx] = 0
+            sum_square_arr[idx] = 0
 
-        tdc_filtered_df = tdc_event_selection(random_df, tdc_cuts)
-        tdc_filtered_df = singlehit_event_clear_func(tdc_filtered_df)
-        del random_df, tdc_cuts
+        for iloop in range(iteration):
 
-        cal_means = {boardID:{} for boardID in chip_labels}
+            try_df = itable.reset_index()
+            tdc_cuts = {}
+            for idx in board_to_analyze:
+                # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
+                if idx == 0:
+                    tdc_cuts[idx] = [try_df['cal'][idx].mean()-5, try_df['cal'][idx].mean()+5,  350, 500, 0, 600]
+                else:
+                    tdc_cuts[idx] = [try_df['cal'][idx].mean()-5, try_df['cal'][idx].mean()+5,  0, 1100, 0, 600]
 
-        for boardID in chip_labels:
-            groups = tdc_filtered_df.loc[tdc_filtered_df['board'] == int(boardID)].groupby(['row', 'col'])
-            for (row, col), group in groups:
-                cal_mean = group['cal'].mean()
-                cal_means[boardID][(row, col)] = cal_mean
-            del groups
+            tdc_filtered_df = tdc_event_selection_pivot(try_df, tdc_cuts)
+            del try_df, tdc_cuts
 
-        bin0 = (3.125/cal_means["0"][(pixel_dict[0][0], pixel_dict[0][1])])
-        bin1 = (3.125/cal_means["1"][(pixel_dict[1][0], pixel_dict[1][1])])
-        bin2 = (3.125/cal_means["2"][(pixel_dict[2][0], pixel_dict[2][1])])
-        bin3 = (3.125/cal_means["3"][(pixel_dict[3][0], pixel_dict[3][1])])
+            n = int(sampling_fraction*tdc_filtered_df.shape[0])
+            indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
+            tdc_filtered_df = tdc_filtered_df.loc[tdc_filtered_df['evt'].isin(indices)]
 
-        toa_in_time_b0 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 0]['toa'] * bin0
-        toa_in_time_b1 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 1]['toa'] * bin1
-        toa_in_time_b2 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 2]['toa'] * bin2
-        toa_in_time_b3 = 12.5 - tdc_filtered_df.loc[tdc_filtered_df['board'] == 3]['toa'] * bin3
+            if tdc_filtered_df.shape[0] < iteration/(3.*(1-sampling_fraction)):
+                print('Warning!! Sampling size is too small. Skipping this track')
+                break
 
-        tot_in_time_b0 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 0]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 0]['tot']/32)) * bin0
-        tot_in_time_b1 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 1]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 1]['tot']/32)) * bin1
-        tot_in_time_b2 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 2]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 2]['tot']/32)) * bin2
-        tot_in_time_b3 = (2*tdc_filtered_df.loc[tdc_filtered_df['board'] == 3]['tot'] - np.floor(tdc_filtered_df.loc[tdc_filtered_df['board'] == 3]['tot']/32)) * bin3
+            d = {
+                'evt': tdc_filtered_df['evt'].unique(),
+            }
 
-        d = {
-            'evt': tdc_filtered_df['evt'].unique(),
-            'toa_b0': toa_in_time_b0.to_numpy(),
-            'tot_b0': tot_in_time_b0.to_numpy(),
-            'toa_b1': toa_in_time_b1.to_numpy(),
-            'tot_b1': tot_in_time_b1.to_numpy(),
-            'toa_b2': toa_in_time_b2.to_numpy(),
-            'tot_b2': tot_in_time_b2.to_numpy(),
-            'toa_b3': toa_in_time_b3.to_numpy(),
-            'tot_b3': tot_in_time_b3.to_numpy(),
-        }
+            for idx in board_to_analyze:
+                bins = 3.125/tdc_filtered_df['cal'][idx].mean()
+                d[f'toa_b{str(idx)}'] = 12.5 - tdc_filtered_df['toa'][idx] * bins
+                d[f'tot_b{str(idx)}'] = (2*tdc_filtered_df['tot'][idx] - np.floor(tdc_filtered_df['tot'][idx]/32)) * bins
 
-        df_in_time = pd.DataFrame(data=d)
-        del d, tdc_filtered_df
-        del toa_in_time_b0, toa_in_time_b1, toa_in_time_b2, toa_in_time_b3
-        del tot_in_time_b0, tot_in_time_b1, tot_in_time_b2, tot_in_time_b3
+            df_in_time = pd.DataFrame(data=d)
+            del d, tdc_filtered_df
 
-        corr_toas = four_board_iterative_timewalk_correction(df_in_time, 5, 3)
+            if len(board_to_analyze) == 3:
+                corr_toas = three_board_iterative_timewalk_correction(df_in_time, 5, 3, board_list=board_to_analyze)
+            else:
+                corr_toas = four_board_iterative_timewalk_correction(df_in_time, 5, 3)
 
-        tmp_dict = {
-            'evt': df_in_time['evt'].values,
-            'corr_toa_b0': corr_toas[0],
-            'corr_toa_b1': corr_toas[1],
-            'corr_toa_b2': corr_toas[2],
-            'corr_toa_b3': corr_toas[3],
-        }
+            diffs = {}
+            for board_a in board_to_analyze:
+                for board_b in board_to_analyze:
+                    if board_b <= board_a:
+                        continue
+                    name = f"{board_a}{board_b}"
+                    diffs[name] = np.asarray(corr_toas[f'toa_b{board_a}'] - corr_toas[f'toa_b{board_b}'])
 
-        df_in_time_corr = pd.DataFrame(tmp_dict)
-        del tmp_dict, df_in_time
+            hists = {}
+            for key in diffs.keys():
+                hists[key] = hist.Hist(hist.axis.Regular(80, -1.2, 1.2, name="TWC_delta_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+                hists[key].fill(diffs[key])
 
-        diff_b01 = df_in_time_corr['corr_toa_b0'] - df_in_time_corr['corr_toa_b1']
-        diff_b02 = df_in_time_corr['corr_toa_b0'] - df_in_time_corr['corr_toa_b2']
-        diff_b03 = df_in_time_corr['corr_toa_b0'] - df_in_time_corr['corr_toa_b3']
-        diff_b12 = df_in_time_corr['corr_toa_b1'] - df_in_time_corr['corr_toa_b2']
-        diff_b13 = df_in_time_corr['corr_toa_b1'] - df_in_time_corr['corr_toa_b3']
-        diff_b23 = df_in_time_corr['corr_toa_b2'] - df_in_time_corr['corr_toa_b3']
+            try:
+                fit_params_lmfit = {}
+                for key in hists.keys():
+                    params = lmfit_gaussfit_with_pulls(diffs[key], hists[key], std_range_cut=0.4, width_factor=1.25, fig_title='',
+                                                        use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=False)
+                    fit_params_lmfit[key] = params
+                del params, hists, diffs, corr_toas
 
-        dTOA_b01 = hist.Hist(hist.axis.Regular(80, diff_b01.mean().round(2)-0.8, diff_b01.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
-        dTOA_b02 = hist.Hist(hist.axis.Regular(80, diff_b02.mean().round(2)-0.8, diff_b02.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
-        dTOA_b03 = hist.Hist(hist.axis.Regular(80, diff_b03.mean().round(2)-0.8, diff_b03.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
-        dTOA_b12 = hist.Hist(hist.axis.Regular(80, diff_b12.mean().round(2)-0.8, diff_b12.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
-        dTOA_b13 = hist.Hist(hist.axis.Regular(80, diff_b13.mean().round(2)-0.8, diff_b13.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
-        dTOA_b23 = hist.Hist(hist.axis.Regular(80, diff_b23.mean().round(2)-0.8, diff_b23.mean().round(2)+0.8, name="TWC_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
+                if len(board_to_analyze) == 3:
+                    resolutions = return_resolution_three_board(fit_params_lmfit, var=list(fit_params_lmfit.keys()), board_list=board_to_analyze)
+                else:
+                    print('not support yet')
 
-        dTOA_b01.fill(diff_b01)
-        dTOA_b02.fill(diff_b02)
-        dTOA_b03.fill(diff_b03)
-        dTOA_b12.fill(diff_b12)
-        dTOA_b13.fill(diff_b13)
-        dTOA_b23.fill(diff_b23)
+                if any(np.isnan(val) for key, val in resolutions.items()):
+                    print('fit results is not good, skipping this iteration')
+                    continue
 
-        del df_in_time_corr
+                for key in resolutions.keys():
+                    sum_arr[key] += resolutions[key]
+                    sum_square_arr[key] += resolutions[key]**2
 
-        fit_params_lmfit = {}
-        params = lmfit_gaussfit_with_pulls(diff_b01, dTOA_b01, std_range_cut=0.4, width_factor=1.25, fig_title='Board 0 - Board 1',
-                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
-        fit_params_lmfit['01'] = params
-        params = lmfit_gaussfit_with_pulls(diff_b02, dTOA_b02, std_range_cut=0.4, width_factor=1.25, fig_title='Board 0 - Board 2',
-                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
-        fit_params_lmfit['02'] = params
-        params = lmfit_gaussfit_with_pulls(diff_b03, dTOA_b03, std_range_cut=0.4, width_factor=1.25, fig_title='Board 0 - Board 3',
-                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
-        fit_params_lmfit['03'] = params
-        params = lmfit_gaussfit_with_pulls(diff_b12, dTOA_b12, std_range_cut=0.4, width_factor=1.25, fig_title='Board 1 - Board 2',
-                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
-        fit_params_lmfit['12'] = params
-        params = lmfit_gaussfit_with_pulls(diff_b13, dTOA_b13, std_range_cut=0.4, width_factor=1.25, fig_title='Board 1 - Board 3',
-                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
-        fit_params_lmfit['13'] = params
-        params = lmfit_gaussfit_with_pulls(diff_b23, dTOA_b23, std_range_cut=0.4, width_factor=1.25, fig_title='Board 2 - Board 3',
-                                                use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=True)
-        fit_params_lmfit['23'] = params
+                counter += 1
 
-        del params
-        del dTOA_b01, dTOA_b02, dTOA_b03, dTOA_b12, dTOA_b13, dTOA_b23
-        del diff_b01, diff_b02, diff_b03, diff_b12, diff_b13, diff_b23
+            except:
+                print('Failed, skipping')
+                del hists, diffs, corr_toas
 
-        res_b0 = return_resolution_four_board(fit_params_lmfit, ['01', '02', '03', '12', '13', '23'])
-        res_b1 = return_resolution_four_board(fit_params_lmfit, ['01', '12', '13', '02', '03', '23'])
-        res_b2 = return_resolution_four_board(fit_params_lmfit, ['02', '12', '23', '01', '03', '13'])
-        res_b3 = return_resolution_four_board(fit_params_lmfit, ['03', '13', '23', '01', '02', '12'])
+        if counter != 0:
+            for idx in board_to_analyze:
+                final_dict[f'row{idx}'].append(itable['row'][idx].unique()[0])
+                final_dict[f'col{idx}'].append(itable['col'][idx].unique()[0])
 
-        # output['iteration'] = idx
-        output['row0'] = pixel_dict[0][0]
-        output['col0'] = pixel_dict[0][1]
-        output['row1'] = pixel_dict[1][0]
-        output['col1'] = pixel_dict[1][1]
-        output['row2'] = pixel_dict[2][0]
-        output['col2'] = pixel_dict[2][1]
-        output['row3'] = pixel_dict[3][0]
-        output['col3'] = pixel_dict[3][1]
-        output['res0'] = res_b0
-        output['res1'] = res_b1
-        output['res2'] = res_b2
-        output['res3'] = res_b3
-        output['chi01'] = fit_params_lmfit['01'][2]
-        output['chi02'] = fit_params_lmfit['02'][2]
-        output['chi03'] = fit_params_lmfit['03'][2]
-        output['chi12'] = fit_params_lmfit['12'][2]
-        output['chi13'] = fit_params_lmfit['13'][2]
-        output['chi23'] = fit_params_lmfit['23'][2]
+            for key in sum_arr.keys():
+                mean = sum_arr[key]/counter
+                std = np.sqrt((1/(counter-1))*(sum_square_arr[key]-counter*(mean**2)))
+                final_dict[f'res{key}'].append(mean)
+                final_dict[f'err{key}'].append(std)
+        else:
+            print('Track is not validate for bootstrapping')
 
-        del res_b0, res_b1, res_b2, res_b3, fit_params_lmfit
-
-        output_list.append(output)
-
+    return final_dict
 
 ## --------------------------------------
 # def sort_filter(group):
