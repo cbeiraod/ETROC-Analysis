@@ -13,6 +13,191 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import colorConverter
 import copy
+from pathlib import Path
+
+## --------------------------------------
+class DecodeBinary:
+    def __init__(self, firmware_key, board_id: list[int], file_list: list[Path]):
+        self.firmware_key            = firmware_key
+        self.in_event                = False
+        self.eth_words_in_event      = -1
+        self.words_in_event          = -1
+        self.current_word            = -1
+        self.event_number            = -1
+        self.enabled_channels        = -1
+        self.header_pattern          = 0xc3a3c3a
+        self.trailer_pattern         = 0b001011
+        self.channel_header_pattern  = 0x3c5c0 >> 2
+        self.previous_event          = -1
+        self.running_word            = None
+        self.position_40bit          = 0
+        self.current_channel         = -1
+        self.event_counter           = 0
+        self.board_ids               = board_id
+        self.data                    = {}
+        self.files_to_process        = file_list
+
+        self.data_template = {
+            'evt_number': [],
+            'bcid': [],
+            'l1a_counter': [],
+            'evt': [],
+            'ea': [],
+            'board': [],
+            'row': [],
+            'col': [],
+            'toa': [],
+            'tot': [],
+            'cal': [],
+        }
+
+        self.data_to_load = copy.deepcopy(self.data_template)
+
+    def reset_params(self):
+        self.in_event                = False
+        self.eth_words_in_event      = -1
+        self.words_in_event          = -1
+        self.current_word            = -1
+        self.event_number            = -1
+        self.enabled_channels        = -1
+        self.running_word            = None
+        self.position_40bit          = 0
+        self.current_channel         = -1
+        self.data = {}
+
+    def div_ceil(self, x,y):
+        return -(x//(-y))
+
+    def decode_40bit(self, word):
+        # Header
+        if word >> 22 == self.channel_header_pattern:
+            self.current_channel += 1
+            while not ((self.enabled_channels >> self.current_channel) & 0b1):
+                self.current_channel += 1
+                if self.current_channel > 3:
+                    print('Found more headers than number of channels')
+                    self.reset_params()
+                    return
+            self.bcid = (word & 0xfff)
+            self.l1acounter = ((word >> 14) & 0xff)
+            self.data[self.current_channel] = copy.deepcopy(self.data_template)
+        # Data
+        elif (word >> 39) == 1:
+            self.data[self.current_channel]['evt_number'].append(self.event_number)
+            self.data[self.current_channel]['bcid'].append(self.bcid)
+            self.data[self.current_channel]['l1a_counter'].append(self.l1acounter)
+            self.data[self.current_channel]['evt'].append(self.event_counter)
+            self.data[self.current_channel]['ea'].append((word >> 37) & 0b11)
+            self.data[self.current_channel]['board'].append(self.current_channel)
+            self.data[self.current_channel]['row'].append((word >> 29) & 0b1111)
+            self.data[self.current_channel]['col'].append((word >> 33) & 0b1111)
+            self.data[self.current_channel]['toa'].append((word >> 19) & 0x3ff)
+            self.data[self.current_channel]['tot'].append((word >> 10) & 0x1ff)
+            self.data[self.current_channel]['cal'].append((word) & 0x3ff)
+
+        # Trailer
+        elif (word >> 22) & 0x3ffff == self.board_ids[self.current_channel]:
+            hits = (word >> 8) & 0xff
+            if len(self.data[self.current_channel]['evt']) != hits:
+                print('Number of hits does not match!')
+                self.reset_params()
+                return
+
+        # Something else
+        else:
+            binary = format(word, '040b')
+            print(f'Warning! Found 40 bits word which is not matched with the pattern {binary}')
+            self.reset_params()
+            return
+
+    def decode_files(self):
+        df = pd.DataFrame(self.data_template)
+        df = df.astype('int')
+        decoding = False
+        for ifile in self.files_to_process:
+            with open(file=ifile, mode='rb') as infile:
+                while True:
+                    in_data = infile.read(4)
+                    # print(in_data)
+                    if in_data == b'':
+                        break
+                    word = int.from_bytes(in_data, byteorder='little')
+                    if not decoding and word == 0:
+                        continue
+                    if not decoding:
+                        decoding = True
+
+                    ## Event header
+                    if (word >> 4) == 0xc3a3c3a:
+                        self.enabled_channels = word & 0b1111
+                        self.reset_params()
+                        self.in_event = True
+                        # print('Event header')
+                        continue
+
+                    # Event Header Line Two Found
+                    elif(self.in_event and (self.words_in_event == -1) and (word >> 28 == self.firmware_key)):
+                        self.current_word       = 0
+                        self.event_number       = word >> 12 & 0xffff
+                        self.words_in_event     = word >> 2 & 0x3ff
+                        self.eth_words_in_event = self.div_ceil(40*self.words_in_event, 32)
+                        # print(f"Num Words {self.words_in_event} & Eth Words {self.eth_words_in_event}")
+                        # Set valid_data to true once we see fresh data
+                        if(self.event_number==1 or self.event_number==0): self.valid_data = True
+                        # print('Event Header Line Two Found')
+                        # print(self.event_number)
+                        continue
+
+                    # Event Header Line Two NOT Found after the Header
+                    elif(self.in_event and (self.words_in_event == -1) and (word >> 28 != self.firmware_key)):
+                        # print('Event Header Line Two NOT Found after the Header')
+                        self.reset_params()
+                        continue
+
+                    # Event Trailer NOT Found after the required number of ethernet words was read
+                    elif(self.in_event and (self.eth_words_in_event==self.current_word) and (word >> 26 != self.trailer_pattern)):
+                        # print('Event Trailer NOT Found after the required number of ethernet words was read')
+                        self.reset_params()
+                        continue
+
+                    # Event Trailer Found - DO NOT CONTINUE
+                    elif(self.in_event and (self.eth_words_in_event==self.current_word) and (word >> 26 == self.trailer_pattern)):
+                        for key in self.data_to_load:
+                            for board in self.data:
+                                self.data_to_load[key] += self.data[board][key]
+                        # print(self.event_number)
+                        # print(self.data)
+                        self.event_counter += 1
+
+                        if len(self.data_to_load['evt']) >= 10000:
+                            df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
+                            self.data_to_load = copy.deepcopy(self.data_template)
+
+                    # Event Data Word
+                    elif(self.in_event):
+                        # print(self.current_word)
+                        # print(format(word, '032b'))
+                        if self.position_40bit == 4:
+                            self.word_40 = self.word_40 | word
+                            self.decode_40bit(self.word_40)
+                            self.position_40bit = 0
+                            self.current_word += 1
+                            continue
+                        if self.position_40bit >= 1:
+                            self.word_40 = self.word_40 | (word >> (8*(4-self.position_40bit)))
+                            self.decode_40bit(self.word_40)
+                        self.word_40 = (word << ((self.position_40bit + 1)*8)) & 0xffffffffff
+                        self.position_40bit += 1
+                        self.current_word += 1
+                        continue
+
+                    # Reset anyway!
+                    self.reset_params()
+
+                if len(self.data_to_load['evt']) > 0:
+                    df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
+                    self.data_to_load = copy.deepcopy(self.data_template)
+        return df
 
 ## --------------------------------------
 def toSingleDataFrame(
