@@ -1049,6 +1049,7 @@ def plot_resolution_table(
     ):
 
     board_info = input_df[[f'row{board_id}', f'col{board_id}', f'res{board_id}', f'err{board_id}']]
+    board_info = board_info.groupby([f'row{board_id}', f'col{board_id}']).agg({f'res{board_id}': 'mean', f'err{board_id}': 'mean'}).reset_index()
 
     res_table = board_info.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=f'res{board_id}', fill_value=-1)
     err_table = board_info.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=f'err{board_id}', fill_value=-1)
