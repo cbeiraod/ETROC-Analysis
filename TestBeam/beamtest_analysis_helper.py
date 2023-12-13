@@ -12,6 +12,7 @@ from matplotlib.collections import PolyCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+import matplotlib.ticker as ticker
 import mplhep as hep
 plt.style.use(hep.style.CMS)
 
@@ -953,6 +954,145 @@ def plot_1d_TDC_histograms(
         if(save): plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
         if(show): plt.show()
         plt.close()
+
+## under construction
+## --------------------------------------
+def plot_correlation_of_pixels(
+        input_df: pd.DataFrame,
+        hit_type: str,
+        board_id_to_correlate: int,
+    ):
+    h_row = hist.Hist(
+        hist.axis.Regular(16, 0, 16, name='row1', label='Trigger Board Row'),
+        hist.axis.Regular(16, 0, 16, name='row2', label='Reference Board Row'),
+    )
+    h_col = hist.Hist(
+        hist.axis.Regular(16, 0, 16, name='col1', label='Trigger Board Col'),
+        hist.axis.Regular(16, 0, 16, name='col2', label='Reference Board Col'),
+    )
+
+    if hit_type == "single":
+        event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+        ref_selection = (event_board_counts[board_id_to_correlate] == 1)
+
+        selected_event_numbers = event_board_counts[ref_selection].index
+        tmp_df = input_df[input_df['evt'].isin(selected_event_numbers)]
+        tmp_df.reset_index(inplace=True, drop=True)
+
+        h_row.fill(tmp_df.loc[tmp_df['board'] == 0]['row'], tmp_df.loc[tmp_df['board'] == board_id_to_correlate]['row'])
+        h_col.fill(tmp_df.loc[tmp_df['board'] == 0]['col'], tmp_df.loc[tmp_df['board'] == board_id_to_correlate]['col'])
+
+        del event_board_counts, ref_selection, selected_event_numbers
+
+    elif hit_type == "multiple":
+        event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+        ref_selection = (event_board_counts[board_id_to_correlate] >= 2)
+        event_selection_col = ref_selection
+
+        selected_event_numbers = event_board_counts[event_selection_col].index
+        tmp_df = oneTrig_onePlusRef_df[oneTrig_onePlusRef_df['evt'].isin(selected_event_numbers)]
+        tmp_df.reset_index(inplace=True, drop=True)
+
+        n = int(0.01*tmp_df.shape[0]) # ~100k events
+        indices = np.random.choice(tmp_df['evt'].unique(), n, replace=False)
+        test_df = tmp_df.loc[tmp_df['evt'].isin(indices)]
+
+        for name, group in test_df.groupby('evt'):
+            cnt = len(group[group['board'] == 2]['row'])
+            broadcasted_trig_row = np.full(cnt, group.loc[group['board'] == 0]['row'].values)
+            broadcasted_trig_col = np.full(cnt, group.loc[group['board'] == 0]['col'].values)
+            h_test1.fill(broadcasted_trig_row, group.loc[group['board'] == 2]['row'].to_numpy())
+            h_test2.fill(broadcasted_trig_col, group.loc[group['board'] == 2]['col'].to_numpy())
+            dis = np.sqrt((broadcasted_trig_row - group.loc[group['board'] == 2]['row'].values)**2 + (broadcasted_trig_col - group.loc[group['board'] == 2]['col'].values)**2)
+            h_dis_2hit.fill(dis)
+
+
+        pass
+    else:
+        print('Please specify hit_type. Either single or multiple')
+        return
+
+    location = np.arange(0, 16) + 0.5
+    tick_labels = np.char.mod('%d', np.arange(0, 16))
+    fig, ax = plt.subplots(1, 2, dpi=100, figsize=(35, 15))
+
+    hep.hist2dplot(h_row, ax=ax[0])
+    hep.cms.text(loc=0, ax=ax[0], text="Preliminary", fontsize=25)
+    # ax[0].set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=15)
+    ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
+    ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
+    ax[0].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
+    ax[0].yaxis.set_major_formatter(ticker.NullFormatter())
+    ax[0].yaxis.set_minor_locator(ticker.FixedLocator(location))
+    ax[0].yaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
+    ax[0].tick_params(axis='both', which='major', length=0)
+
+    hep.hist2dplot(h_col, ax=ax[1])
+    hep.cms.text(loc=0, ax=ax[1], text="Preliminary", fontsize=25)
+    # ax[1].set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=15)
+    ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
+    ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
+    ax[1].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
+    ax[1].yaxis.set_major_formatter(ticker.NullFormatter())
+    ax[1].yaxis.set_minor_locator(ticker.FixedLocator(location))
+    ax[1].yaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
+    ax[1].tick_params(axis='both', which='major', length=0)
+
+    plt.tight_layout()
+
+    pass
+
+## --------------------------------------
+def plot_resolution_table(
+        input_df: pd.DataFrame,
+        board_id: int = 0,
+    ):
+
+    board_info = input_df[[f'row{board_id}', f'col{board_id}', f'res{board_id}', f'err{board_id}']]
+
+    res_table = board_info.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=f'res{board_id}', fill_value=-1)
+    err_table = board_info.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=f'err{board_id}', fill_value=-1)
+
+    res_table = res_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+    res_table = res_table.reindex(columns=np.arange(0,16))
+    res_table = res_table.fillna(-1)
+
+    err_table = err_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+    err_table = err_table.reindex(columns=np.arange(0,16))
+    err_table = err_table.fillna(-1)
+
+    # Create a heatmap to visualize the count of hits
+    fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
+    ax.cla()
+    im = ax.imshow(res_table, cmap="viridis", interpolation="nearest")
+
+    # Add color bar
+    cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cbar.set_label('Time Resolution', fontsize=20)
+
+    for i in range(16):
+        for j in range(16):
+            value = res_table.iloc[i, j]
+            error = err_table.iloc[i, j]
+            if (value == -1) or (value == 0): continue
+            text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
+            text = str(rf"{value:.1f} $\pm$ {error:.1f}")
+            plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=11)
+
+    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    ax.set_xlabel('Column (col)', fontsize=20)
+    ax.set_ylabel('Row (row)', fontsize=20)
+    ticks = range(0, 16)
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+    # ax.set_title(f"{figtitle[idx]}, Occupancy map {figtitle_tag}", loc="right", size=20)
+    ax.tick_params(axis='x', which='both', length=5, labelsize=17)
+    ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+    ax.invert_xaxis()
+    ax.invert_yaxis()
+    plt.minorticks_off()
+
+
 ## --------------- Basic Plotting -----------------------
 
 
