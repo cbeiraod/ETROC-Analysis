@@ -718,7 +718,7 @@ def plot_2d_nHits_nBoard(
 
     ):
     nboard_df = input_df.groupby('evt')['board'].nunique()
-    hit_df = input_df.groupby(['evt', 'board']).size().unstack()
+    hit_df = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
     hit_df.dropna(subset=[0], inplace=True)
     hists = {}
 
