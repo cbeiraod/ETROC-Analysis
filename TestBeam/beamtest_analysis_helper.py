@@ -1045,53 +1045,59 @@ def plot_correlation_of_pixels(
 ## --------------------------------------
 def plot_resolution_table(
         input_df: pd.DataFrame,
-        board_id: int = 0,
+        chipLabels: list[int],
+        figtitle: list[str],
+        figtitle_tag: str = '',
     ):
 
-    board_info = input_df[[f'row{board_id}', f'col{board_id}', f'res{board_id}', f'err{board_id}']]
-    board_info = board_info.groupby([f'row{board_id}', f'col{board_id}']).agg({f'res{board_id}': 'mean', f'err{board_id}': 'mean'}).reset_index()
+    for board_id in enumerate(chipLabels):
+        board_info = input_df[[f'row{board_id}', f'col{board_id}', f'res{board_id}', f'err{board_id}']]
+        board_info = board_info.groupby([f'row{board_id}', f'col{board_id}']).agg({f'res{board_id}': 'mean', f'err{board_id}': 'mean'}).reset_index()
 
-    res_table = board_info.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=f'res{board_id}', fill_value=-1)
-    err_table = board_info.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=f'err{board_id}', fill_value=-1)
+        res_table = board_info.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=f'res{board_id}', fill_value=-1)
+        err_table = board_info.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=f'err{board_id}', fill_value=-1)
 
-    res_table = res_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
-    res_table = res_table.reindex(columns=np.arange(0,16))
-    res_table = res_table.fillna(-1)
+        res_table = res_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+        res_table = res_table.reindex(columns=np.arange(0,16))
+        res_table = res_table.fillna(-1)
 
-    err_table = err_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
-    err_table = err_table.reindex(columns=np.arange(0,16))
-    err_table = err_table.fillna(-1)
+        err_table = err_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+        err_table = err_table.reindex(columns=np.arange(0,16))
+        err_table = err_table.fillna(-1)
 
-    # Create a heatmap to visualize the count of hits
-    fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
-    ax.cla()
-    im = ax.imshow(res_table, cmap="viridis", interpolation="nearest")
+        # Create a heatmap to visualize the count of hits
+        fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
+        ax.cla()
+        im = ax.imshow(res_table, cmap="viridis", interpolation="nearest")
 
-    # Add color bar
-    cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.set_label('Time Resolution', fontsize=20)
+        # Add color bar
+        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label('Time Resolution', fontsize=20)
 
-    for i in range(16):
-        for j in range(16):
-            value = res_table.iloc[i, j]
-            error = err_table.iloc[i, j]
-            if (value == -1) or (value == 0): continue
-            text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
-            text = str(rf"{value:.1f} $\pm$ {error:.1f}")
-            plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=11)
+        for i in range(16):
+            for j in range(16):
+                value = res_table.iloc[i, j]
+                error = err_table.iloc[i, j]
+                if (value == -1) or (value == 0): continue
+                text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
+                text = str(rf"{value:.1f} $\pm$ {error:.1f}")
+                plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=11)
 
-    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-    ax.set_xlabel('Column (col)', fontsize=20)
-    ax.set_ylabel('Row (row)', fontsize=20)
-    ticks = range(0, 16)
-    ax.set_xticks(ticks)
-    ax.set_yticks(ticks)
-    # ax.set_title(f"{figtitle[idx]}, Occupancy map {figtitle_tag}", loc="right", size=20)
-    ax.tick_params(axis='x', which='both', length=5, labelsize=17)
-    ax.tick_params(axis='y', which='both', length=5, labelsize=17)
-    ax.invert_xaxis()
-    ax.invert_yaxis()
-    plt.minorticks_off()
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        ax.set_xlabel('Column (col)', fontsize=20)
+        ax.set_ylabel('Row (row)', fontsize=20)
+        ticks = range(0, 16)
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
+        ax.set_title(f"{figtitle[board_id]}, Resolution map {figtitle_tag}", loc="right", size=20)
+        ax.tick_params(axis='x', which='both', length=5, labelsize=17)
+        ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+        ax.invert_xaxis()
+        ax.invert_yaxis()
+        plt.minorticks_off()
+        plt.tight_layout()
+
+        del board_info, res_table, err_table
 
 
 ## --------------- Basic Plotting -----------------------
