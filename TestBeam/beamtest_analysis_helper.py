@@ -533,11 +533,17 @@ def efficiency_with_two_boards(
 
 ## --------------------------------------
 def singlehit_event_clear(
-        input_df: pd.DataFrame
+        input_df: pd.DataFrame,
+        ignore_boards: list[int] = None
     ):
 
+    ana_df = input_df
+    if ignore_boards is not None:
+        for board in ignore_boards:
+            ana_df = ana_df.loc[ana_df['board'] != board].copy()
+
     ## event has one hit from each board
-    event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+    event_board_counts = ana_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
     event_selection_col = None
     for board in event_board_counts:
         if event_selection_col is None:
@@ -545,8 +551,10 @@ def singlehit_event_clear(
         else:
             event_selection_col = event_selection_col & (event_board_counts[board] == 1)
     selected_event_numbers = event_board_counts[event_selection_col].index
-    selected_subset_df = input_df[input_df['evt'].isin(selected_event_numbers)]
+    selected_subset_df = ana_df[ana_df['evt'].isin(selected_event_numbers)]
     selected_subset_df.reset_index(inplace=True, drop=True)
+
+    del ana_df, event_board_counts, event_selection_col
 
     return selected_subset_df
 
