@@ -649,29 +649,57 @@ def making_pivot(
 ## --------------- Modify DataFrame -----------------------
 
 
+## --------------- Save figure -----------------------
+## --------------------------------------
+def save_fig(
+        fig: plt.figure,
+        global_name: str,
+        run_name: str,
+        tag_name: str,
 
+    ):
+
+    global_name = 'desy_TB_2023'
+    tag_name = 'test'
+
+    Path(f"../../ETROC-figures/{global_name}/{run_name}/{tag_name}").mkdir(parents=True, exist_ok=True)
+    fig_path = f"../../ETROC-figures/{global_name}/{run_name}/{tag_name}"
+
+
+    fig_outdir = Path('../../ETROC-figures')
+    fig_outdir = fig_outdir / (today + '_Array_Test_Results')
+    fig_outdir.mkdir(exist_ok=True)
+    fig_path = str(fig_outdir)
+    pass
 ## --------------- Basic Plotting -----------------------
+
+
+
+
+## --------------- Plotting -----------------------
 ## --------------------------------------
 def return_hist(
         input_df: pd.DataFrame,
-        chip_names: list,
-        chip_labels: list,
+        chipNames: list[str],
+        chipLabels: list[int],
         hist_bins: list = [50, 64, 64]
 ):
-    h = {chip_names[idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
+    h = {chipNames[boardID]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
                 hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
                 hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
         )
-    for idx, boardID in enumerate(chip_labels)}
-    for idx, boardID in enumerate(chip_labels):
-        tmp_df = input_df.loc[input_df['board'] == int(boardID)]
-        h[chip_names[idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values)
+    for boardID in chipLabels}
+
+    for boardID in chipLabels:
+        tmp_df = input_df.loc[input_df['board'] == boardID]
+        h[chipNames[boardID]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values)
 
     return h
 
 ## --------------------------------------
 def plot_number_of_fired_board(
         input_df: pd.DataFrame,
+        do_logy: bool = False,
     ):
 
     h = hist.Hist(hist.axis.Regular(5, 0, 5, name="nBoards", label="nBoards"))
@@ -683,20 +711,21 @@ def plot_number_of_fired_board(
     hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
     h.plot1d(ax=ax, lw=2)
     ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
+    if do_logy:
+        ax.set_yscale('log')
     plt.tight_layout()
     del h
 
 ## --------------------------------------
 def plot_number_of_hits_per_event(
         input_df: pd.DataFrame,
-        chip_figtitles: list[str],
+        fig_titles: list[str],
+        fig_tag: str = '',
         bins: int = 15,
         hist_range: tuple = (0, 15),
         do_logy: bool = False,
     ):
     hit_df = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-    # hit_df.dropna(subset=[0], inplace=True)
-    # hit_df.fillna(0)
     hists = {}
 
     for key in hit_df.columns:
@@ -710,7 +739,7 @@ def plot_number_of_hits_per_event(
         ax = fig.add_subplot(plot_info)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
         hists[i].plot1d(ax=ax, lw=2)
-        ax.set_title(f"{chip_figtitles[i]}", loc="right", size=18)
+        ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
         ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
         if do_logy:
             ax.set_yscale('log')
@@ -721,7 +750,8 @@ def plot_number_of_hits_per_event(
 ## --------------------------------------
 def plot_2d_nHits_nBoard(
         input_df: pd.DataFrame,
-        chip_figtitles: list[str],
+        fig_titles: list[str],
+        fig_tag: str,
         bins: int = 15,
         hist_range: tuple = (0, 15),
 
@@ -745,7 +775,7 @@ def plot_2d_nHits_nBoard(
         ax = fig.add_subplot(plot_info)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
         hep.hist2dplot(hists[i], ax=ax, norm=colors.LogNorm())
-        ax.set_title(f"{chip_figtitles[i]}", loc="right", size=18)
+        ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
 
     plt.tight_layout()
     del hists, hit_df, nboard_df
@@ -753,9 +783,9 @@ def plot_2d_nHits_nBoard(
 ## --------------------------------------
 def plot_heatmap_byPandas(
         input_df: pd.DataFrame,
-        chipLabels: list,
-        figtitle: list,
-        figtitle_tag: str
+        chipLabels: list[int],
+        fig_title: list[str],
+        fig_tag: str
     ):
     # Group the DataFrame by 'col,' 'row,' and 'board,' and count the number of hits in each group
     hits_count_by_col_row_board = input_df.groupby(['col', 'row', 'board'])['evt'].count().reset_index()
@@ -800,7 +830,7 @@ def plot_heatmap_byPandas(
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{figtitle[idx]}, Occupancy map {figtitle_tag}", loc="right", size=20)
+        ax.set_title(f"{fig_title[idx]}, Occupancy map {fig_tag}", loc="right", size=20)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
@@ -882,22 +912,23 @@ def plot_TDC_summary_table(
 ## --------------------------------------
 def plot_1d_TDC_histograms(
         input_hist: hist.Hist,
-        chip_name,
-        chip_figname,
-        chip_figtitle,
-        fig_path,
+        chip_name: str,
+        chip_figname: str,
+        fig_title: str,
+        fig_path: str = './',
         save: bool = False,
         show: bool = False,
         tag: str = '',
-        title_tag: str = '',
+        fig_tag: str = '',
         slide_friendly: bool = False,
+        do_logy: bool = False,
     ):
 
     if not slide_friendly:
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=25)
+        ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
@@ -908,7 +939,7 @@ def plot_1d_TDC_histograms(
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{chip_figtitle}, TOT{title_tag}", loc="right", size=25)
+        ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
@@ -919,7 +950,7 @@ def plot_1d_TDC_histograms(
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{chip_figtitle}, TOA{title_tag}", loc="right", size=25)
+        ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
@@ -930,7 +961,7 @@ def plot_1d_TDC_histograms(
         fig = plt.figure(dpi=50, figsize=(20,20))
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{chip_figtitle}, TOA v TOT{title_tag}", loc="right", size=25)
+        ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
         plt.tight_layout()
@@ -946,16 +977,22 @@ def plot_1d_TDC_histograms(
             ax = fig.add_subplot(plot_info)
             hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
             if i == 0:
-                ax.set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=15)
+                ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=15)
                 input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
+                if do_logy:
+                    ax.set_yscale('log')
             elif i == 1:
-                ax.set_title(f"{chip_figtitle}, TOA{title_tag}", loc="right", size=15)
+                ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=15)
                 input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+                if do_logy:
+                    ax.set_yscale('log')
             elif i == 2:
-                ax.set_title(f"{chip_figtitle}, TOT{title_tag}", loc="right", size=15)
+                ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=15)
                 input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+                if do_logy:
+                    ax.set_yscale('log')
             elif i == 3:
-                ax.set_title(f"{chip_figtitle}, TOA v TOT{title_tag}", loc="right", size=14)
+                ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
                 input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
 
         plt.tight_layout()
@@ -963,70 +1000,62 @@ def plot_1d_TDC_histograms(
         if(show): plt.show()
         plt.close()
 
-## under construction
 ## --------------------------------------
 def plot_correlation_of_pixels(
         input_df: pd.DataFrame,
         hit_type: str,
         board_id_to_correlate: int,
+        fig_title: str,
+        fit_tag: str = '',
     ):
+
+    if board_id_to_correlate == 0:
+        print("Self correlation!!")
+
+    xaxis_label = None
+    if (board_id_to_correlate == 1):
+        xaxis_label = 'DUT 1'
+    elif (board_id_to_correlate == 3):
+        xaxis_label = 'DUT 2'
+    else:
+        xaxis_label = 'Reference Board'
+
     h_row = hist.Hist(
         hist.axis.Regular(16, 0, 16, name='row1', label='Trigger Board Row'),
-        hist.axis.Regular(16, 0, 16, name='row2', label='Reference Board Row'),
+        hist.axis.Regular(16, 0, 16, name='row2', label=f'{xaxis_label} Row'),
     )
     h_col = hist.Hist(
         hist.axis.Regular(16, 0, 16, name='col1', label='Trigger Board Col'),
-        hist.axis.Regular(16, 0, 16, name='col2', label='Reference Board Col'),
+        hist.axis.Regular(16, 0, 16, name='col2', label=f'{xaxis_label} Col'),
     )
 
     if hit_type == "single":
-        event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-        ref_selection = (event_board_counts[board_id_to_correlate] == 1)
-
-        selected_event_numbers = event_board_counts[ref_selection].index
-        tmp_df = input_df[input_df['evt'].isin(selected_event_numbers)]
-        tmp_df.reset_index(inplace=True, drop=True)
-
-        h_row.fill(tmp_df.loc[tmp_df['board'] == 0]['row'], tmp_df.loc[tmp_df['board'] == board_id_to_correlate]['row'])
-        h_col.fill(tmp_df.loc[tmp_df['board'] == 0]['col'], tmp_df.loc[tmp_df['board'] == board_id_to_correlate]['col'])
-
-        del event_board_counts, ref_selection, selected_event_numbers
+        h_row.fill(input_df.loc[input_df['board'] == 0]['row'], input_df.loc[input_df['board'] == board_id_to_correlate]['row'])
+        h_col.fill(input_df.loc[input_df['board'] == 0]['col'], input_df.loc[input_df['board'] == board_id_to_correlate]['col'])
 
     elif hit_type == "multiple":
-        event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-        ref_selection = (event_board_counts[board_id_to_correlate] >= 2)
-        event_selection_col = ref_selection
-
-        selected_event_numbers = event_board_counts[event_selection_col].index
-        tmp_df = oneTrig_onePlusRef_df[oneTrig_onePlusRef_df['evt'].isin(selected_event_numbers)]
-        tmp_df.reset_index(inplace=True, drop=True)
-
-        n = int(0.01*tmp_df.shape[0]) # ~100k events
-        indices = np.random.choice(tmp_df['evt'].unique(), n, replace=False)
-        test_df = tmp_df.loc[tmp_df['evt'].isin(indices)]
+        n = int(0.01*input_df.shape[0]) # ~100k events
+        indices = np.random.choice(input_df['evt'].unique(), n, replace=False)
+        test_df = input_df.loc[input_df['evt'].isin(indices)]
 
         for name, group in test_df.groupby('evt'):
-            cnt = len(group[group['board'] == 2]['row'])
+            cnt = len(group[group['board'] == board_id_to_correlate]['row'])
             broadcasted_trig_row = np.full(cnt, group.loc[group['board'] == 0]['row'].values)
             broadcasted_trig_col = np.full(cnt, group.loc[group['board'] == 0]['col'].values)
-            h_test1.fill(broadcasted_trig_row, group.loc[group['board'] == 2]['row'].to_numpy())
-            h_test2.fill(broadcasted_trig_col, group.loc[group['board'] == 2]['col'].to_numpy())
-            dis = np.sqrt((broadcasted_trig_row - group.loc[group['board'] == 2]['row'].values)**2 + (broadcasted_trig_col - group.loc[group['board'] == 2]['col'].values)**2)
-            h_dis_2hit.fill(dis)
+            h_row.fill(broadcasted_trig_row, group.loc[group['board'] == board_id_to_correlate]['row'].to_numpy())
+            h_col.fill(broadcasted_trig_col, group.loc[group['board'] == board_id_to_correlate]['col'].to_numpy())
 
-
-        pass
     else:
         print('Please specify hit_type. Either single or multiple')
         return
 
     location = np.arange(0, 16) + 0.5
     tick_labels = np.char.mod('%d', np.arange(0, 16))
-    fig, ax = plt.subplots(1, 2, dpi=100, figsize=(35, 15))
+    fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
     hep.hist2dplot(h_row, ax=ax[0])
     hep.cms.text(loc=0, ax=ax[0], text="Preliminary", fontsize=25)
-    # ax[0].set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=15)
+    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=15)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[0].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -1037,7 +1066,7 @@ def plot_correlation_of_pixels(
 
     hep.hist2dplot(h_col, ax=ax[1])
     hep.cms.text(loc=0, ax=ax[1], text="Preliminary", fontsize=25)
-    # ax[1].set_title(f"{chip_figtitle}, CAL{title_tag}", loc="right", size=15)
+    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=15)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[1].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -1053,7 +1082,8 @@ def plot_distance(
         input_df: pd.DataFrame,
         hit_type: str,
         board_id_to_correlate: int,
-        title_tag: str = '',
+        fig_title: str,
+        fig_tag: str = '',
         do_logy: bool = False,
     ):
 
@@ -1097,21 +1127,19 @@ def plot_distance(
     fig, ax = plt.subplots(dpi=100, figsize=(15, 8))
     hep.histplot(h_dis, ax=ax)
     hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-    ax.set_title(f"{title_tag}", loc="right", size=15)
+    ax.set_title(f"{fig_title} {fig_tag}", loc="right", size=15)
 
     if do_logy:
         ax.set_yscale('log')
 
     return h_dis
 
-
 ## --------------------------------------
 def plot_resolution_with_pulls(
         input_df: pd.DataFrame,
         board_id: int,
-        # fig_title: list[str],
         fig_title: str,
-        title_tag: str = '',
+        fig_tag: str = '',
         hist_bins: int = 15,
     ):
 
@@ -1119,11 +1147,10 @@ def plot_resolution_with_pulls(
     from lmfit.lineshapes import gaussian
 
     mod = GaussianModel(nan_policy='omit')
-    w_mean = np.average(input_df[f'res{board_id}'].values, weights=input_df[f'err{board_id}'].values)
     x_min = int(np.amin(input_df[f'res{board_id}'].values))-5
     x_max = int((np.amax(input_df[f'res{board_id}'].values)))+5
     h_res = hist.Hist(hist.axis.Regular(hist_bins, x_min, x_max, name="time_resolution", label=r'Time Resolution [ps]'))
-    h_res.fill(input_df[f'res{0}'].values)
+    h_res.fill(input_df[f'res{board_id}'].values)
 
     centers = h_res.axes[0].centers
 
@@ -1146,14 +1173,15 @@ def plot_resolution_with_pulls(
     subplot_ax = fig.add_subplot(grid[1], sharex=main_ax)
     plt.setp(main_ax.get_xticklabels(), visible=False)
     hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
-    main_ax.set_title(f'{fig_title} {title_tag}', loc="right", size=25)
+    main_ax.set_title(f'{fig_title} {fig_tag}', loc="right", size=22)
 
-    centers = h_res.axes[0].centers
     main_ax.errorbar(centers, h_res.values(), np.sqrt(h_res.variances()),
                     ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
                     ms=6, capsize=1, capthick=2, alpha=0.8)
-    main_ax.set_ylabel('Counts')
+    main_ax.set_ylabel('Counts', fontsize=20)
     main_ax.set_ylim(-20, None)
+    main_ax.tick_params(axis='x', labelsize=20)
+    main_ax.tick_params(axis='y', labelsize=20)
 
     x_range = np.linspace(x_min, x_max, 200)
 
@@ -1181,17 +1209,18 @@ def plot_resolution_with_pulls(
     )
     main_ax.legend(fontsize=20, loc='upper right')
 
-    subplot_ax.axvline(centers[0], c='red', lw=2)
-    subplot_ax.axvline(centers[-1], c='red', lw=2)
+    # subplot_ax.axvline(centers[0], c='red', lw=2)
+    # subplot_ax.axvline(centers[-1], c='red', lw=2)
     subplot_ax.axhline(1, c='black', lw=0.75)
     subplot_ax.axhline(0, c='black', lw=1.2)
     subplot_ax.axhline(-1, c='black', lw=0.75)
     subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
     subplot_ax.set_ylim(-2, 2)
-    subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1])
-    subplot_ax.set_xlabel(r'Time Resolution [ns]')
+    subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
+    subplot_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
+    subplot_ax.tick_params(axis='x', which='both', labelsize=20)
     subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
-    subplot_ax.minorticks_off()
+    # subplot_ax.minorticks_off()
 
     plt.tight_layout()
 
@@ -1330,9 +1359,13 @@ def plot_resolution_with_pulls(
 def plot_resolution_table(
         input_df: pd.DataFrame,
         chipLabels: list[int],
-        figtitle: list[str],
-        figtitle_tag: str = '',
+        fig_title: list[str],
+        fig_tag: str = '',
     ):
+    from matplotlib import colormaps
+
+    cmap = colormaps('viridis')
+    cmap.set_under(color='lightgrey')
 
     for board_id in chipLabels:
         board_info = input_df[[f'row{board_id}', f'col{board_id}', f'res{board_id}', f'err{board_id}']]
@@ -1354,7 +1387,7 @@ def plot_resolution_table(
         # Create a heatmap to visualize the count of hits
         fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
         ax.cla()
-        im = ax.imshow(res_table, cmap="viridis", interpolation="nearest")
+        im = ax.imshow(res_table, cmap=cmap, interpolation="nearest", vmin=0, vmax=85)
 
         # Add color bar
         cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -1367,7 +1400,7 @@ def plot_resolution_table(
                 if (value == -1) or (value == 0): continue
                 text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
                 text = str(rf"{value:.1f} $\pm$ {error:.1f}")
-                plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=11)
+                plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=11, rotation=45)
 
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         ax.set_xlabel('Column (col)', fontsize=20)
@@ -1375,7 +1408,7 @@ def plot_resolution_table(
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{figtitle[board_id]}, Resolution map {figtitle_tag}", loc="right", size=20)
+        ax.set_title(f"{fig_title[board_id]}, Resolution map {fig_tag}", loc="right", size=20)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
@@ -1385,7 +1418,7 @@ def plot_resolution_table(
 
         del board_info, res_table, err_table
 
-## --------------- Basic Plotting -----------------------
+## --------------- Plotting -----------------------
 
 
 
