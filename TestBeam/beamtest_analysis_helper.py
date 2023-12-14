@@ -1058,12 +1058,14 @@ def plot_resolution_table(
         figtitle_tag: str = '',
     ):
 
-    for board_id in enumerate(chipLabels):
+    for board_id in chipLabels:
         board_info = input_df[[f'row{board_id}', f'col{board_id}', f'res{board_id}', f'err{board_id}']]
-        board_info = board_info.groupby([f'row{board_id}', f'col{board_id}']).agg({f'res{board_id}': 'mean', f'err{board_id}': 'mean'}).reset_index()
 
-        res_table = board_info.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=f'res{board_id}', fill_value=-1)
-        err_table = board_info.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=f'err{board_id}', fill_value=-1)
+        res = board_info.groupby([f'row{board_id}', f'col{board_id}']).apply(lambda x: np.average(x[f'res{board_id}'], weights=1/x[f'err{board_id}']**2)).reset_index()
+        err = board_info.groupby([f'row{board_id}', f'col{board_id}']).apply(lambda x: np.sqrt(1/(np.sum(1/x[f'err{board_id}']**2)))).reset_index()
+
+        res_table = res.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=0, fill_value=-1)
+        err_table = err.pivot_table(index=f'row{board_id}', columns=f'col{board_id}', values=0, fill_value=-1)
 
         res_table = res_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
         res_table = res_table.reindex(columns=np.arange(0,16))
@@ -1106,7 +1108,6 @@ def plot_resolution_table(
         plt.tight_layout()
 
         del board_info, res_table, err_table
-
 
 ## --------------- Basic Plotting -----------------------
 
