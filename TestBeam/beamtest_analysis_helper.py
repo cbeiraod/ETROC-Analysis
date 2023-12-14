@@ -1048,7 +1048,283 @@ def plot_correlation_of_pixels(
 
     plt.tight_layout()
 
-    pass
+## --------------------------------------
+def plot_distance(
+        input_df: pd.DataFrame,
+        hit_type: str,
+        board_id_to_correlate: int,
+        title_tag: str = '',
+        do_logy: bool = False,
+    ):
+
+    xaxis_label = None
+    if (board_id_to_correlate == 1):
+        xaxis_label = 'DUT 1'
+    elif (board_id_to_correlate == 3):
+        xaxis_label = 'DUT 2'
+    else:
+        xaxis_label = 'Reference'
+
+    h_dis = hist.Hist(hist.axis.Regular(32, 0, 32, name='dis', label=f'Distance (Trigger - {xaxis_label})'))
+
+    if hit_type == "single":
+        diff_row = (input_df.loc[input_df['board'] == 0]['row'].values - input_df.loc[input_df['board'] == board_id_to_correlate]['row'].values)
+        diff_col = (input_df.loc[input_df['board'] == 0]['col'].values - input_df.loc[input_df['board'] == board_id_to_correlate]['col'].values)
+        dis = np.sqrt(diff_row**2 + diff_col**2)
+        h_dis.fill(dis)
+        del diff_row, diff_col, dis
+
+    elif hit_type == "multiple":
+        n = int(0.01*input_df.shape[0]) # ~100k events
+        indices = np.random.choice(input_df['evt'].unique(), n, replace=False)
+        test_df = input_df.loc[input_df['evt'].isin(indices)]
+
+        for name, group in test_df.groupby('evt'):
+            cnt = len(group.loc[group['board'] == board_id_to_correlate]['row'])
+            broadcasted_trig_row = np.full(cnt, group.loc[group['board'] == 0]['row'].values)
+            broadcasted_trig_col = np.full(cnt, group.loc[group['board'] == 0]['col'].values)
+            diff_row = (broadcasted_trig_row - group.loc[group['board'] == board_id_to_correlate]['row'].values)
+            diff_col = (broadcasted_trig_col - group.loc[group['board'] == board_id_to_correlate]['col'].values)
+            dis = np.sqrt(diff_row**2 + diff_col**2)
+            h_dis.fill(dis)
+
+        del test_df, indices, n
+
+    else:
+        print('Please specify hit_type. Either single or multiple')
+        return
+
+    fig, ax = plt.subplots(dpi=100, figsize=(15, 8))
+    hep.histplot(h_dis, ax=ax)
+    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    ax.set_title(f"{title_tag}", loc="right", size=15)
+
+    if do_logy:
+        ax.set_yscale('log')
+
+    return h_dis
+
+
+## --------------------------------------
+def plot_resolution_with_pulls(
+        input_df: pd.DataFrame,
+        board_id: int,
+        # fig_title: list[str],
+        fig_title: str,
+        title_tag: str = '',
+        hist_bins: int = 15,
+    ):
+
+    from lmfit.models import GaussianModel
+    from lmfit.lineshapes import gaussian
+
+    mod = GaussianModel(nan_policy='omit')
+    w_mean = np.average(input_df[f'res{board_id}'].values, weights=input_df[f'err{board_id}'].values)
+    x_min = int(np.amin(input_df[f'res{board_id}'].values))-5
+    x_max = int((np.amax(input_df[f'res{board_id}'].values)))+5
+    h_res = hist.Hist(hist.axis.Regular(hist_bins, x_min, x_max, name="time_resolution", label=r'Time Resolution [ps]'))
+    h_res.fill(input_df[f'res{0}'].values)
+
+    centers = h_res.axes[0].centers
+
+    pars = mod.guess(h_res.values(), x=centers)
+    out = mod.fit(h_res.values(), pars, x=centers, weights=1/np.sqrt(h_res.values()))
+
+    ### Calculate pull
+    pulls = (h_res.values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
+    pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
+
+    left_edge = centers[0]
+    right_edge = centers[-1]
+
+    # Pull: plot the pulls using Matplotlib bar method
+    width = (right_edge - left_edge) / len(pulls)
+
+    fig = plt.figure()
+    grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
+    main_ax = fig.add_subplot(grid[0])
+    subplot_ax = fig.add_subplot(grid[1], sharex=main_ax)
+    plt.setp(main_ax.get_xticklabels(), visible=False)
+    hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
+    main_ax.set_title(f'{fig_title} {title_tag}', loc="right", size=25)
+
+    centers = h_res.axes[0].centers
+    main_ax.errorbar(centers, h_res.values(), np.sqrt(h_res.variances()),
+                    ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+                    ms=6, capsize=1, capthick=2, alpha=0.8)
+    main_ax.set_ylabel('Counts')
+    main_ax.set_ylim(-20, None)
+
+    x_range = np.linspace(x_min, x_max, 200)
+
+    popt = [par for name, par in out.best_values.items()]
+    pcov = out.covar
+
+    if np.isfinite(pcov).all():
+        n_samples = 100
+        vopts = np.random.multivariate_normal(popt, pcov, n_samples)
+        sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
+        model_uncert = np.nanstd(sampled_ydata, axis=0)
+    else:
+        model_uncert = np.zeros_like(np.sqrt(h_res.variances()))
+
+    main_ax.plot(x_range, out.eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
+                label=fr"$\mu:{out.params['center'].value:.3f}, \sigma: {abs(out.params['sigma'].value):.3f}$")
+
+    main_ax.fill_between(
+        x_range,
+        out.eval(x=x_range) - model_uncert,
+        out.eval(x=x_range) + model_uncert,
+        color="hotpink",
+        alpha=0.2,
+        label='Uncertainty'
+    )
+    main_ax.legend(fontsize=20, loc='upper right')
+
+    subplot_ax.axvline(centers[0], c='red', lw=2)
+    subplot_ax.axvline(centers[-1], c='red', lw=2)
+    subplot_ax.axhline(1, c='black', lw=0.75)
+    subplot_ax.axhline(0, c='black', lw=1.2)
+    subplot_ax.axhline(-1, c='black', lw=0.75)
+    subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
+    subplot_ax.set_ylim(-2, 2)
+    subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1])
+    subplot_ax.set_xlabel(r'Time Resolution [ns]')
+    subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+    subplot_ax.minorticks_off()
+
+    plt.tight_layout()
+
+## Under construction: 2x2 figures at once
+## --------------------------------------
+# def plot_resolution_hist(
+#         input_df: pd.DataFrame,
+#         chipLabels: list[int],
+#         fig_title: list[str],
+#         title_tag: str = '',
+#         hist_bins: int = 100,
+#         hist_range: tuple = (30, 80),
+#     ):
+
+#     from lmfit.models import GaussianModel
+#     from lmfit.lineshapes import gaussian
+
+#     mod = GaussianModel(nan_policy='omit')
+
+#     hists = {}
+#     fit_params = {}
+#     for key in chipLabels:
+#         hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_range[0], hist_range[1], name="time_resolution", label=r'Time Resolution [ps]'))
+#         hists[key].fill(input_df[f'res{key}'].values, weight=np.sqrt((1/input_df[f'err{key}'])/(np.sum(1/input_df[f'err{key}']**2))))
+#         pars = mod.guess(hists[key].values(), x=hists[key].axes[0].centers)
+#         out = mod.fit(hists[key].values(), pars, x=hists[key].axes[0].centers, weights=1/np.sqrt(hists[key].values()))
+#         fit_params[key] = [out.params['center'].value, out.params['sigma'].value]
+#         popt = [par for name, par in out.best_values.items()]
+#         pcov = out.covar
+
+#         if np.isfinite(pcov).all():
+#             n_samples = 100
+#             vopts = np.random.multivariate_normal(popt, pcov, n_samples)
+#             sampled_ydata = np.vstack([gaussian(fit_centers, *vopt).T for vopt in vopts])
+#             model_uncert = np.nanstd(sampled_ydata, axis=0)
+#         else:
+#             model_uncert = np.zeros_like(np.sqrt(input_hist.variances()))
+
+#         ### Calculate pull
+#         if use_pred_uncert:
+#             pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
+#         else:
+#             pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(input_hist.variances())
+#         pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
+
+#         left_edge = centers[0]
+#         right_edge = centers[-1]
+
+#         # Pull: plot the pulls using Matplotlib bar method
+#         width = (right_edge - left_edge) / len(pulls)
+
+
+#     import matplotlib.gridspec as gridspec
+#     fig = plt.figure(figsize=(20, 16))
+#     outer_gs = fig.add_gridspec(2, 2)
+
+#     for i in range(2):
+#         for j in range(2):
+#             # Create the outer subplot
+#             outer_ax = fig.add_subplot(outer_gs[i, j])
+#             key = i*2 + j + 1
+
+#             # Create the inner grid spec for the subplot
+#             inner_gs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=outer_ax, hspace=0, height_ratios=[3, 1])
+#             inner_ax = fig.add_subplot(inner_gs[0], sharex=outer_ax)
+#             hep.cms.text(loc=0, ax=inner_ax, text="Preliminary", fontsize=25)
+#             inner_ax.set_title(f'{fig_title[key]}', loc="right", size=20)
+#             inner_ax.errorbar(hists[key].axes[0].centers, hists[key].values(), np.sqrt(hists[key].variances()),
+#                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+#                             ms=6, capsize=1, capthick=2, alpha=0.8)
+#             inner_ax.plot(hists[key].axes[0].centers, out.best_fit, color="hotpink", ls="-", lw=2, alpha=0.8,
+#                         label=fr"$\mu:{fit_params[key][0].value:.3f}, \sigma: {abs(fit_params[key][1]):.3f}$")
+#             inner_ax.set_ylabel('Counts')
+#             inner_ax.set_ylim(-20, None)
+
+#             inner_ax.fill_between(
+#                 hists[key].axes[0].centers,
+#                 out.eval(x=fit_centers) - model_uncert,
+#                 out.eval(x=fit_centers) + model_uncert,
+#                 color="hotpink",
+#                 alpha=0.2,
+#                 label='Uncertainty'
+#             )
+#             inner_ax.legend(fontsize=20, loc='upper right')
+
+
+#             inner_ax.xaxis.set_visible(False)
+#             outer_ax.yaxis.set_visible(False)
+
+
+
+
+
+
+#             subplot_ax.axvline(fit_centers[0], c='red', lw=2)
+#             subplot_ax.axvline(fit_centers[-1], c='red', lw=2)
+#             subplot_ax.axhline(1, c='black', lw=0.75)
+#             subplot_ax.axhline(0, c='black', lw=1.2)
+#             subplot_ax.axhline(-1, c='black', lw=0.75)
+#             subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
+#             subplot_ax.set_ylim(-2, 2)
+#             subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1])
+#             subplot_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
+#             subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+#             subplot_ax.minorticks_off()
+
+
+
+#     for i, plot_info in enumerate(gs):
+
+
+
+
+
+#         if i == 0:
+#             ax.set_title(f"{figtitle[i]}, title_tag", loc="right", size=15)
+#             hists[i].plot1d(ax=ax, lw=2)
+#         elif i == 1:
+#             ax.set_title(f"{figtitle[i]}, title_tag", loc="right", size=15)
+#             input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+#         elif i == 2:
+#             ax.set_title(f"{figtitle[i]}, title_tag", loc="right", size=15)
+#             input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+#         elif i == 3:
+#             ax.set_title(f"{figtitle[i]}, title_tag", loc="right", size=14)
+#             input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+
+#     plt.tight_layout()
+#     if(save): plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+#     if(show): plt.show()
+#     plt.close()
+
+
 
 ## --------------------------------------
 def plot_resolution_table(
