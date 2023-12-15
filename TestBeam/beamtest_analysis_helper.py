@@ -201,6 +201,7 @@ class DecodeBinary:
                     df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
                     self.data_to_load = copy.deepcopy(self.data_template)
         return df
+
 ## --------------- Decoding Class -----------------------
 
 
@@ -497,6 +498,7 @@ def toSingleDataFramePerDirectory_newEventModel(
         else:
             df.to_feather(name+'.feather')
         del df
+
 ## --------------- Text converting to DataFrame -----------------------
 
 
@@ -646,10 +648,11 @@ def making_pivot(
         pivot_data_df.columns = ["{}_{}".format(x, y) for x, y in pivot_data_df.columns]
 
         return pivot_data_df
+
 ## --------------- Modify DataFrame -----------------------
 
 
-## --------------- Save figure -----------------------
+## --------------- Save figure (under construction) -----------------------
 ## --------------------------------------
 def save_fig(
         fig: plt.figure,
@@ -671,7 +674,8 @@ def save_fig(
     fig_outdir.mkdir(exist_ok=True)
     fig_path = str(fig_outdir)
     pass
-## --------------- Basic Plotting -----------------------
+
+## --------------- Save figure -----------------------
 
 
 
@@ -1137,223 +1141,107 @@ def plot_distance(
 ## --------------------------------------
 def plot_resolution_with_pulls(
         input_df: pd.DataFrame,
-        board_id: int,
-        fig_title: str,
+        board_ids: list[int],
+        fig_title: list[str],
         fig_tag: str = '',
         hist_bins: int = 15,
     ):
-
+    import matplotlib.gridspec as gridspec
     from lmfit.models import GaussianModel
     from lmfit.lineshapes import gaussian
 
     mod = GaussianModel(nan_policy='omit')
-    x_min = int(np.amin(input_df[f'res{board_id}'].values))-5
-    x_max = int((np.amax(input_df[f'res{board_id}'].values)))+5
-    h_res = hist.Hist(hist.axis.Regular(hist_bins, x_min, x_max, name="time_resolution", label=r'Time Resolution [ps]'))
-    h_res.fill(input_df[f'res{board_id}'].values)
 
-    centers = h_res.axes[0].centers
+    hists = {}
+    fit_params = {}
+    pulls_dict = {}
 
-    pars = mod.guess(h_res.values(), x=centers)
-    out = mod.fit(h_res.values(), pars, x=centers, weights=1/np.sqrt(h_res.values()))
+    for key in board_ids:
+        hist_x_min = int(input_df[f'res{key}'].min())-5
+        hist_x_max = int(input_df[f'res{key}'].max())+5
+        hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_x_min, hist_x_max, name="time_resolution", label=r'Time Resolution [ps]'))
+        hists[key].fill(input_df[f'res{key}'].values)
+        centers = hists[key].axes[0].centers
+        pars = mod.guess(hists[key].values(), x=centers)
+        out = mod.fit(hists[key].values(), pars, x=centers, weights=1/np.sqrt(hists[key].values()))
+        fit_params[key] = out
 
-    ### Calculate pull
-    pulls = (h_res.values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
-    pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
+        ### Calculate pull
+        pulls = (hists[key].values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
+        pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
+        pulls_dict[key] = pulls
 
-    left_edge = centers[0]
-    right_edge = centers[-1]
+    # Create a figure with a 2x2 grid
+    fig = plt.figure(figsize=(24, 16))
+    gs = fig.add_gridspec(2, 2)
 
-    # Pull: plot the pulls using Matplotlib bar method
-    width = (right_edge - left_edge) / len(pulls)
+    for i, plot in enumerate(gs):
+        global_ax = fig.add_subplot(plot)
+        inner_plot = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=global_ax, hspace=0, height_ratios=[3, 1])
+        main_ax = fig.add_subplot(inner_plot[0])
+        sub_ax = fig.add_subplot(inner_plot[1], sharex=main_ax)
+        global_ax.xaxis.set_visible(False)
+        global_ax.yaxis.set_visible(False)
+        main_ax.xaxis.set_visible(False)
 
-    fig = plt.figure()
-    grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
-    main_ax = fig.add_subplot(grid[0])
-    subplot_ax = fig.add_subplot(grid[1], sharex=main_ax)
-    plt.setp(main_ax.get_xticklabels(), visible=False)
-    hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
-    main_ax.set_title(f'{fig_title} {fig_tag}', loc="right", size=22)
+        if i not in hists:
+            global_ax.set_axis_off()
+            main_ax.set_axis_off()
+            sub_ax.set_axis_off()
+            continue
 
-    main_ax.errorbar(centers, h_res.values(), np.sqrt(h_res.variances()),
-                    ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
-                    ms=6, capsize=1, capthick=2, alpha=0.8)
-    main_ax.set_ylabel('Counts', fontsize=20)
-    main_ax.set_ylim(-20, None)
-    main_ax.tick_params(axis='x', labelsize=20)
-    main_ax.tick_params(axis='y', labelsize=20)
+        centers = hists[i].axes[0].centers
+        hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=20)
+        main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=13)
 
-    x_range = np.linspace(x_min, x_max, 200)
+        main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
+                        ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+                        ms=6, capsize=1, capthick=2, alpha=0.8)
+        main_ax.set_ylabel('Counts', fontsize=20)
+        main_ax.set_ylim(-5, None)
+        main_ax.tick_params(axis='x', labelsize=20)
+        main_ax.tick_params(axis='y', labelsize=20)
 
-    popt = [par for name, par in out.best_values.items()]
-    pcov = out.covar
+        x_min = centers[0]
+        x_max = centers[-1]
 
-    if np.isfinite(pcov).all():
-        n_samples = 100
-        vopts = np.random.multivariate_normal(popt, pcov, n_samples)
-        sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
-        model_uncert = np.nanstd(sampled_ydata, axis=0)
-    else:
-        model_uncert = np.zeros_like(np.sqrt(h_res.variances()))
+        x_range = np.linspace(x_min, x_max, 200)
+        popt = [par for name, par in fit_params[i].best_values.items()]
+        pcov = fit_params[i].covar
 
-    main_ax.plot(x_range, out.eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
-                label=fr"$\mu:{out.params['center'].value:.3f}, \sigma: {abs(out.params['sigma'].value):.3f}$")
+        if np.isfinite(pcov).all():
+            n_samples = 100
+            vopts = np.random.multivariate_normal(popt, pcov, n_samples)
+            sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
+            model_uncert = np.nanstd(sampled_ydata, axis=0)
+        else:
+            model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
 
-    main_ax.fill_between(
-        x_range,
-        out.eval(x=x_range) - model_uncert,
-        out.eval(x=x_range) + model_uncert,
-        color="hotpink",
-        alpha=0.2,
-        label='Uncertainty'
-    )
-    main_ax.legend(fontsize=20, loc='upper right')
+        main_ax.plot(x_range, fit_params[i].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
+                    label=fr"$\mu:{fit_params[i].params['center'].value:.3f}, \sigma: {abs(fit_params[i].params['sigma'].value):.3f}$")
 
-    # subplot_ax.axvline(centers[0], c='red', lw=2)
-    # subplot_ax.axvline(centers[-1], c='red', lw=2)
-    subplot_ax.axhline(1, c='black', lw=0.75)
-    subplot_ax.axhline(0, c='black', lw=1.2)
-    subplot_ax.axhline(-1, c='black', lw=0.75)
-    subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
-    subplot_ax.set_ylim(-2, 2)
-    subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
-    subplot_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
-    subplot_ax.tick_params(axis='x', which='both', labelsize=20)
-    subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
-    # subplot_ax.minorticks_off()
+        main_ax.fill_between(
+            x_range,
+            fit_params[i].eval(x=x_range) - model_uncert,
+            fit_params[i].eval(x=x_range) + model_uncert,
+            color="hotpink",
+            alpha=0.2,
+            label='Uncertainty'
+        )
+        main_ax.legend(fontsize=20, loc='upper right')
 
-    plt.tight_layout()
+        width = (x_max - x_min) / len(pulls_dict[i])
+        sub_ax.axhline(1, c='black', lw=0.75)
+        sub_ax.axhline(0, c='black', lw=1.2)
+        sub_ax.axhline(-1, c='black', lw=0.75)
+        sub_ax.bar(centers, pulls_dict[i], width=width, fc='royalblue')
+        sub_ax.set_ylim(-2, 2)
+        sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
+        sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
+        sub_ax.tick_params(axis='x', which='both', labelsize=20)
+        sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
 
-## Under construction: 2x2 figures at once
-## --------------------------------------
-# def plot_resolution_hist(
-#         input_df: pd.DataFrame,
-#         chipLabels: list[int],
-#         fig_title: list[str],
-#         title_tag: str = '',
-#         hist_bins: int = 100,
-#         hist_range: tuple = (30, 80),
-#     ):
-
-#     from lmfit.models import GaussianModel
-#     from lmfit.lineshapes import gaussian
-
-#     mod = GaussianModel(nan_policy='omit')
-
-#     hists = {}
-#     fit_params = {}
-#     for key in chipLabels:
-#         hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_range[0], hist_range[1], name="time_resolution", label=r'Time Resolution [ps]'))
-#         hists[key].fill(input_df[f'res{key}'].values, weight=np.sqrt((1/input_df[f'err{key}'])/(np.sum(1/input_df[f'err{key}']**2))))
-#         pars = mod.guess(hists[key].values(), x=hists[key].axes[0].centers)
-#         out = mod.fit(hists[key].values(), pars, x=hists[key].axes[0].centers, weights=1/np.sqrt(hists[key].values()))
-#         fit_params[key] = [out.params['center'].value, out.params['sigma'].value]
-#         popt = [par for name, par in out.best_values.items()]
-#         pcov = out.covar
-
-#         if np.isfinite(pcov).all():
-#             n_samples = 100
-#             vopts = np.random.multivariate_normal(popt, pcov, n_samples)
-#             sampled_ydata = np.vstack([gaussian(fit_centers, *vopt).T for vopt in vopts])
-#             model_uncert = np.nanstd(sampled_ydata, axis=0)
-#         else:
-#             model_uncert = np.zeros_like(np.sqrt(input_hist.variances()))
-
-#         ### Calculate pull
-#         if use_pred_uncert:
-#             pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
-#         else:
-#             pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(input_hist.variances())
-#         pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
-
-#         left_edge = centers[0]
-#         right_edge = centers[-1]
-
-#         # Pull: plot the pulls using Matplotlib bar method
-#         width = (right_edge - left_edge) / len(pulls)
-
-
-#     import matplotlib.gridspec as gridspec
-#     fig = plt.figure(figsize=(20, 16))
-#     outer_gs = fig.add_gridspec(2, 2)
-
-#     for i in range(2):
-#         for j in range(2):
-#             # Create the outer subplot
-#             outer_ax = fig.add_subplot(outer_gs[i, j])
-#             key = i*2 + j + 1
-
-#             # Create the inner grid spec for the subplot
-#             inner_gs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=outer_ax, hspace=0, height_ratios=[3, 1])
-#             inner_ax = fig.add_subplot(inner_gs[0], sharex=outer_ax)
-#             hep.cms.text(loc=0, ax=inner_ax, text="Preliminary", fontsize=25)
-#             inner_ax.set_title(f'{fig_title[key]}', loc="right", size=20)
-#             inner_ax.errorbar(hists[key].axes[0].centers, hists[key].values(), np.sqrt(hists[key].variances()),
-#                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
-#                             ms=6, capsize=1, capthick=2, alpha=0.8)
-#             inner_ax.plot(hists[key].axes[0].centers, out.best_fit, color="hotpink", ls="-", lw=2, alpha=0.8,
-#                         label=fr"$\mu:{fit_params[key][0].value:.3f}, \sigma: {abs(fit_params[key][1]):.3f}$")
-#             inner_ax.set_ylabel('Counts')
-#             inner_ax.set_ylim(-20, None)
-
-#             inner_ax.fill_between(
-#                 hists[key].axes[0].centers,
-#                 out.eval(x=fit_centers) - model_uncert,
-#                 out.eval(x=fit_centers) + model_uncert,
-#                 color="hotpink",
-#                 alpha=0.2,
-#                 label='Uncertainty'
-#             )
-#             inner_ax.legend(fontsize=20, loc='upper right')
-
-
-#             inner_ax.xaxis.set_visible(False)
-#             outer_ax.yaxis.set_visible(False)
-
-
-
-
-
-
-#             subplot_ax.axvline(fit_centers[0], c='red', lw=2)
-#             subplot_ax.axvline(fit_centers[-1], c='red', lw=2)
-#             subplot_ax.axhline(1, c='black', lw=0.75)
-#             subplot_ax.axhline(0, c='black', lw=1.2)
-#             subplot_ax.axhline(-1, c='black', lw=0.75)
-#             subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
-#             subplot_ax.set_ylim(-2, 2)
-#             subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1])
-#             subplot_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
-#             subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
-#             subplot_ax.minorticks_off()
-
-
-
-#     for i, plot_info in enumerate(gs):
-
-
-
-
-
-#         if i == 0:
-#             ax.set_title(f"{figtitle[i]}, title_tag", loc="right", size=15)
-#             hists[i].plot1d(ax=ax, lw=2)
-#         elif i == 1:
-#             ax.set_title(f"{figtitle[i]}, title_tag", loc="right", size=15)
-#             input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
-#         elif i == 2:
-#             ax.set_title(f"{figtitle[i]}, title_tag", loc="right", size=15)
-#             input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
-#         elif i == 3:
-#             ax.set_title(f"{figtitle[i]}, title_tag", loc="right", size=14)
-#             input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
-
-#     plt.tight_layout()
-#     if(save): plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-#     if(show): plt.show()
-#     plt.close()
-
-
+    del hists, fit_params, pulls_dict, mod
 
 ## --------------------------------------
 def plot_resolution_table(
@@ -1361,12 +1249,14 @@ def plot_resolution_table(
         chipLabels: list[int],
         fig_title: list[str],
         fig_tag: str = '',
+        slides_friendly: bool = False,
     ):
-    from matplotlib import colormaps
 
-    cmap = colormaps('viridis')
+    from matplotlib import colormaps
+    cmap = colormaps['viridis']
     cmap.set_under(color='lightgrey')
 
+    tables = {}
     for board_id in chipLabels:
         board_info = input_df[[f'row{board_id}', f'col{board_id}', f'res{board_id}', f'err{board_id}']]
 
@@ -1384,39 +1274,85 @@ def plot_resolution_table(
         err_table = err_table.reindex(columns=np.arange(0,16))
         err_table = err_table.fillna(-1)
 
-        # Create a heatmap to visualize the count of hits
-        fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
-        ax.cla()
-        im = ax.imshow(res_table, cmap=cmap, interpolation="nearest", vmin=0, vmax=85)
+        tables[board_id] = [res_table, err_table]
 
-        # Add color bar
-        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        cbar.set_label('Time Resolution', fontsize=20)
+    if slides_friendly:
+        fig = plt.figure(figsize=(35, 35))
+        gs = fig.add_gridspec(2, 2)
 
-        for i in range(16):
-            for j in range(16):
-                value = res_table.iloc[i, j]
-                error = err_table.iloc[i, j]
-                if (value == -1) or (value == 0): continue
-                text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
-                text = str(rf"{value:.1f} $\pm$ {error:.1f}")
-                plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=11, rotation=45)
+        for idx, plot in enumerate(gs):
+            ax = fig.add_subplot(plot)
 
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-        ax.set_xlabel('Column (col)', fontsize=20)
-        ax.set_ylabel('Row (row)', fontsize=20)
-        ticks = range(0, 16)
-        ax.set_xticks(ticks)
-        ax.set_yticks(ticks)
-        ax.set_title(f"{fig_title[board_id]}, Resolution map {fig_tag}", loc="right", size=20)
-        ax.tick_params(axis='x', which='both', length=5, labelsize=17)
-        ax.tick_params(axis='y', which='both', length=5, labelsize=17)
-        ax.invert_xaxis()
-        ax.invert_yaxis()
-        plt.minorticks_off()
+            if idx not in tables:
+                ax.set_axis_off()
+                continue
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30, vmax=85)
+
+            # Add color bar
+            cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            cbar.set_label('Time Resolution', fontsize=20)
+
+            for i in range(16):
+                for j in range(16):
+                    value = tables[idx][0].iloc[i, j]
+                    error = tables[idx][1].iloc[i, j]
+                    if value == -1: continue
+                    text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
+                    text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
+                    plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+
+
+            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+            ax.set_xlabel('Column (col)', fontsize=20)
+            ax.set_ylabel('Row (row)', fontsize=20)
+            ticks = range(0, 16)
+            ax.set_xticks(ticks)
+            ax.set_yticks(ticks)
+            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=20)
+            ax.tick_params(axis='x', which='both', length=5, labelsize=20)
+            ax.tick_params(axis='y', which='both', length=5, labelsize=20)
+            ax.invert_xaxis()
+            ax.invert_yaxis()
+            plt.minorticks_off()
+
         plt.tight_layout()
+        del tables
 
-        del board_info, res_table, err_table
+    else:
+        for idx in tables.keys():
+            # Create a heatmap to visualize the count of hits
+            fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
+            ax.cla()
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30, vmax=85)
+
+            # Add color bar
+            cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            cbar.set_label('Time Resolution', fontsize=20)
+
+            for i in range(16):
+                for j in range(16):
+                    value = tables[idx][0].iloc[i, j]
+                    error = tables[idx][1].iloc[i, j]
+                    if value == -1: continue
+                    text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
+                    text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
+                    plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+
+            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+            ax.set_xlabel('Column (col)', fontsize=20)
+            ax.set_ylabel('Row (row)', fontsize=20)
+            ticks = range(0, 16)
+            ax.set_xticks(ticks)
+            ax.set_yticks(ticks)
+            ax.set_title(f"{fig_title[board_id]}, Resolution map {fig_tag}", loc="right", size=20)
+            ax.tick_params(axis='x', which='both', length=5, labelsize=17)
+            ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+            ax.invert_xaxis()
+            ax.invert_yaxis()
+            plt.minorticks_off()
+            plt.tight_layout()
+
+    del tables
 
 ## --------------- Plotting -----------------------
 
@@ -1579,7 +1515,6 @@ def lmfit_gaussfit_with_pulls(
     else:
         reduced_data = input_data[(input_data > input_data.mean()-std_range_cut) & (input_data < input_data.mean()+std_range_cut)]
 
-
     fit_min = reduced_data.mean()-width_factor*reduced_data.std()
     fit_max = reduced_data.mean()+width_factor*reduced_data.std()
     del reduced_data
@@ -1677,6 +1612,7 @@ def lmfit_gaussfit_with_pulls(
         return [out.params['sigma'].value, out.params['sigma'].stderr, out.chisqr/(out.ndata-1)]
     else:
         return [out.params['sigma'].value, out.params['sigma'].stderr]
+
 ## --------------- Time Walk Correction -----------------------
 
 
@@ -1711,6 +1647,7 @@ def return_resolution_four_board(
     }
 
     return results
+
 ## --------------- Result -----------------------
 
 
@@ -1831,5 +1768,6 @@ def bootstrap_single_track_time_resolution(
                 final_dict[f'err{key}'].append(std)
         else:
             print('Track is not validate for bootstrapping')
+
 ## --------------- Bootstrap -----------------------
 
