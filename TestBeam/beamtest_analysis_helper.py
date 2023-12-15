@@ -789,10 +789,18 @@ def plot_heatmap_byPandas(
         input_df: pd.DataFrame,
         chipLabels: list[int],
         fig_title: list[str],
-        fig_tag: str
+        fig_tag: str,
+        exclude_noise: bool = False,
     ):
+
+    if exclude_noise:
+        ana_df = input_df.loc[input_df['tot'] > 10].copy()
+    else:
+        ana_df = input_df
+
     # Group the DataFrame by 'col,' 'row,' and 'board,' and count the number of hits in each group
-    hits_count_by_col_row_board = input_df.groupby(['col', 'row', 'board'])['evt'].count().reset_index()
+    hits_count_by_col_row_board = ana_df.groupby(['col', 'row', 'board'])['evt'].count().reset_index()
+    del ana_df
 
     # Rename the 'evt' column to 'hits'
     hits_count_by_col_row_board = hits_count_by_col_row_board.rename(columns={'evt': 'hits'})
