@@ -1653,7 +1653,6 @@ def return_resolution_four_board(
         1: np.sqrt((1/6)*(2*fit_params['01'][0]**2+2*fit_params['12'][0]**2+2*fit_params['13'][0]**2-fit_params['02'][0]**2-fit_params['03'][0]**2-fit_params['23'][0]**2))*1e3,
         2: np.sqrt((1/6)*(2*fit_params['02'][0]**2+2*fit_params['12'][0]**2+2*fit_params['23'][0]**2-fit_params['01'][0]**2-fit_params['03'][0]**2-fit_params['13'][0]**2))*1e3,
         3: np.sqrt((1/6)*(2*fit_params['03'][0]**2+2*fit_params['13'][0]**2+2*fit_params['23'][0]**2-fit_params['01'][0]**2-fit_params['02'][0]**2-fit_params['12'][0]**2))*1e3,
-
     }
 
     return results
