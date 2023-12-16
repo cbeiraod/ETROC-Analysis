@@ -1226,7 +1226,9 @@ def plot_resolution_with_pulls(
             model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
 
         main_ax.plot(x_range, fit_params[i].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
-                    label=fr"$\mu:{fit_params[i].params['center'].value:.3f}, \sigma: {abs(fit_params[i].params['sigma'].value):.3f}$")
+                    label=fr"$\mu$:{fit_params[i].params['center'].value:.2f}, $\pm$ {fit_params[i].params['center'].stderr:.2f}")
+        main_ax.plot(np.NaN, np.NaN, color='none',
+                     label=fr"$\sigma$: {abs(fit_params[i].params['sigma'].value):.2f} $\pm$ {abs(fit_params[i].params['sigma'].stderr):.2f}")
 
         main_ax.fill_between(
             x_range,
