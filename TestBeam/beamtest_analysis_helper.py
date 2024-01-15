@@ -6,6 +6,8 @@ from glob import glob
 import hist
 import copy
 from pathlib import Path
+import os
+from tqdm import tqdm
 
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
@@ -419,8 +421,8 @@ def toSingleDataFramePerDirectory(
 
 ## --------------------------------------
 def toSingleDataFramePerDirectory_newEventModel(
-        root: str,
-        path_pattern: str,
+        path_to_dir: str,
+        dir_name_pattern: str,
         data_qinj: bool = False,
         save_to_csv: bool = False,
         debugging: bool = False,
@@ -429,10 +431,8 @@ def toSingleDataFramePerDirectory_newEventModel(
     evt = -1
     previous_evt = -1
     name_pattern = "*translated*.nem"
-    if data_qinj:
-        name_pattern = "*translated_[1-9]*.nem"
 
-    dirs = glob(f"{root}/{path_pattern}")
+    dirs = glob(f"{path_to_dir}/{dir_name_pattern}")
     dirs = natsorted(dirs)
     print(dirs[:3])
 
@@ -449,13 +449,17 @@ def toSingleDataFramePerDirectory_newEventModel(
         'cal': [],
     }
 
-    for dir in dirs:
+    for dir in tqdm(dirs):
         df = pd.DataFrame(d)
         name = dir.split('/')[-1]
         files = glob(f"{dir}/{name_pattern}")
 
         for ifile in files:
             file_d = copy.deepcopy(d)
+
+            if os.stat(ifile).st_size == 0:
+                continue
+
             with open(ifile, 'r') as infile:
                 for line in infile:
                     if line.split(' ')[0] == 'EH':
@@ -490,14 +494,15 @@ def toSingleDataFramePerDirectory_newEventModel(
                 del file_df
             del file_d
 
-        df = df.astype('int')
-        if data_qinj:
-            df.drop(columns=['evt', 'board'], inplace=True)
-        if save_to_csv:
-            df.to_csv(name+'.csv', index=False)
-        else:
-            df.to_feather(name+'.feather')
-        del df
+        if not df.empty:
+            df = df.astype('int')
+            if data_qinj:
+                df.drop(columns=['evt', 'board'], inplace=True)
+            if save_to_csv:
+                df.to_csv(name+'.csv', index=False)
+            else:
+                df.to_feather(name+'.feather')
+            del df
 
 ## --------------- Text converting to DataFrame -----------------------
 
@@ -652,33 +657,6 @@ def making_pivot(
 ## --------------- Modify DataFrame -----------------------
 
 
-## --------------- Save figure (under construction) -----------------------
-## --------------------------------------
-def save_fig(
-        fig: plt.figure,
-        global_name: str,
-        run_name: str,
-        tag_name: str,
-
-    ):
-
-    global_name = 'desy_TB_2023'
-    tag_name = 'test'
-
-    Path(f"../../ETROC-figures/{global_name}/{run_name}/{tag_name}").mkdir(parents=True, exist_ok=True)
-    fig_path = f"../../ETROC-figures/{global_name}/{run_name}/{tag_name}"
-
-
-    fig_outdir = Path('../../ETROC-figures')
-    fig_outdir = fig_outdir / (today + '_Array_Test_Results')
-    fig_outdir.mkdir(exist_ok=True)
-    fig_path = str(fig_outdir)
-    pass
-
-## --------------- Save figure -----------------------
-
-
-
 
 ## --------------- Plotting -----------------------
 ## --------------------------------------
@@ -701,9 +679,30 @@ def return_hist(
     return h
 
 ## --------------------------------------
+def return_hist_pivot(
+        input_df: pd.DataFrame,
+        chipNames: list[str],
+        chipLabels: list[int],
+        hist_bins: list = [50, 64, 64]
+):
+    h = {chipNames[boardID]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
+                hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
+                hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
+        )
+    for boardID in chipLabels}
+
+    for boardID in chipLabels:
+        h[chipNames[boardID]].fill(input_df['cal'][boardID].values, input_df['tot'][boardID].values, input_df['toa'][boardID].values)
+
+    return h
+
+## --------------------------------------
 def plot_number_of_fired_board(
         input_df: pd.DataFrame,
+        fig_tag: str = '',
         do_logy: bool = False,
+        do_save_fig: bool = False,
+        save_fig_path: str = None,
     ):
 
     h = hist.Hist(hist.axis.Regular(5, 0, 5, name="nBoards", label="nBoards"))
@@ -713,12 +712,23 @@ def plot_number_of_fired_board(
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
     hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    ax.set_title(f"{fig_tag}", loc="right", size=25)
     h.plot1d(ax=ax, lw=2)
     ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
     if do_logy:
         ax.set_yscale('log')
     plt.tight_layout()
-    del h
+
+    if do_save_fig:
+        if save_fig_path is None:
+            print('Please specify a path to save figure. Otherwise this figure will not be saved')
+            del h
+        else:
+            save_path = Path(save_fig_path)
+            # save_path = save_path / ''
+            # fig.savefig()
+    else:
+        del h
 
 ## --------------------------------------
 def plot_number_of_hits_per_event(
@@ -755,7 +765,7 @@ def plot_number_of_hits_per_event(
 def plot_2d_nHits_nBoard(
         input_df: pd.DataFrame,
         fig_titles: list[str],
-        fig_tag: str,
+        fig_tag: str = '',
         bins: int = 15,
         hist_range: tuple = (0, 15),
 
@@ -929,7 +939,6 @@ def plot_1d_TDC_histograms(
         fig_title: str,
         fig_path: str = './',
         save: bool = False,
-        show: bool = False,
         tag: str = '',
         fig_tag: str = '',
         slide_friendly: bool = False,
@@ -945,7 +954,6 @@ def plot_1d_TDC_histograms(
         input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
         if(save): plt.savefig(fig_path+"/"+chip_figname+"_CAL_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-        if(show): plt.show()
         plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,10))
@@ -956,7 +964,6 @@ def plot_1d_TDC_histograms(
         input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
         if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-        if(show): plt.show()
         plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,10))
@@ -967,7 +974,6 @@ def plot_1d_TDC_histograms(
         input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
         if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-        if(show): plt.show()
         plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,20))
@@ -978,8 +984,7 @@ def plot_1d_TDC_histograms(
         input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
         plt.tight_layout()
         if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-        if(show): plt.show()
-        plt.close()
+        # plt.close()
 
     else:
         fig = plt.figure(dpi=100, figsize=(30,13))
@@ -1009,8 +1014,7 @@ def plot_1d_TDC_histograms(
 
         plt.tight_layout()
         if(save): plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-        if(show): plt.show()
-        plt.close()
+        # plt.close()
 
 ## --------------------------------------
 def plot_correlation_of_pixels(
@@ -1362,7 +1366,7 @@ def plot_resolution_table(
             plt.minorticks_off()
             plt.tight_layout()
 
-    del tables
+        del tables
 
 ## --------------- Plotting -----------------------
 
