@@ -68,6 +68,7 @@ class DecodeBinary:
         self.running_word            = None
         self.position_40bit          = 0
         self.current_channel         = -1
+        self.in_40bit                = False
         self.data = {}
 
     def div_ceil(self, x,y):
@@ -75,7 +76,7 @@ class DecodeBinary:
 
     def decode_40bit(self, word):
         # Header
-        if word >> 22 == self.channel_header_pattern:
+        if word >> 22 == self.channel_header_pattern and not self.in_40bit:
             self.current_channel += 1
             while not ((self.enabled_channels >> self.current_channel) & 0b1):
                 self.current_channel += 1
@@ -86,8 +87,9 @@ class DecodeBinary:
             self.bcid = (word & 0xfff)
             self.l1acounter = ((word >> 14) & 0xff)
             self.data[self.current_channel] = copy.deepcopy(self.data_template)
+            self.in_40bit = True
         # Data
-        elif (word >> 39) == 1:
+        elif (word >> 39) == 1 and self.in_40bit:
             self.data[self.current_channel]['evt_number'].append(self.event_number)
             self.data[self.current_channel]['bcid'].append(self.bcid)
             self.data[self.current_channel]['l1a_counter'].append(self.l1acounter)
@@ -101,8 +103,9 @@ class DecodeBinary:
             self.data[self.current_channel]['cal'].append((word) & 0x3ff)
 
         # Trailer
-        elif (word >> 22) & 0x3ffff == self.board_ids[self.current_channel]:
+        elif (word >> 22) & 0x3ffff == self.board_ids[self.current_channel] and self.in_40bit:
             hits = (word >> 8) & 0xff
+            self.in_40bit = False
             if len(self.data[self.current_channel]['evt']) != hits:
                 print('Number of hits does not match!')
                 self.reset_params()
@@ -133,7 +136,7 @@ class DecodeBinary:
                         decoding = True
 
                     ## Event header
-                    if (word >> 4) == 0xc3a3c3a:
+                    if (word >> 4) == self.header_pattern:
                         self.enabled_channels = word & 0b1111
                         self.reset_params()
                         self.in_event = True
