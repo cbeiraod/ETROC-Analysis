@@ -20,6 +20,52 @@ plt.style.use(hep.style.CMS)
 
 from pathlib import Path
 
+import pickle
+
+
+## --------------- Compare Chip Configs -----------------------
+## --------------------------------------
+def compare_chip_configs(config_file1: Path, config_file2: Path):
+    with open(config_file1, 'rb') as f:
+        loaded_obj1 = pickle.load(f)
+    with open(config_file2, 'rb') as f:
+        loaded_obj2 = pickle.load(f)
+
+    if loaded_obj1['chip'] != loaded_obj2['chip']:
+        print("The config files are for different chips.")
+        print(f"  - config 1: {loaded_obj1['chip']}")
+        print(f"  - config 2: {loaded_obj2['chip']}")
+        return
+
+    chip1: dict = loaded_obj1['object']
+    chip2: dict = loaded_obj2['object']
+
+    common_keys = []
+    for key in chip1.keys():
+        if key not in chip2:
+            print(f"Address Space \"{key}\" in config file 1 and not in config file 2")
+        else:
+            if key not in common_keys:
+                common_keys += [key]
+    for key in chip2.keys():
+        if key not in chip1:
+            print(f"Address Space \"{key}\" in config file 2 and not in config file 1")
+        else:
+            if key not in common_keys:
+                common_keys += [key]
+
+    for address_space_name in common_keys:
+        if len(chip1[address_space_name]) != len(chip2[address_space_name]):
+            print(f"The length of the \"{address_space_name}\" memory for config file 1 ({len(chip1[address_space_name])}) is not the same as for config file 2 ({len(chip2[address_space_name])})")
+
+        length = min(len(chip1[address_space_name]), len(chip2[address_space_name]))
+
+        for idx in length:
+            if chip1[address_space_name][idx] != chip2[address_space_name][idx]:
+                print(f"The register at address {idx} is different between config file 1 and config file 2: {chip1[address_space_name][idx]:#08b} vs {chip2[address_space_name][idx]:#08b}")
+
+    print("Done comparing!")
+
 
 ## --------------- Decoding Class -----------------------
 ## --------------------------------------
