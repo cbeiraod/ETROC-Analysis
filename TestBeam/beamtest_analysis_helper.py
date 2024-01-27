@@ -37,6 +37,10 @@ class DecodeBinary:
         self.save_nem                = save_nem
         self.nem_file                = None
 
+        self.file_count = 0
+        self.line_count = 0
+        self.max_file_lines = 5e3
+
         self.in_event                = False
         self.eth_words_in_event      = -1
         self.words_in_event          = -1
@@ -83,6 +87,41 @@ class DecodeBinary:
         self.version                 = None
         self.event_type              = None
 
+    def open_next_file(self):
+        if self.save_nem is not None:
+            if self.nem_file is not None:
+                self.nem_file.close()
+
+            base_dir = self.save_nem.parent
+            file_name = self.save_nem.stem
+            suffix = self.save_nem.suffix
+
+            file_name = f'{file_name}_{self.file_count}{suffix}'
+
+            self.nem_file = open(base_dir / file_name, "w")
+            self.file_count += 1
+            self.line_count = 0
+        else:
+            self.nem_file = None
+            self.line_count = 0
+            self.file_count = 0
+
+    def close_file(self):
+        if self.save_nem is not None:
+            if self.nem_file is not None:
+                self.nem_file.close()
+        self.nem_file = None
+        self.line_count = 0
+        self.file_count = 0
+
+    def write_to_nem(self, write_str: str):
+        if self.nem_file is not None:
+            self.write_to_nem(write_str)
+            self.line_count += 1
+
+            if self.line_count >= self.max_file_lines:
+                self.open_next_file()
+
     def div_ceil(self, x,y):
         return -(x//(-y))
 
@@ -95,7 +134,7 @@ class DecodeBinary:
                 if self.current_channel > 3:
                     print('Found more headers than number of channels')
                     if self.nem_file is not None:
-                        self.nem_file.write(f"THIS IS A BROKEN EVENT SINCE MORE HEADERS THAN MASK FOUND\n")
+                        self.write_to_nem(f"THIS IS A BROKEN EVENT SINCE MORE HEADERS THAN MASK FOUND\n")
                     self.reset_params()
                     return
             self.bcid = (word & 0xfff)
@@ -105,7 +144,7 @@ class DecodeBinary:
             Type = (word >> 12) & 0x3
 
             if self.nem_file is not None:
-                self.nem_file.write(f"H {self.current_channel} {self.l1acounter} 0b{Type:02b} {self.bcid}\n")
+                self.write_to_nem(f"H {self.current_channel} {self.l1acounter} 0b{Type:02b} {self.bcid}\n")
         # Data
         elif (word >> 39) == 1 and self.in_40bit:
             EA = (word >> 37) & 0b11
@@ -127,7 +166,7 @@ class DecodeBinary:
             self.data[self.current_channel]['cal'].append(CAL)
 
             if self.nem_file is not None:
-                self.nem_file.write(f"D {self.current_channel} 0b{EA:02b} {ROW} {COL} {TOA} {TOT} {CAL}\n")
+                self.write_to_nem(f"D {self.current_channel} 0b{EA:02b} {ROW} {COL} {TOA} {TOT} {CAL}\n")
 
         # Trailer
         elif (word >> 22) & 0x3ffff == self.board_ids[self.current_channel] and self.in_40bit:
@@ -137,7 +176,7 @@ class DecodeBinary:
             self.in_40bit = False
 
             if self.nem_file is not None:
-                self.nem_file.write(f"T {self.current_channel} {status} {hits} 0b{CRC:08b}\n")
+                self.write_to_nem(f"T {self.current_channel} {status} {hits} 0b{CRC:08b}\n")
 
             if len(self.data[self.current_channel]['evt']) != hits:
                 print('Number of hits does not match!')
@@ -153,7 +192,7 @@ class DecodeBinary:
 
     def decode_files(self):
         if self.save_nem is not None:
-            self.nem_file = open(self.save_nem, "w")
+            self.open_next_file()
 
         df = pd.DataFrame(self.data_template)
         df = df.astype('int')
@@ -193,7 +232,7 @@ class DecodeBinary:
                         # print('Event Header Line Two Found')
                         # print(self.event_number)
                         if self.nem_file is not None:
-                            self.nem_file.write(f"EH 0b{self.version:04b} {self.event_number} {self.words_in_event} {self.event_type:02b}\n")
+                            self.write_to_nem(f"EH 0b{self.version:04b} {self.event_number} {self.words_in_event} {self.event_type:02b}\n")
                         continue
 
                     # Event Header Line Two NOT Found after the Header
@@ -226,7 +265,7 @@ class DecodeBinary:
                         hamming_count  = (word >> 8) & 0x7
 
                         if self.nem_file is not None:
-                            self.nem_file.write(f"ET {self.event_number} {overflow_count} {hamming_count} 0b{crc:08b}\n")
+                            self.write_to_nem(f"ET {self.event_number} {overflow_count} {hamming_count} 0b{crc:08b}\n")
 
                     # Event Data Word
                     elif(self.in_event):
@@ -249,7 +288,7 @@ class DecodeBinary:
                     # If Firmware filler
                     elif (word >> 16) == self.firmware_filler_pattern:
                         if self.nem_file is not None:
-                            self.nem_file.write(f"Filler: 0b{word & 0xffff:016b}\n")
+                            self.write_to_nem(f"Filler: 0b{word & 0xffff:016b}\n")
 
                     # Reset anyway!
                     self.reset_params()
@@ -258,9 +297,7 @@ class DecodeBinary:
                     df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
                     self.data_to_load = copy.deepcopy(self.data_template)
 
-        if self.nem_file is not None:
-            self.nem_file.close()
-            self.nem_file = None
+        self.close_file()
         return df
 
 ## --------------- Decoding Class -----------------------
