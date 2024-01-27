@@ -44,5 +44,7 @@ def main():
     files = natsorted(list(path.glob('loop_*/*')))
     decoder = DecodeBinary(firmware_key=0b0001, board_id=[0x17f0f, 0x17f0f, 0x17f0f, 0x17f0f], file_list=files, save_nem = outpath / 'translated.nem')
 
+    df = decoder.decode_files()
+
 if __name__ == "__main__":
     main()
