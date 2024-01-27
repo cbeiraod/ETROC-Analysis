@@ -120,6 +120,30 @@ PixSta = {
     5: "ACC",
     6: "ACC",
     7: "Copy of PixCfg31?",
+    8: "unused",
+    9: "unused",
+    10: "unused",
+    11: "unused",
+    12: "unused",
+    13: "unused",
+    14: "unused",
+    15: "unused",
+    16: "unused",
+    17: "unused",
+    18: "unused",
+    19: "unused",
+    20: "unused",
+    21: "unused",
+    22: "unused",
+    23: "unused",
+    24: "unused",
+    25: "unused",
+    26: "unused",
+    27: "unused",
+    28: "unused",
+    29: "unused",
+    30: "unused",
+    31: "unused",
 }
 
 
@@ -160,7 +184,7 @@ def compare_chip_configs(config_file1: Path, config_file2: Path):
 
         length = min(len(chip1[address_space_name]), len(chip2[address_space_name]))
 
-        for idx in length:
+        for idx in range(length):
             if idx <= 0x001f:
                 register = idx
                 reg_info = f" (PeriCfg{register} contains {PeriCfg[register]})"
