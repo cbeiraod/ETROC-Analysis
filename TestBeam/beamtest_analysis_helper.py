@@ -241,7 +241,7 @@ class DecodeBinary:
 
         self.file_count = 0
         self.line_count = 0
-        self.max_file_lines = 5e3
+        self.max_file_lines = 1e6
 
         self.in_event                = False
         self.eth_words_in_event      = -1
@@ -318,7 +318,7 @@ class DecodeBinary:
 
     def write_to_nem(self, write_str: str):
         if self.nem_file is not None:
-            self.write_to_nem(write_str)
+            self.nem_file.write(write_str)
             self.line_count += 1
 
             if self.line_count >= self.max_file_lines:
