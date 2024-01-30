@@ -28,6 +28,13 @@ def main():
         dest = 'outpath',
         required = True,
     )
+    parser.add_argument(
+        '-s',
+        '--skip-filler',
+        action='store_true',
+        help = 'If set, the output NEM file will not contain the firmware filler words',
+        dest = 'skip_filler',
+    )
 
     args = parser.parse_args()
 
@@ -42,7 +49,13 @@ def main():
     outpath = outpath.absolute()
 
     files = natsorted(list(path.glob('loop_*/*')))
-    decoder = DecodeBinary(firmware_key=0b0001, board_id=[0x17f0f, 0x17f0f, 0x17f0f, 0x17f0f], file_list=files, save_nem = outpath / 'translated.nem')
+    decoder = DecodeBinary(
+                            firmware_key=0b0001,
+                            board_id=[0x17f0f, 0x17f0f, 0x17f0f, 0x17f0f],
+                            file_list=files,
+                            save_nem = outpath / 'translated.nem',
+                            skip_filler = args.skip_filler,
+                           )
 
     df = decoder.decode_files()
 
