@@ -226,7 +226,7 @@ def compare_chip_configs(config_file1: Path, config_file2: Path):
 ## --------------- Decoding Class -----------------------
 ## --------------------------------------
 class DecodeBinary:
-    def __init__(self, firmware_key, board_id: list[int], file_list: list[Path], save_nem: Path | None = None):
+    def __init__(self, firmware_key, board_id: list[int], file_list: list[Path], save_nem: Path | None = None, skip_filler: bool = False):
         self.firmware_key            = firmware_key
         self.header_pattern          = 0xc3a3c3a
         self.trailer_pattern         = 0b001011
@@ -238,6 +238,7 @@ class DecodeBinary:
         self.files_to_process        = file_list
         self.save_nem                = save_nem
         self.nem_file                = None
+        self.skip_filler             = skip_filler
 
         self.file_count = 0
         self.line_count = 0
@@ -489,7 +490,7 @@ class DecodeBinary:
 
                     # If Firmware filler
                     elif (word >> 16) == self.firmware_filler_pattern:
-                        if self.nem_file is not None:
+                        if self.nem_file is not None and not self.skip_filler:
                             self.write_to_nem(f"Filler: 0b{word & 0xffff:016b}\n")
 
                     # Reset anyway!
