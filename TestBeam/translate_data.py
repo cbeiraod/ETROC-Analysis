@@ -26,7 +26,14 @@ def main():
         type = Path,
         help = 'Path to the output directory to save the translated NEM files',
         dest = 'outpath',
-        required = True,
+    )
+    parser.add_argument(
+        '-f',
+        '--feather-file',
+        metavar = 'PATH',
+        type = Path,
+        help = 'Path to the output directory to save the translated feather files',
+        dest = 'feather_file',
     )
     parser.add_argument(
         '-s',
@@ -44,20 +51,36 @@ def main():
     path = path.absolute()
 
     outpath: Path = args.outpath
-    if not outpath.exists():
-        raise RuntimeError("The out path does not exist")
-    outpath = outpath.absolute()
+    save_nem = None
+    if outpath is not None:
+        if not outpath.exists():
+            raise RuntimeError("The out path does not exist")
+        outpath = outpath.absolute()
+        save_nem = outpath / 'translated.nem'
+
+    feather_file: Path = args.feather_file
+    if feather_file is not None:
+        if not feather_file.exists():
+            raise RuntimeError("The feather_file path does not exist")
+        feather_file = feather_file.absolute()
+
+    if outpath is None and feather_file is None:
+        raise RuntimeError("You must enable at least one output format")
+
+
 
     files = natsorted(list(path.glob('loop_*/*')))
     decoder = DecodeBinary(
                             firmware_key=0b0001,
                             board_id=[0x17f0f, 0x17f0f, 0x17f0f, 0x17f0f],
                             file_list=files,
-                            save_nem = outpath / 'translated.nem',
+                            save_nem = save_nem,
                             skip_filler = args.skip_filler,
                            )
 
     df = decoder.decode_files()
+    if feather_file is not None:
+        df.to_feather(feather_file / 'translated.feather')
 
 if __name__ == "__main__":
     main()
