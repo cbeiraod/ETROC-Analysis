@@ -8,6 +8,7 @@ import copy
 from pathlib import Path
 import os
 from tqdm import tqdm
+import pickle
 
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
@@ -17,10 +18,6 @@ import matplotlib.colors as colors
 import matplotlib.ticker as ticker
 import mplhep as hep
 plt.style.use(hep.style.CMS)
-
-from pathlib import Path
-
-import pickle
 
 PeriCfg = {
     0: "PLL Config",
