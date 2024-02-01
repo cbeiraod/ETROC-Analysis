@@ -266,8 +266,12 @@ def toSingleDataFramePerDirectory_newEventModel(
         dir_name_pattern: str,
         save_to_csv: bool = False,
         debugging: bool = False,
+        output_dir: str = "",
+        extra_str: str = "",
     ):
 
+    if output_dir != "":
+        os.system(f"mkdir -p {output_dir}")
     name_pattern = "*translated*.nem"
 
     dirs = glob(f"{path_to_dir}/{dir_name_pattern}")
@@ -322,10 +326,10 @@ def toSingleDataFramePerDirectory_newEventModel(
                         pass
                     elif line.split(' ')[0] == 'ET':
                         pass
-            if len(file_d['evt']) > 0:
-                file_df = pd.DataFrame(file_d)
-                df = pd.concat((df, file_df), ignore_index=True)
-                del file_df
+            # if len(file_d['evt']) > 0:
+            file_df = pd.DataFrame(file_d)
+            df = pd.concat((df, file_df), ignore_index=True)
+            del file_df
             del file_d
 
         if not df.empty:
@@ -333,7 +337,7 @@ def toSingleDataFramePerDirectory_newEventModel(
             if save_to_csv:
                 df.to_csv(name+'.csv', index=False)
             else:
-                df.to_feather(name+'.feather')
+                df.to_feather(f"{output_dir}/{name}{extra_str}.feather")
             del df
 
 ## --------------- Text converting to DataFrame -----------------------
