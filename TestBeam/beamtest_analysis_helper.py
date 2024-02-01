@@ -953,6 +953,43 @@ def making_pivot(
 ## --------------- Modify DataFrame -----------------------
 
 
+## --------------- Extract results -----------------------
+## --------------------------------------
+def save_TDC_summary_table(
+        input_df: pd.DataFrame,
+        chipLabels: list[int],
+        var: str,
+        save_path: Path,
+        fname_tag: str,
+    ):
+
+    for id in chipLabels:
+
+        if input_df[input_df['board'] == id].empty:
+            continue
+
+        sum_group = input_df[input_df['board'] == id].groupby(["col", "row"]).agg({var:['mean','std']})
+        sum_group.columns = sum_group.columns.droplevel()
+        sum_group.reset_index(inplace=True)
+
+        table_mean = sum_group.pivot_table(index='row', columns='col', values='mean')
+        table_mean = table_mean.round(1)
+
+        table_mean = table_mean.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+        table_mean = table_mean.reindex(columns=np.arange(0,16))
+
+        table_std = sum_group.pivot_table(index='row', columns='col', values='std')
+        table_std = table_std.round(2)
+
+        table_std = table_std.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+        table_std = table_std.reindex(columns=np.arange(0,16))
+
+        table_mean.to_pickle(save_path / f"{fname_tag}_mean.pkl")
+        table_std.to_pickle(save_path / f"{fname_tag}_std.pkl")
+
+        del sum_group, table_mean, table_std
+
+## --------------- Extract results -----------------------
 
 ## --------------- Plotting -----------------------
 ## --------------------------------------
