@@ -1175,7 +1175,7 @@ def plot_heatmap_byPandas(
             for j in range(16):
                 value = pivot_table.iloc[i, j]
                 if value == -1: continue
-                text_color = 'black' if value > (pivot_table.values.max() + pivot_table.values.min()) / 2 else 'white'
+                text_color = 'black' if value > 0.5*(pivot_table.values.max() + pivot_table.values.min()) else 'white'
                 text = str("{:.0f}".format(value))
                 plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=17)
 
@@ -1251,15 +1251,15 @@ def plot_TDC_summary_table(
             for j in range(16):
                 if np.isnan(table_mean.iloc[i,j]):
                     continue
-                text_color = 'black' if table_mean.iloc[i,j] > (table_mean.stack().max() + table_mean.stack().min()) / 2 else 'white'
-                axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
+                text_color = 'black' if table_mean.iloc[i,j] > 0.75*(table_mean.stack().max() + table_mean.stack().min()) else 'white'
+                axes[0].text(15-j, 15-i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
 
         for i in range(16):
             for j in range(16):
                 if np.isnan(table_std.iloc[i,j]):
                     continue
-                text_color = 'black' if table_std.iloc[i,j] > (table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
-                axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
+                text_color = 'black' if table_std.iloc[i,j] > 0.75*(table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
+                axes[1].text(15-j, 15-i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
 
         plt.minorticks_off()
         plt.tight_layout()
