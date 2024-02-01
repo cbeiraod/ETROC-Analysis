@@ -8,6 +8,7 @@ import copy
 from pathlib import Path
 import os
 from tqdm import tqdm
+import pickle
 
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
@@ -18,9 +19,129 @@ import matplotlib.ticker as ticker
 import mplhep as hep
 plt.style.use(hep.style.CMS)
 
-from pathlib import Path
+PeriCfg = {
+    0: "PLL Config",
+    1: "PLL Config",
+    2: "PLL Config",
+    3: "VRef & PLL Config",
+    4: "TS & PS Config",
+    5: "PS Config",
+    6: "RefStrSel",
+    7: "GRO & CLK40 Config",
+    8: "GRO & CLK1280 Config",
+    9: "GRO & FC Config",
+    10: "BCIDOffset",
+    11: "emptySlotBCID & BCIDOffset",
+    12: "emptySlotBCID",
+    13: "asy* & readoutClockDelayPixel",
+    14: "asy* & readoutClockWidthPixel",
+    15: "asy* & readoutClockDelayGlobal",
+    16: "LTx_AmplSel & readoutClockWidthGlobal",
+    17: "RTx_AmplSel & chargeInjectionDelay",
+    18: "various",
+    19: "various",
+    20: "eFuse & trigger config",
+    21: "eFuse Config",
+    22: "eFuse Prog",
+    23: "eFuse Prog",
+    24: "eFuse Prog",
+    25: "eFuse Prog",
+    26: "linkResetFixedPattern",
+    27: "linkResetFixedPattern",
+    28: "linkResetFixedPattern",
+    29: "linkResetFixedPattern",
+    30: "ThrCounter Config",
+    31: "TDCTest Config & ThrCounter Config",
+}
 
-import pickle
+PeriSta = {
+    0: "PS_Late & AFCcalCap & AFCBusy",
+    1: "fcAlignFinal and controller States",
+    2: "FC Status",
+    3: "invalidFCCount",
+    4: "pllUnlockCount & invalidFCCount",
+    5: "pllUnlockCount",
+    6: "EFuseQ",
+    7: "EFuseQ",
+    8: "EFuseQ",
+    9: "EFuseQ",
+    10: "Unused",
+    11: "Unused",
+    12: "Unused",
+    13: "Unused",
+    14: "Unused",
+    15: "Unused",
+}
+
+PixCfg = {
+    0: "RF, IB & CL Selection",
+    1: "QInj & QSel",
+    2: "PD_DACDiscri & HysSel",
+    3: "various",
+    4: "DAC",
+    5: "TH_Offset & DAC",
+    6: "TDC Config",
+    7: "various",
+    8: "L1Adelay & selfTestOccupancy",
+    9: "L1Adelay",
+    10: "lowerCal",
+    11: "upperCal & lowerCal",
+    12: "lowerTOA & upperCal",
+    13: "upperTOA & lowerTOA",
+    14: "upperTOA",
+    15: "lowerTOT",
+    16: "upperTOT & lowerTOT",
+    17: "lowerCalTrig & upperTOT",
+    18: "upperCalTrig & lowerCalTrig",
+    19: "lowerTOATrig & upperCalTrig",
+    20: "lowerTOATrig",
+    21: "upperTOATrig",
+    22: "lowerTOTTrig & upperTOATrig",
+    23: "upperTOTTrig & lowerTOTTrig",
+    24: "upperTOTTrig",
+    25: "unused",
+    26: "unused",
+    27: "unused",
+    28: "unused",
+    29: "unused",
+    30: "unused",
+    31: "unused",
+}
+
+PixSta = {
+    0: "PixelID",
+    1: "THState & NW & ScanDone",
+    2: "BL",
+    3: "TH & BL",
+    4: "TH",
+    5: "ACC",
+    6: "ACC",
+    7: "Copy of PixCfg31?",
+    8: "unused",
+    9: "unused",
+    10: "unused",
+    11: "unused",
+    12: "unused",
+    13: "unused",
+    14: "unused",
+    15: "unused",
+    16: "unused",
+    17: "unused",
+    18: "unused",
+    19: "unused",
+    20: "unused",
+    21: "unused",
+    22: "unused",
+    23: "unused",
+    24: "unused",
+    25: "unused",
+    26: "unused",
+    27: "unused",
+    28: "unused",
+    29: "unused",
+    30: "unused",
+    31: "unused",
+}
 
 
 ## --------------- Compare Chip Configs -----------------------
@@ -60,9 +181,41 @@ def compare_chip_configs(config_file1: Path, config_file2: Path):
 
         length = min(len(chip1[address_space_name]), len(chip2[address_space_name]))
 
-        for idx in length:
+        for idx in range(length):
+            if idx <= 0x001f:
+                register = idx
+                reg_info = f" (PeriCfg{register} contains {PeriCfg[register]})"
+            elif idx == 0x0020:
+                reg_info = " (Magic Number)"
+            elif idx < 0x0100:
+                reg_info = " (Unnamed Register Blk1)"
+            elif idx <= 0x010f:
+                register = idx - 0x0100
+                reg_info = f" (PeriSta{register} contains {PeriSta[register]})"
+            elif idx < 0x0120:
+                reg_info = " (Unnamed Register BLk2)"
+            elif idx <= 0x0123:
+                reg_info = f" (SEUCounter{idx - 0x0120})"
+            elif idx < 0x8000:
+                reg_info = f" (Unnamed Register Blk3)"
+            else:
+                space = "Cfg"
+                if (idx & 0x4000) != 0:
+                    space = "Sta"
+                broadcast = ""
+                if (idx & 0x2000) != 0:
+                    broadcast = " broadcast"
+                register = idx & 0x1f
+                row = (idx >> 5) & 0xf
+                col = (idx >> 9) & 0xf
+                contains = ""
+                if space == "Cfg":
+                    contains = PixCfg[register]
+                else:
+                    contains = PixSta[register]
+                reg_info = f" (Pix{space}{register} - Pixel R{row} C{col}{broadcast} contains {contains})"
             if chip1[address_space_name][idx] != chip2[address_space_name][idx]:
-                print(f"The register at address {idx} is different between config file 1 and config file 2: {chip1[address_space_name][idx]:#08b} vs {chip2[address_space_name][idx]:#08b}")
+                print(f"The register at address {idx} of {address_space_name}{reg_info} is different between config file 1 and config file 2: {chip1[address_space_name][idx]:#010b} vs {chip2[address_space_name][idx]:#010b}")
 
     print("Done comparing!")
 
@@ -70,7 +223,7 @@ def compare_chip_configs(config_file1: Path, config_file2: Path):
 ## --------------- Decoding Class -----------------------
 ## --------------------------------------
 class DecodeBinary:
-    def __init__(self, firmware_key, board_id: list[int], file_list: list[Path], save_nem: Path | None = None):
+    def __init__(self, firmware_key, board_id: list[int], file_list: list[Path], save_nem: Path | None = None, skip_filler: bool = False):
         self.firmware_key            = firmware_key
         self.header_pattern          = 0xc3a3c3a
         self.trailer_pattern         = 0b001011
@@ -82,10 +235,11 @@ class DecodeBinary:
         self.files_to_process        = file_list
         self.save_nem                = save_nem
         self.nem_file                = None
+        self.skip_filler             = skip_filler
 
         self.file_count = 0
         self.line_count = 0
-        self.max_file_lines = 5e3
+        self.max_file_lines = 1e6
 
         self.in_event                = False
         self.eth_words_in_event      = -1
@@ -162,7 +316,7 @@ class DecodeBinary:
 
     def write_to_nem(self, write_str: str):
         if self.nem_file is not None:
-            self.write_to_nem(write_str)
+            self.nem_file.write(write_str)
             self.line_count += 1
 
             if self.line_count >= self.max_file_lines:
@@ -333,7 +487,7 @@ class DecodeBinary:
 
                     # If Firmware filler
                     elif (word >> 16) == self.firmware_filler_pattern:
-                        if self.nem_file is not None:
+                        if self.nem_file is not None and not self.skip_filler:
                             self.write_to_nem(f"Filler: 0b{word & 0xffff:016b}\n")
 
                     # Reset anyway!
@@ -1925,4 +2079,3 @@ def bootstrap_single_track_time_resolution(
             print('Track is not validate for bootstrapping')
 
 ## --------------- Bootstrap -----------------------
-
