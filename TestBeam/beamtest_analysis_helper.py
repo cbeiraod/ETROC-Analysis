@@ -1195,16 +1195,16 @@ def plot_heatmap_byPandas(
 ## --------------------------------------
 def plot_TDC_summary_table(
         input_df: pd.DataFrame,
-        chipLabels: list,
+        chipLabels: list[int],
         var: str
     ):
 
-    for idx, id in enumerate(chipLabels):
+    for id in chipLabels:
 
-        if input_df[input_df['board'] == int(id)].empty:
+        if input_df[input_df['board'] == id].empty:
             continue
 
-        sum_group = input_df[input_df['board'] == int(id)].groupby(["col", "row"]).agg({var:['mean','std']})
+        sum_group = input_df[input_df['board'] == id].groupby(["col", "row"]).agg({var:['mean','std']})
         sum_group.columns = sum_group.columns.droplevel()
         sum_group.reset_index(inplace=True)
 
@@ -1227,8 +1227,8 @@ def plot_TDC_summary_table(
 
         fig, axes = plt.subplots(1, 2, figsize=(20, 20))
 
-        im1 = axes[0].imshow(table_mean, vmin=1)
-        im2 = axes[1].imshow(table_std, vmin=1)
+        im1 = axes[0].imshow(table_mean, vmin=-1)
+        im2 = axes[1].imshow(table_std, vmin=-1)
 
         hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
         hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
