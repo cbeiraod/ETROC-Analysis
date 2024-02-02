@@ -953,6 +953,43 @@ def making_pivot(
 ## --------------- Modify DataFrame -----------------------
 
 
+## --------------- Extract results -----------------------
+## --------------------------------------
+def save_TDC_summary_table(
+        input_df: pd.DataFrame,
+        chipLabels: list[int],
+        var: str,
+        save_path: Path,
+        fname_tag: str,
+    ):
+
+    for id in chipLabels:
+
+        if input_df[input_df['board'] == id].empty:
+            continue
+
+        sum_group = input_df[input_df['board'] == id].groupby(["col", "row"]).agg({var:['mean','std']})
+        sum_group.columns = sum_group.columns.droplevel()
+        sum_group.reset_index(inplace=True)
+
+        table_mean = sum_group.pivot_table(index='row', columns='col', values='mean')
+        table_mean = table_mean.round(1)
+
+        table_mean = table_mean.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+        table_mean = table_mean.reindex(columns=np.arange(0,16))
+
+        table_std = sum_group.pivot_table(index='row', columns='col', values='std')
+        table_std = table_std.round(2)
+
+        table_std = table_std.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+        table_std = table_std.reindex(columns=np.arange(0,16))
+
+        table_mean.to_pickle(save_path / f"{fname_tag}_mean.pkl")
+        table_std.to_pickle(save_path / f"{fname_tag}_std.pkl")
+
+        del sum_group, table_mean, table_std
+
+## --------------- Extract results -----------------------
 
 ## --------------- Plotting -----------------------
 ## --------------------------------------
@@ -1138,7 +1175,7 @@ def plot_heatmap_byPandas(
             for j in range(16):
                 value = pivot_table.iloc[i, j]
                 if value == -1: continue
-                text_color = 'black' if value > (pivot_table.values.max() + pivot_table.values.min()) / 2 else 'white'
+                text_color = 'black' if value > 0.5*(pivot_table.values.max() + pivot_table.values.min()) else 'white'
                 text = str("{:.0f}".format(value))
                 plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=17)
 
@@ -1158,16 +1195,16 @@ def plot_heatmap_byPandas(
 ## --------------------------------------
 def plot_TDC_summary_table(
         input_df: pd.DataFrame,
-        chipLabels: list,
+        chipLabels: list[int],
         var: str
     ):
 
-    for idx, id in enumerate(chipLabels):
+    for id in chipLabels:
 
-        if input_df[input_df['board'] == int(id)].empty:
+        if input_df[input_df['board'] == id].empty:
             continue
 
-        sum_group = input_df[input_df['board'] == int(id)].groupby(["col", "row"]).agg({var:['mean','std']})
+        sum_group = input_df[input_df['board'] == id].groupby(["col", "row"]).agg({var:['mean','std']})
         sum_group.columns = sum_group.columns.droplevel()
         sum_group.reset_index(inplace=True)
 
@@ -1190,8 +1227,8 @@ def plot_TDC_summary_table(
 
         fig, axes = plt.subplots(1, 2, figsize=(20, 20))
 
-        im1 = axes[0].imshow(table_mean, vmin=1)
-        im2 = axes[1].imshow(table_std, vmin=1)
+        im1 = axes[0].imshow(table_mean, vmin=-1)
+        im2 = axes[1].imshow(table_std, vmin=-1)
 
         hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
         hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
@@ -1214,15 +1251,15 @@ def plot_TDC_summary_table(
             for j in range(16):
                 if np.isnan(table_mean.iloc[i,j]):
                     continue
-                text_color = 'black' if table_mean.iloc[i,j] > (table_mean.stack().max() + table_mean.stack().min()) / 2 else 'white'
-                axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
+                text_color = 'black' if table_mean.iloc[i,j] > 0.75*(table_mean.stack().max() + table_mean.stack().min()) else 'white'
+                axes[0].text(15-j, 15-i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
 
         for i in range(16):
             for j in range(16):
                 if np.isnan(table_std.iloc[i,j]):
                     continue
-                text_color = 'black' if table_std.iloc[i,j] > (table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
-                axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
+                text_color = 'black' if table_std.iloc[i,j] > 0.75*(table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
+                axes[1].text(15-j, 15-i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
 
         plt.minorticks_off()
         plt.tight_layout()
