@@ -1643,7 +1643,7 @@ def plot_resolution_table(
             if idx not in tables:
                 ax.set_axis_off()
                 continue
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30, vmax=85)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30)#, vmax=85)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
