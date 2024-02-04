@@ -1131,9 +1131,13 @@ def plot_2d_nHits_nBoard(
 def plot_heatmap_byPandas(
         input_df: pd.DataFrame,
         chipLabels: list[int],
+        chipNames: list[str],
         fig_title: list[str],
-        fig_tag: str,
+        fig_path: str = './',
+        fig_tag: str = '',
+        fname_tag: str = '',
         exclude_noise: bool = False,
+        save: bool = False,
     ):
 
     if exclude_noise:
@@ -1185,12 +1189,16 @@ def plot_heatmap_byPandas(
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{fig_title[idx]}, Occupancy map {fig_tag}", loc="right", size=20)
+        ax.set_title(f"{fig_title[board_id]}, Occupancy map {fig_tag}", loc="right", size=20)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
         ax.invert_yaxis()
         plt.minorticks_off()
+
+        if (save):
+            fig.savefig(f"{fig_path}/occupancy_{chipNames[board_id]}_{fname_tag}.png")
+            plt.close(fig)
 
 ## --------------------------------------
 def plot_TDC_summary_table(
@@ -1346,8 +1354,9 @@ def plot_1d_TDC_histograms(
                 input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
 
         plt.tight_layout()
-        if(save): plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-        # plt.close()
+        if(save):
+            plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+            plt.close()
 
 ## --------------------------------------
 def plot_correlation_of_pixels(
