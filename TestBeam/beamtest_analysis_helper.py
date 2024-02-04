@@ -1834,7 +1834,7 @@ def four_board_iterative_timewalk_correction(
             corr_toas[f'toa_b0'] = corr_b0
             corr_toas[f'toa_b1'] = corr_b1
             corr_toas[f'toa_b2'] = corr_b2
-            corr_toas[f'toa_b3'] = corr_b2
+            corr_toas[f'toa_b3'] = corr_b3
 
     return corr_toas
 
