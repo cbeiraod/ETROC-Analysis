@@ -1152,9 +1152,9 @@ def plot_heatmap_byPandas(
     # Rename the 'evt' column to 'hits'
     hits_count_by_col_row_board = hits_count_by_col_row_board.rename(columns={'evt': 'hits'})
 
-    for idx, id in enumerate(chipLabels):
+    for board_id in chipLabels:
         # Create a pivot table to reshape the data for plotting
-        pivot_table = hits_count_by_col_row_board[hits_count_by_col_row_board['board'] == int(id)].pivot_table(
+        pivot_table = hits_count_by_col_row_board[hits_count_by_col_row_board['board'] == board_id].pivot_table(
             index='row',
             columns='col',
             values='hits',
@@ -1174,6 +1174,7 @@ def plot_heatmap_byPandas(
         # Add color bar
         cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cbar.set_label('Hits', fontsize=20)
+        cbar.ax.tick_params(labelsize=20)
 
         for i in range(16):
             for j in range(16):
