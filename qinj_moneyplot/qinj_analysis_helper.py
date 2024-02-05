@@ -363,160 +363,160 @@ def toSingleDataFramePerDirectory_newEventModel(
 
 #     return h
 
-# ## --------------------------------------
-# def plot_TDC_summary_table(
-#         input_df: pd.DataFrame,
-#         chipLabels: list,
-#         var: str
-#     ):
+## --------------------------------------
+def plot_TDC_summary_table(
+        input_df: pd.DataFrame,
+        chipLabels: list,
+        var: str
+    ):
 
-#     for idx, id in enumerate(chipLabels):
+    for idx, id in enumerate(chipLabels):
 
-#         if input_df[input_df['board'] == int(id)].empty:
-#             continue
+        if input_df[input_df['board'] == int(id)].empty:
+            continue
 
-#         sum_group = input_df[input_df['board'] == int(id)].groupby(["col", "row"]).agg({var:['mean','std']})
-#         sum_group.columns = sum_group.columns.droplevel()
-#         sum_group.reset_index(inplace=True)
+        sum_group = input_df[input_df['board'] == int(id)].groupby(["col", "row"]).agg({var:['mean','std']})
+        sum_group.columns = sum_group.columns.droplevel()
+        sum_group.reset_index(inplace=True)
 
-#         table_mean = sum_group.pivot_table(index='row', columns='col', values='mean')
-#         table_mean = table_mean.round(1)
+        table_mean = sum_group.pivot_table(index='row', columns='col', values='mean')
+        table_mean = table_mean.round(1)
 
-#         table_mean = table_mean.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
-#         table_mean = table_mean.reindex(columns=np.arange(0,16))
+        table_mean = table_mean.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+        table_mean = table_mean.reindex(columns=np.arange(0,16))
 
-#         table_std = sum_group.pivot_table(index='row', columns='col', values='std')
-#         table_std = table_std.round(2)
+        table_std = sum_group.pivot_table(index='row', columns='col', values='std')
+        table_std = table_std.round(2)
 
-#         table_std = table_std.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
-#         table_std = table_std.reindex(columns=np.arange(0,16))
+        table_std = table_std.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+        table_std = table_std.reindex(columns=np.arange(0,16))
 
-#         plt.rcParams["xtick.major.size"] = 2.5
-#         plt.rcParams["ytick.major.size"] = 2.5
-#         plt.rcParams['xtick.minor.visible'] = False
-#         plt.rcParams['ytick.minor.visible'] = False
+        plt.rcParams["xtick.major.size"] = 2.5
+        plt.rcParams["ytick.major.size"] = 2.5
+        plt.rcParams['xtick.minor.visible'] = False
+        plt.rcParams['ytick.minor.visible'] = False
 
-#         fig, axes = plt.subplots(1, 2, figsize=(20, 20))
+        fig, axes = plt.subplots(1, 2, figsize=(20, 20))
 
-#         im1 = axes[0].imshow(table_mean, vmin=1)
-#         im2 = axes[1].imshow(table_std, vmin=1)
+        im1 = axes[0].imshow(table_mean, vmin=1)
+        im2 = axes[1].imshow(table_std, vmin=1)
 
-#         hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
-#         hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
 
-#         axes[0].set_title(f'{var.upper()} Mean', loc="right")
-#         axes[1].set_title(f'{var.upper()} Std', loc="right")
+        axes[0].set_title(f'{var.upper()} Mean', loc="right")
+        axes[1].set_title(f'{var.upper()} Std', loc="right")
 
-#         axes[0].set_xticks(np.arange(0,16))
-#         axes[0].set_yticks(np.arange(0,16))
-#         axes[1].set_xticks(np.arange(0,16))
-#         axes[1].set_yticks(np.arange(0,16))
+        axes[0].set_xticks(np.arange(0,16))
+        axes[0].set_yticks(np.arange(0,16))
+        axes[1].set_xticks(np.arange(0,16))
+        axes[1].set_yticks(np.arange(0,16))
 
-#         axes[0].invert_xaxis()
-#         axes[0].invert_yaxis()
-#         axes[1].invert_xaxis()
-#         axes[1].invert_yaxis()
+        axes[0].invert_xaxis()
+        axes[0].invert_yaxis()
+        axes[1].invert_xaxis()
+        axes[1].invert_yaxis()
 
-#         # i for col, j for row
-#         for i in range(16):
-#             for j in range(16):
-#                 if np.isnan(table_mean.iloc[i,j]):
-#                     continue
-#                 text_color = 'black' if table_mean.iloc[i,j] > (table_mean.stack().max() + table_mean.stack().min()) / 2 else 'white'
-#                 axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
+        # i for col, j for row
+        for i in range(16):
+            for j in range(16):
+                if np.isnan(table_mean.iloc[i,j]):
+                    continue
+                text_color = 'black' if table_mean.iloc[i,j] > (table_mean.stack().max() + table_mean.stack().min()) / 2 else 'white'
+                axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
 
-#         for i in range(16):
-#             for j in range(16):
-#                 if np.isnan(table_std.iloc[i,j]):
-#                     continue
-#                 text_color = 'black' if table_std.iloc[i,j] > (table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
-#                 axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
+        for i in range(16):
+            for j in range(16):
+                if np.isnan(table_std.iloc[i,j]):
+                    continue
+                text_color = 'black' if table_std.iloc[i,j] > (table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
+                axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
 
-#         plt.minorticks_off()
-#         plt.tight_layout()
+        plt.minorticks_off()
+        plt.tight_layout()
 
-# ## --------------------------------------
-# def plot_1d_TDC_histograms(
-#         input_hist: hist.Hist,
-#         chip_name: str,
-#         chip_figname: str,
-#         fig_title: str,
-#         fig_path: str = './',
-#         save: bool = False,
-#         tag: str = '',
-#         fig_tag: str = '',
-#         slide_friendly: bool = False,
-#         do_logy: bool = False,
-#     ):
+## --------------------------------------
+def plot_1d_TDC_histograms(
+        input_hist: hist.Hist,
+        chip_name: str,
+        chip_figname: str,
+        fig_title: str,
+        fig_path: str = './',
+        save: bool = False,
+        tag: str = '',
+        fig_tag: str = '',
+        slide_friendly: bool = False,
+        do_logy: bool = False,
+    ):
 
-#     if not slide_friendly:
-#         fig = plt.figure(dpi=50, figsize=(20,10))
-#         gs = fig.add_gridspec(1,1)
-#         ax = fig.add_subplot(gs[0,0])
-#         ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=25)
-#         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-#         input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
-#         plt.tight_layout()
-#         if(save): plt.savefig(fig_path+"/"+chip_figname+"_CAL_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-#         plt.close()
+    if not slide_friendly:
+        fig = plt.figure(dpi=50, figsize=(20,10))
+        gs = fig.add_gridspec(1,1)
+        ax = fig.add_subplot(gs[0,0])
+        ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=25)
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
+        plt.tight_layout()
+        if(save): plt.savefig(fig_path+"/"+chip_figname+"_CAL_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        plt.close()
 
-#         fig = plt.figure(dpi=50, figsize=(20,10))
-#         gs = fig.add_gridspec(1,1)
-#         ax = fig.add_subplot(gs[0,0])
-#         ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=25)
-#         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-#         input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
-#         plt.tight_layout()
-#         if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-#         plt.close()
+        fig = plt.figure(dpi=50, figsize=(20,10))
+        gs = fig.add_gridspec(1,1)
+        ax = fig.add_subplot(gs[0,0])
+        ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=25)
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+        plt.tight_layout()
+        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        plt.close()
 
-#         fig = plt.figure(dpi=50, figsize=(20,10))
-#         gs = fig.add_gridspec(1,1)
-#         ax = fig.add_subplot(gs[0,0])
-#         ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=25)
-#         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-#         input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
-#         plt.tight_layout()
-#         if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-#         plt.close()
+        fig = plt.figure(dpi=50, figsize=(20,10))
+        gs = fig.add_gridspec(1,1)
+        ax = fig.add_subplot(gs[0,0])
+        ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=25)
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+        plt.tight_layout()
+        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        plt.close()
 
-#         fig = plt.figure(dpi=50, figsize=(20,20))
-#         gs = fig.add_gridspec(1,1)
-#         ax = fig.add_subplot(gs[0,0])
-#         ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=25)
-#         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
-#         input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
-#         plt.tight_layout()
-#         if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-#         # plt.close()
+        fig = plt.figure(dpi=50, figsize=(20,20))
+        gs = fig.add_gridspec(1,1)
+        ax = fig.add_subplot(gs[0,0])
+        ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=25)
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+        plt.tight_layout()
+        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        # plt.close()
 
-#     else:
-#         fig = plt.figure(dpi=100, figsize=(30,13))
-#         gs = fig.add_gridspec(2,2)
+    else:
+        fig = plt.figure(dpi=100, figsize=(30,13))
+        gs = fig.add_gridspec(2,2)
 
-#         for i, plot_info in enumerate(gs):
-#             ax = fig.add_subplot(plot_info)
-#             hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
-#             if i == 0:
-#                 ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=15)
-#                 input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
-#                 if do_logy:
-#                     ax.set_yscale('log')
-#             elif i == 1:
-#                 ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=15)
-#                 input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
-#                 if do_logy:
-#                     ax.set_yscale('log')
-#             elif i == 2:
-#                 ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=15)
-#                 input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
-#                 if do_logy:
-#                     ax.set_yscale('log')
-#             elif i == 3:
-#                 ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
-#                 input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+        for i, plot_info in enumerate(gs):
+            ax = fig.add_subplot(plot_info)
+            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
+            if i == 0:
+                ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=15)
+                input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
+                if do_logy:
+                    ax.set_yscale('log')
+            elif i == 1:
+                ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=15)
+                input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+                if do_logy:
+                    ax.set_yscale('log')
+            elif i == 2:
+                ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=15)
+                input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+                if do_logy:
+                    ax.set_yscale('log')
+            elif i == 3:
+                ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
+                input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
 
-#         plt.tight_layout()
-#         if(save): plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-#         # plt.close()
-# ## --------------- Plotting -----------------------
+        plt.tight_layout()
+        if(save): plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        # plt.close()
+## --------------- Plotting -----------------------
