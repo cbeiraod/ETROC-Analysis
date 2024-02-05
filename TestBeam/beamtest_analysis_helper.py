@@ -1547,7 +1547,7 @@ def plot_resolution_with_pulls(
 
         centers = hists[i].axes[0].centers
         hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=20)
-        main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=13)
+        main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=11)
 
         main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
                         ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
@@ -1665,7 +1665,7 @@ def plot_resolution_table(
             ticks = range(0, 16)
             ax.set_xticks(ticks)
             ax.set_yticks(ticks)
-            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=20)
+            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=18)
             ax.tick_params(axis='x', which='both', length=5, labelsize=20)
             ax.tick_params(axis='y', which='both', length=5, labelsize=20)
             ax.invert_xaxis()
