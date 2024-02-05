@@ -1131,9 +1131,13 @@ def plot_2d_nHits_nBoard(
 def plot_heatmap_byPandas(
         input_df: pd.DataFrame,
         chipLabels: list[int],
+        chipNames: list[str],
         fig_title: list[str],
-        fig_tag: str,
+        fig_path: str = './',
+        fig_tag: str = '',
+        fname_tag: str = '',
         exclude_noise: bool = False,
+        save: bool = False,
     ):
 
     if exclude_noise:
@@ -1148,9 +1152,9 @@ def plot_heatmap_byPandas(
     # Rename the 'evt' column to 'hits'
     hits_count_by_col_row_board = hits_count_by_col_row_board.rename(columns={'evt': 'hits'})
 
-    for idx, id in enumerate(chipLabels):
+    for board_id in chipLabels:
         # Create a pivot table to reshape the data for plotting
-        pivot_table = hits_count_by_col_row_board[hits_count_by_col_row_board['board'] == int(id)].pivot_table(
+        pivot_table = hits_count_by_col_row_board[hits_count_by_col_row_board['board'] == board_id].pivot_table(
             index='row',
             columns='col',
             values='hits',
@@ -1170,6 +1174,7 @@ def plot_heatmap_byPandas(
         # Add color bar
         cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cbar.set_label('Hits', fontsize=20)
+        cbar.ax.tick_params(labelsize=20)
 
         for i in range(16):
             for j in range(16):
@@ -1185,12 +1190,16 @@ def plot_heatmap_byPandas(
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{fig_title[idx]}, Occupancy map {fig_tag}", loc="right", size=20)
+        ax.set_title(f"{fig_title[board_id]}, Occupancy map {fig_tag}", loc="right", size=20)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
         ax.invert_yaxis()
         plt.minorticks_off()
+
+        if (save):
+            fig.savefig(f"{fig_path}/occupancy_{chipNames[board_id]}_{fname_tag}.png")
+            plt.close(fig)
 
 ## --------------------------------------
 def plot_TDC_summary_table(
@@ -1346,8 +1355,9 @@ def plot_1d_TDC_histograms(
                 input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
 
         plt.tight_layout()
-        if(save): plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
-        # plt.close()
+        if(save):
+            plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+            plt.close()
 
 ## --------------------------------------
 def plot_correlation_of_pixels(
@@ -1537,7 +1547,7 @@ def plot_resolution_with_pulls(
 
         centers = hists[i].axes[0].centers
         hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=20)
-        main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=13)
+        main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=11)
 
         main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
                         ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
@@ -1633,7 +1643,7 @@ def plot_resolution_table(
             if idx not in tables:
                 ax.set_axis_off()
                 continue
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30, vmax=85)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30)#, vmax=85)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -1655,7 +1665,7 @@ def plot_resolution_table(
             ticks = range(0, 16)
             ax.set_xticks(ticks)
             ax.set_yticks(ticks)
-            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=20)
+            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=18)
             ax.tick_params(axis='x', which='both', length=5, labelsize=20)
             ax.tick_params(axis='y', which='both', length=5, labelsize=20)
             ax.invert_xaxis()
@@ -1834,7 +1844,7 @@ def four_board_iterative_timewalk_correction(
             corr_toas[f'toa_b0'] = corr_b0
             corr_toas[f'toa_b1'] = corr_b1
             corr_toas[f'toa_b2'] = corr_b2
-            corr_toas[f'toa_b3'] = corr_b2
+            corr_toas[f'toa_b3'] = corr_b3
 
     return corr_toas
 
