@@ -1015,16 +1015,16 @@ def return_hist(
 def return_hist_pivot(
         input_df: pd.DataFrame,
         chipNames: list[str],
-        chipLabels: list[int],
+        board_id_to_analyze: list[int],
         hist_bins: list = [50, 64, 64]
 ):
     h = {chipNames[boardID]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
                 hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
                 hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
         )
-    for boardID in chipLabels}
+    for boardID in board_id_to_analyze}
 
-    for boardID in chipLabels:
+    for boardID in board_id_to_analyze:
         h[chipNames[boardID]].fill(input_df['cal'][boardID].values, input_df['tot'][boardID].values, input_df['toa'][boardID].values)
 
     return h
@@ -1356,7 +1356,7 @@ def plot_1d_TDC_histograms(
 
         plt.tight_layout()
         if(save):
-            plt.savefig(fig_path+"/combined_TDC_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+            plt.savefig(fig_path+"/combined_TDC_"+tag+".png")
             plt.close()
 
 ## --------------------------------------
@@ -1855,11 +1855,13 @@ def lmfit_gaussfit_with_pulls(
         std_range_cut: float,
         width_factor: float,
         fig_title: str,
+        chipNames: str,
         use_pred_uncert: bool,
         no_show_fit: bool,
         no_draw: bool,
         get_chisqure: bool = False,
         skip_reduce: bool = False,
+        save: bool = False,
     ):
 
     from lmfit.models import GaussianModel
@@ -1914,7 +1916,7 @@ def lmfit_gaussfit_with_pulls(
             grid = fig.add_gridspec(1, 1, hspace=0)
             main_ax = fig.add_subplot(grid[0])
             hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
-            main_ax.set_title(f'{fig_title}', loc="right", size=25)
+            main_ax.set_title(f'{fig_title}', loc="right", size=20)
             main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
                             ms=6, capsize=1, capthick=2, alpha=0.8)
@@ -1964,6 +1966,11 @@ def lmfit_gaussfit_with_pulls(
             subplot_ax.minorticks_off()
 
             plt.tight_layout()
+
+        if (save):
+            fig.savefig(f'./lmfit_{chipNames}.png')
+            plt.close(fig)
+
 
     if get_chisqure:
         return [out.params['sigma'].value, out.params['sigma'].stderr, out.chisqr/(out.ndata-1)]
