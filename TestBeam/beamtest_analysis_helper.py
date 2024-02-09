@@ -950,6 +950,30 @@ def making_pivot(
 
         return pivot_data_df
 
+## --------------------------------------
+def broadcast_dataframe_match_to_DUT(
+        input_group: pd.DataFrame.groupby,
+        dut_board_id: int,
+    ):
+
+    # Select rows with the trigger board
+    trig_info = input_group[input_group['board'] == 0].iloc[0].copy()
+
+    # Select rows with the reference board
+    ref_info = input_group[input_group['board'] == 2].iloc[0].copy()
+
+    # Select rows with the DUT board
+    dut_info = input_group[input_group['board'] == dut_board_id].copy()
+
+    # Broadcasting dataframe
+    broadcasted_trig = pd.concat([trig_info.to_frame().T] * dut_info.shape[0], ignore_index=True)
+    broadcasted_ref = pd.concat([ref_info.to_frame().T] * dut_info.shape[0], ignore_index=True)
+
+    # Concatenate the original board information and the broadcasted board information
+    result_df = pd.concat([broadcasted_trig, broadcasted_ref, dut_info], ignore_index=True)
+    return result_df
+
+
 ## --------------- Modify DataFrame -----------------------
 
 
