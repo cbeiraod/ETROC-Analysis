@@ -1704,7 +1704,7 @@ def plot_resolution_table(
             # Create a heatmap to visualize the count of hits
             fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
             ax.cla()
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30, vmax=85)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30)#, vmax=85)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
