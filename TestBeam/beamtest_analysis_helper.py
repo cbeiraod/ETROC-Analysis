@@ -951,27 +951,64 @@ def making_pivot(
         return pivot_data_df
 
 ## --------------------------------------
-def broadcast_dataframe_match_to_DUT(
+def broadcast_dataframe(
         input_group: pd.DataFrame.groupby,
-        dut_board_id: int,
+        reference_board_id: int,
+        board_id_want_broadcast: int,
     ):
 
-    # Select rows with the trigger board
-    trig_info = input_group[input_group['board'] == 0].iloc[0].copy()
-
-    # Select rows with the reference board
-    ref_info = input_group[input_group['board'] == 2].iloc[0].copy()
-
-    # Select rows with the DUT board
-    dut_info = input_group[input_group['board'] == dut_board_id].copy()
+    ref_info = input_group[input_group['board'] == reference_board_id].copy()
+    want_broadcast_info = input_group[input_group['board'] == board_id_want_broadcast].iloc[0].copy()
 
     # Broadcasting dataframe
-    broadcasted_trig = pd.concat([trig_info.to_frame().T] * dut_info.shape[0], ignore_index=True)
-    broadcasted_ref = pd.concat([ref_info.to_frame().T] * dut_info.shape[0], ignore_index=True)
+    broadcasted_df = pd.concat([want_broadcast_info.to_frame().T] * ref_info.shape[0], ignore_index=True)
 
     # Concatenate the original board information and the broadcasted board information
-    result_df = pd.concat([broadcasted_trig, broadcasted_ref, dut_info], ignore_index=True)
+    result_df = pd.concat([broadcasted_df, ref_info], ignore_index=True)
     return result_df
+
+## --------------------------------------
+def return_broadcast_dataframe(
+        input_df: pd.DataFrame,
+        trig_board_id = int,
+        ref_board_id = int,
+        dut_board_id = int,
+        trig_dut: bool = False,
+        ref_dut: bool = False,
+    ):
+
+    event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+    event_selections = None
+
+    trig_selection = (event_board_counts[trig_board_id] == 1)
+    ref_selection = (event_board_counts[ref_board_id] == 1)
+    dut_selection = (event_board_counts[dut_board_id] == 1)
+    event_selections = trig_selection & ref_selection & dut_selection
+
+    dut_single_df = input_df[input_df['evt'].isin(event_board_counts[event_selections].index)]
+    dut_single_df.reset_index(inplace=True, drop=True)
+
+    event_selections = None
+
+    trig_selection = (event_board_counts[trig_board_id] == 1)
+    ref_selection = (event_board_counts[ref_board_id] == 1)
+    dut_selection = (event_board_counts[dut_board_id] >= 2)
+    event_selections = trig_selection & ref_selection & dut_selection
+
+    dut_multiple_df = input_df[input_df['evt'].isin(event_board_counts[event_selections].index)]
+    dut_multiple_df.reset_index(inplace=True, drop=True)
+
+    if trig_dut:
+        tmp_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=dut_board_id, board_id_want_broadcast=trig_board_id).reset_index(drop=True)
+        dut_df = pd.concat([dut_single_df.loc[(dut_single_df['board'] == trig_board_id) | (dut_single_df['board'] == dut_board_id)].reset_index(drop=True), tmp_df])
+        return dut_df
+    elif ref_dut:
+        tmp_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=dut_board_id, board_id_want_broadcast=ref_board_id).reset_index(drop=True)
+        dut_df = pd.concat([dut_single_df.loc[(dut_single_df['board'] == ref_board_id) | (dut_single_df['board'] == dut_board_id)].reset_index(drop=True), tmp_df])
+        return dut_df
+    else:
+        print("You need to set either 'trig_dut = True' OR 'ref_dut = True' in the argument")
+        return None
 
 
 ## --------------- Modify DataFrame -----------------------
