@@ -1772,6 +1772,102 @@ def plot_resolution_table(
 
         del tables
 
+## --------------------------------------
+def plot_TDC_correlation_scatter_matrix(
+        input_df: pd.DataFrame,
+        chip_names: list[str],
+        single_hit: bool = False,
+        colinear: bool = False,
+        save: bool = False,
+    ):
+
+    import plotly.express as px
+
+    input_df['identifier'] = input_df.groupby(['evt', 'board']).cumcount()
+    board_ids = input_df['board'].unique()
+    val_names = [f'toa_{board_ids[0]}', f'toa_{board_ids[1]}', f'tot_{board_ids[0]}', f'tot_{board_ids[1]}', f'cal_{board_ids[0]}', f'cal_{board_ids[1]}']
+    val_labels = {
+        f'toa_{board_ids[0]}':f'TOA_{chip_names[board_ids[0]]}',
+        f'toa_{board_ids[1]}':f'TOA_{chip_names[board_ids[1]]}',
+        f'tot_{board_ids[0]}':f'TOT_{chip_names[board_ids[0]]}',
+        f'tot_{board_ids[1]}':f'TOT_{chip_names[board_ids[1]]}',
+        f'cal_{board_ids[0]}':f'CAL_{chip_names[board_ids[0]]}',
+        f'cal_{board_ids[1]}':f'CAL_{chip_names[board_ids[1]]}',
+    }
+    extra_tag = ''
+
+    if single_hit:
+        extra_tag = '_singleHit'
+        input_df['count'] = (0.5*input_df.groupby('evt')['evt'].transform('count')).astype(int)
+        new_df = input_df.pivot(index=['evt', 'identifier'], columns=['board'], values=['row', 'col', 'toa', 'tot', 'cal', 'count'])
+        new_df.columns = ['{}_{}'.format(x, y) for x, y in new_df.columns]
+        new_df['single_hit'] = (new_df[f'count_{board_ids[0]}'] == 1)
+        new_df = new_df.sort_values(by='single_hit', ascending=False) # Make sure True always draw first
+
+        fig = px.scatter_matrix(
+            new_df.reset_index(),
+            dimensions=val_names,
+            color='single_hit',
+            labels=val_labels,
+            width=1920,
+            height=1080,
+        )
+
+    elif colinear:
+        extra_tag = '_colinear_pixels'
+        new_df = input_df.pivot(index=['evt', 'identifier'], columns=['board'], values=['row', 'col', 'toa', 'tot', 'cal'])
+        new_df.columns = ['{}_{}'.format(x, y) for x, y in new_df.columns]
+        new_df['colinear'] = (abs(new_df[f'row_{board_ids[0]}']-new_df[f'row_{board_ids[1]}']) <= 1) & (abs(new_df[f'col_{board_ids[0]}']-new_df[f'col_{board_ids[1]}']) <= 1)
+        new_df = new_df.sort_values(by='colinear', ascending=False) # Make sure True always draw first
+
+        fig = px.scatter_matrix(
+            new_df.reset_index(),
+            dimensions=val_names,
+            color='colinear',
+            labels=val_labels,
+            width=1920,
+            height=1080,
+        )
+
+    else:
+        new_df = input_df.pivot(index=['evt', 'identifier'], columns=['board'], values=['row', 'col', 'toa', 'tot', 'cal'])
+        new_df.columns = ['{}_{}'.format(x, y) for x, y in new_df.columns]
+        fig = px.scatter_matrix(
+            new_df,
+            dimensions=val_names,
+            labels=val_labels,
+            width=1920,
+            height=1080,
+        )
+
+    fig.update_traces(
+        diagonal_visible=False,
+        showupperhalf=False,
+        marker = {'size': 3},
+    )
+
+    for k in range(len(fig.data)):
+        fig.data[k].update(
+            selected = dict(
+                marker = dict(
+                )
+            ),
+            unselected = dict(
+                marker = dict(
+                    color="grey"
+                )
+            ),
+        )
+
+    if save:
+        fig.write_html(
+            'scatter_matrix_{}_vs_{}{}.html'.format(chip_names[board_ids[0]], chip_names[board_ids[1]], extra_tag),
+            full_html = False,
+            include_plotlyjs = 'cdn',
+        )
+    else:
+        fig.show()
+
 ## --------------- Plotting -----------------------
 
 
