@@ -1815,6 +1815,7 @@ def plot_TDC_correlation_scatter_matrix(
         chip_names: list[str],
         single_hit: bool = False,
         colinear: bool = False,
+        colinear_cut: int = 1,
         save: bool = False,
     ):
 
@@ -1854,7 +1855,7 @@ def plot_TDC_correlation_scatter_matrix(
         extra_tag = '_colinear_pixels'
         new_df = input_df.pivot(index=['evt', 'identifier'], columns=['board'], values=['row', 'col', 'toa', 'tot', 'cal'])
         new_df.columns = ['{}_{}'.format(x, y) for x, y in new_df.columns]
-        new_df['colinear'] = (abs(new_df[f'row_{board_ids[0]}']-new_df[f'row_{board_ids[1]}']) <= 1) & (abs(new_df[f'col_{board_ids[0]}']-new_df[f'col_{board_ids[1]}']) <= 1)
+        new_df['colinear'] = (abs(new_df[f'row_{board_ids[0]}']-new_df[f'row_{board_ids[1]}']) <= colinear_cut) & (abs(new_df[f'col_{board_ids[0]}']-new_df[f'col_{board_ids[1]}']) <= colinear_cut)
         new_df = new_df.sort_values(by='colinear', ascending=False) # Make sure True always draw first
 
         fig = px.scatter_matrix(
