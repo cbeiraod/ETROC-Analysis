@@ -866,6 +866,9 @@ def tdc_event_selection(
         input_df: pd.DataFrame,
         tdc_cuts_dict: dict
     ):
+
+    from functools import reduce
+
     # Create boolean masks for each board's filtering criteria
     masks = {}
     for board, cuts in tdc_cuts_dict.items():
@@ -875,13 +878,10 @@ def tdc_event_selection(
             input_df['toa'].between(cuts[2], cuts[3]) &
             input_df['tot'].between(cuts[4], cuts[5])
         )
-        masks[board] = mask
+        masks[board] = input_df[mask]['evt'].unique()
 
-    # Combine the masks using logical OR
-    combined_mask = pd.concat(masks, axis=1).any(axis=1)
-
-    # Apply the combined mask to the DataFrame
-    tdc_filtered_df = input_df[combined_mask].reset_index(drop=True)
+    common_elements = reduce(np.intersect1d, list(masks.values()))
+    tdc_filtered_df = input_df.loc[input_df['evt'].isin(common_elements)].reset_index(drop=True)
 
     return tdc_filtered_df
 
