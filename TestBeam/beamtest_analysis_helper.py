@@ -1257,7 +1257,7 @@ def plot_2d_nHits_nBoard(
     del hists, hit_df, nboard_df
 
 ## --------------------------------------
-def plot_heatmap_byPandas(
+def plot_occupany_map(
         input_df: pd.DataFrame,
         chipLabels: list[int],
         chipNames: list[str],
@@ -1289,6 +1289,9 @@ def plot_heatmap_byPandas(
             values='hits',
             fill_value=0  # Fill missing values with 0 (if any)
         )
+
+        if pivot_table.empty:
+            continue
 
         if (pivot_table.shape[0] != 16) or (pivot_table.shape[1]!= 16):
             pivot_table = pivot_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
