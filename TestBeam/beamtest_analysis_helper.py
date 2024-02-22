@@ -1430,7 +1430,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_CAL_{tag}.pdf')
             plt.clf()
-        plt.close()
+            plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
@@ -1442,7 +1442,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOT_{tag}.pdf')
             plt.clf()
-        plt.close()
+            plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
@@ -1454,7 +1454,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOA_{tag}.pdf')
             plt.clf()
-        plt.close()
+            plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,20))
         gs = fig.add_gridspec(1,1)
@@ -1467,7 +1467,6 @@ def plot_1d_TDC_histograms(
             plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.pdf')
             plt.clf()
             plt.close()
-        # plt.close()
 
     else:
         fig = plt.figure(dpi=100, figsize=(30,13))
