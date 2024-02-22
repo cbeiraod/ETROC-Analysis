@@ -1377,7 +1377,7 @@ def plot_1d_TDC_histograms(
         chip_name: str,
         chip_figname: str,
         fig_title: str,
-        fig_path: str = './',
+        fig_path: Path = Path('./'),
         save: bool = False,
         tag: str = '',
         fig_tag: str = '',
@@ -1393,7 +1393,7 @@ def plot_1d_TDC_histograms(
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
-        if(save): plt.savefig(fig_path+"/"+chip_figname+"_CAL_"+tag+".png")
+        if(save): plt.savefig(fig_path/f'{chip_figname}_CAL_{tag}.png')
         plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,10))
@@ -1403,7 +1403,7 @@ def plot_1d_TDC_histograms(
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
-        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOT_"+tag+".png")
+        if(save): plt.savefig(fig_path/f'{chip_figname}_TOT_{tag}.png')
         plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,10))
@@ -1413,7 +1413,7 @@ def plot_1d_TDC_histograms(
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
-        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_"+tag+".png")
+        if(save): plt.savefig(fig_path/f'{chip_figname}_TOA_{tag}.png')
         plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,20))
@@ -1423,7 +1423,7 @@ def plot_1d_TDC_histograms(
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
         plt.tight_layout()
-        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_TOT_"+tag+".png")
+        if(save): plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.png')
         # plt.close()
 
     else:
@@ -1454,7 +1454,7 @@ def plot_1d_TDC_histograms(
 
         plt.tight_layout()
         if(save):
-            plt.savefig(fig_path+"/"+chip_figname+"combined_TDC_"+tag+".png")
+            plt.savefig(fig_path/f'{chip_figname}_combined_TDC_{tag}.png')
             plt.close()
 
 ## --------------------------------------
