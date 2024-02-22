@@ -1392,6 +1392,8 @@ def plot_1d_TDC_histograms(
         ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
+        if do_logy:
+            ax.set_yscale('log')
         plt.tight_layout()
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_CAL_{tag}.pdf')
@@ -1404,6 +1406,8 @@ def plot_1d_TDC_histograms(
         ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+        if do_logy:
+            ax.set_yscale('log')
         plt.tight_layout()
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOT_{tag}.pdf')
@@ -1416,6 +1420,8 @@ def plot_1d_TDC_histograms(
         ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+        if do_logy:
+            ax.set_yscale('log')
         plt.tight_layout()
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOA_{tag}.pdf')
@@ -1428,6 +1434,8 @@ def plot_1d_TDC_histograms(
         ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+        if do_logy:
+            ax.set_yscale('log')
         plt.tight_layout()
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.pdf')
