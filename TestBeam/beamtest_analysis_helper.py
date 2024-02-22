@@ -1494,51 +1494,24 @@ def plot_1d_TDC_histograms(
 ## --------------------------------------
 def plot_correlation_of_pixels(
         input_df: pd.DataFrame,
-        hit_type: str,
-        board_id_to_correlate: int,
+        board_ids: np.array,
+        xaxis_label_board_name: str,
         fig_title: str,
         fit_tag: str = '',
     ):
 
-    if board_id_to_correlate == 0:
-        print("Self correlation!!")
-
-    xaxis_label = None
-    if (board_id_to_correlate == 1):
-        xaxis_label = 'DUT 1'
-    elif (board_id_to_correlate == 3):
-        xaxis_label = 'DUT 2'
-    else:
-        xaxis_label = 'Reference Board'
-
     h_row = hist.Hist(
         hist.axis.Regular(16, 0, 16, name='row1', label='Trigger Board Row'),
-        hist.axis.Regular(16, 0, 16, name='row2', label=f'{xaxis_label} Row'),
+        hist.axis.Regular(16, 0, 16, name='row2', label=f'{xaxis_label_board_name} Row'),
     )
     h_col = hist.Hist(
         hist.axis.Regular(16, 0, 16, name='col1', label='Trigger Board Col'),
-        hist.axis.Regular(16, 0, 16, name='col2', label=f'{xaxis_label} Col'),
+        hist.axis.Regular(16, 0, 16, name='col2', label=f'{xaxis_label_board_name} Col'),
     )
 
-    if hit_type == "single":
-        h_row.fill(input_df.loc[input_df['board'] == 0]['row'], input_df.loc[input_df['board'] == board_id_to_correlate]['row'])
-        h_col.fill(input_df.loc[input_df['board'] == 0]['col'], input_df.loc[input_df['board'] == board_id_to_correlate]['col'])
+    h_row.fill(input_df.loc[input_df['board'] == board_ids[0]]['row'], input_df.loc[input_df['board'] == board_ids[1]]['row'])
+    h_col.fill(input_df.loc[input_df['board'] == board_ids[0]]['col'], input_df.loc[input_df['board'] == board_ids[1]]['col'])
 
-    elif hit_type == "multiple":
-        n = int(0.01*input_df.shape[0]) # ~100k events
-        indices = np.random.choice(input_df['evt'].unique(), n, replace=False)
-        test_df = input_df.loc[input_df['evt'].isin(indices)]
-
-        for name, group in test_df.groupby('evt'):
-            cnt = len(group[group['board'] == board_id_to_correlate]['row'])
-            broadcasted_trig_row = np.full(cnt, group.loc[group['board'] == 0]['row'].values)
-            broadcasted_trig_col = np.full(cnt, group.loc[group['board'] == 0]['col'].values)
-            h_row.fill(broadcasted_trig_row, group.loc[group['board'] == board_id_to_correlate]['row'].to_numpy())
-            h_col.fill(broadcasted_trig_col, group.loc[group['board'] == board_id_to_correlate]['col'].to_numpy())
-
-    else:
-        print('Please specify hit_type. Either single or multiple')
-        return
 
     location = np.arange(0, 16) + 0.5
     tick_labels = np.char.mod('%d', np.arange(0, 16))
@@ -1546,7 +1519,7 @@ def plot_correlation_of_pixels(
 
     hep.hist2dplot(h_row, ax=ax[0])
     hep.cms.text(loc=0, ax=ax[0], text="Preliminary", fontsize=25)
-    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=15)
+    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[0].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -1557,7 +1530,7 @@ def plot_correlation_of_pixels(
 
     hep.hist2dplot(h_col, ax=ax[1])
     hep.cms.text(loc=0, ax=ax[1], text="Preliminary", fontsize=25)
-    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=15)
+    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[1].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -1571,49 +1544,19 @@ def plot_correlation_of_pixels(
 ## --------------------------------------
 def plot_distance(
         input_df: pd.DataFrame,
-        hit_type: str,
-        board_id_to_correlate: int,
+        board_ids: np.array,
+        xaxis_label_board_name: str,
         fig_title: str,
         fig_tag: str = '',
         do_logy: bool = False,
     ):
+    h_dis = hist.Hist(hist.axis.Regular(32, 0, 32, name='dis', label=f'Distance (Trigger - {xaxis_label_board_name})'))
 
-    xaxis_label = None
-    if (board_id_to_correlate == 1):
-        xaxis_label = 'DUT 1'
-    elif (board_id_to_correlate == 3):
-        xaxis_label = 'DUT 2'
-    else:
-        xaxis_label = 'Reference'
-
-    h_dis = hist.Hist(hist.axis.Regular(32, 0, 32, name='dis', label=f'Distance (Trigger - {xaxis_label})'))
-
-    if hit_type == "single":
-        diff_row = (input_df.loc[input_df['board'] == 0]['row'].values - input_df.loc[input_df['board'] == board_id_to_correlate]['row'].values)
-        diff_col = (input_df.loc[input_df['board'] == 0]['col'].values - input_df.loc[input_df['board'] == board_id_to_correlate]['col'].values)
-        dis = np.sqrt(diff_row**2 + diff_col**2)
-        h_dis.fill(dis)
-        del diff_row, diff_col, dis
-
-    elif hit_type == "multiple":
-        n = int(0.01*input_df.shape[0]) # ~100k events
-        indices = np.random.choice(input_df['evt'].unique(), n, replace=False)
-        test_df = input_df.loc[input_df['evt'].isin(indices)]
-
-        for name, group in test_df.groupby('evt'):
-            cnt = len(group.loc[group['board'] == board_id_to_correlate]['row'])
-            broadcasted_trig_row = np.full(cnt, group.loc[group['board'] == 0]['row'].values)
-            broadcasted_trig_col = np.full(cnt, group.loc[group['board'] == 0]['col'].values)
-            diff_row = (broadcasted_trig_row - group.loc[group['board'] == board_id_to_correlate]['row'].values)
-            diff_col = (broadcasted_trig_col - group.loc[group['board'] == board_id_to_correlate]['col'].values)
-            dis = np.sqrt(diff_row**2 + diff_col**2)
-            h_dis.fill(dis)
-
-        del test_df, indices, n
-
-    else:
-        print('Please specify hit_type. Either single or multiple')
-        return
+    diff_row = (input_df.loc[input_df['board'] == board_ids[0]]['row'].reset_index(drop=True) - input_df.loc[input_df['board'] == board_ids[1]]['row'].reset_index(drop=True)).values
+    diff_col = (input_df.loc[input_df['board'] == board_ids[0]]['col'].reset_index(drop=True) - input_df.loc[input_df['board'] == board_ids[1]]['col'].reset_index(drop=True)).values
+    dis = np.sqrt(diff_row**2 + diff_col**2)
+    h_dis.fill(dis)
+    del diff_row, diff_col, dis
 
     fig, ax = plt.subplots(dpi=100, figsize=(15, 8))
     hep.histplot(h_dis, ax=ax)
