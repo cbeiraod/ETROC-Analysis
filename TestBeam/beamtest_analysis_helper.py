@@ -1097,15 +1097,15 @@ def return_hist(
         chipLabels: list[int],
         hist_bins: list = [50, 64, 64]
 ):
-    h = {chipNames[boardID]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
+    h = {chipNames[board_idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
                 hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
                 hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
         )
-    for boardID in chipLabels}
+    for board_idx in range(len(chipLabels))}
 
-    for boardID in chipLabels:
-        tmp_df = input_df.loc[input_df['board'] == boardID]
-        h[chipNames[boardID]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values)
+    for board_idx in range(len(chipLabels)):
+        tmp_df = input_df.loc[input_df['board'] == chipLabels[board_idx]]
+        h[chipNames[board_idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values)
 
     return h
 
