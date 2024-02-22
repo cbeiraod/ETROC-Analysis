@@ -1204,6 +1204,10 @@ def plot_number_of_hits_per_event(
     gs = fig.add_gridspec(2,2)
 
     for i, plot_info in enumerate(gs):
+
+        if i not in hists.keys():
+            continue
+
         ax = fig.add_subplot(plot_info)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
         hists[i].plot1d(ax=ax, lw=2)
@@ -1240,6 +1244,10 @@ def plot_2d_nHits_nBoard(
     gs = fig.add_gridspec(2,2)
 
     for i, plot_info in enumerate(gs):
+
+        if i not in hists.keys():
+            continue
+
         ax = fig.add_subplot(plot_info)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
         hep.hist2dplot(hists[i], ax=ax, norm=colors.LogNorm())
