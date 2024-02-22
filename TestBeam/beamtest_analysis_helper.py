@@ -864,26 +864,49 @@ def singlehit_event_clear(
 ## --------------------------------------
 def tdc_event_selection(
         input_df: pd.DataFrame,
-        tdc_cuts_dict: dict
+        tdc_cuts_dict: dict,
+        select_by_hit: bool = False,
     ):
 
-    from functools import reduce
+    if select_by_hit:
 
-    # Create boolean masks for each board's filtering criteria
-    masks = {}
-    for board, cuts in tdc_cuts_dict.items():
-        mask = (
-            (input_df['board'] == board) &
-            input_df['cal'].between(cuts[0], cuts[1]) &
-            input_df['toa'].between(cuts[2], cuts[3]) &
-            input_df['tot'].between(cuts[4], cuts[5])
-        )
-        masks[board] = input_df[mask]['evt'].unique()
+        # Create boolean masks for each board's filtering criteria
+        masks = {}
+        for board, cuts in tdc_cuts_dict.items():
+            mask = (
+                (input_df['board'] == board) &
+                input_df['cal'].between(cuts[0], cuts[1]) &
+                input_df['toa'].between(cuts[2], cuts[3]) &
+                input_df['tot'].between(cuts[4], cuts[5])
+            )
+            masks[board] = mask
 
-    common_elements = reduce(np.intersect1d, list(masks.values()))
-    tdc_filtered_df = input_df.loc[input_df['evt'].isin(common_elements)].reset_index(drop=True)
+        # Combine the masks using logical OR
+        combined_mask = pd.concat(masks, axis=1).any(axis=1)
 
-    return tdc_filtered_df
+        # Apply the combined mask to the DataFrame
+        tdc_filtered_df = input_df[combined_mask].reset_index(drop=True)
+
+        return tdc_filtered_df
+
+    else:
+        from functools import reduce
+
+        # Create boolean masks for each board's filtering criteria
+        masks = {}
+        for board, cuts in tdc_cuts_dict.items():
+            mask = (
+                (input_df['board'] == board) &
+                input_df['cal'].between(cuts[0], cuts[1]) &
+                input_df['toa'].between(cuts[2], cuts[3]) &
+                input_df['tot'].between(cuts[4], cuts[5])
+            )
+            masks[board] = input_df[mask]['evt'].unique()
+
+        common_elements = reduce(np.intersect1d, list(masks.values()))
+        tdc_filtered_df = input_df.loc[input_df['evt'].isin(common_elements)].reset_index(drop=True)
+
+        return tdc_filtered_df
 
 ## --------------------------------------
 def tdc_event_selection_pivot(
