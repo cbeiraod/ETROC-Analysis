@@ -412,8 +412,8 @@ class DecodeBinary:
 
                     ## Event header
                     if (word >> 4) == self.header_pattern:
-                        self.enabled_channels = word & 0b1111
                         self.reset_params()
+                        self.enabled_channels = word & 0b1111
                         self.in_event = True
                         # print('Event header')
                         continue
