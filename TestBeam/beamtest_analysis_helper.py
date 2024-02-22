@@ -1120,15 +1120,15 @@ def return_hist(
         chipLabels: list[int],
         hist_bins: list = [50, 64, 64]
 ):
-    h = {chipNames[boardID]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
+    h = {chipNames[board_idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
                 hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
                 hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
         )
-    for boardID in chipLabels}
+    for board_idx in range(len(chipLabels))}
 
-    for boardID in chipLabels:
-        tmp_df = input_df.loc[input_df['board'] == boardID]
-        h[chipNames[boardID]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values)
+    for board_idx in range(len(chipLabels)):
+        tmp_df = input_df.loc[input_df['board'] == chipLabels[board_idx]]
+        h[chipNames[board_idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values)
 
     return h
 
@@ -1411,7 +1411,7 @@ def plot_1d_TDC_histograms(
         chip_name: str,
         chip_figname: str,
         fig_title: str,
-        fig_path: str = './',
+        fig_path: Path = Path('./'),
         save: bool = False,
         tag: str = '',
         fig_tag: str = '',
@@ -1427,7 +1427,9 @@ def plot_1d_TDC_histograms(
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
-        if(save): plt.savefig(fig_path+"/"+chip_figname+"_CAL_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        if(save):
+            plt.savefig(fig_path/f'{chip_figname}_CAL_{tag}.pdf')
+            plt.clf()
         plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,10))
@@ -1437,7 +1439,9 @@ def plot_1d_TDC_histograms(
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
-        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        if(save):
+            plt.savefig(fig_path/f'{chip_figname}_TOT_{tag}.pdf')
+            plt.clf()
         plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,10))
@@ -1447,7 +1451,9 @@ def plot_1d_TDC_histograms(
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
         plt.tight_layout()
-        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        if(save):
+            plt.savefig(fig_path/f'{chip_figname}_TOA_{tag}.pdf')
+            plt.clf()
         plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,20))
@@ -1457,7 +1463,10 @@ def plot_1d_TDC_histograms(
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
         plt.tight_layout()
-        if(save): plt.savefig(fig_path+"/"+chip_figname+"_TOA_TOT_"+tag+datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")+".png")
+        if(save):
+            plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.pdf')
+            plt.clf()
+            plt.close()
         # plt.close()
 
     else:
@@ -1488,7 +1497,8 @@ def plot_1d_TDC_histograms(
 
         plt.tight_layout()
         if(save):
-            plt.savefig(fig_path+"/combined_TDC_"+tag+".png")
+            plt.savefig(fig_path/f'{chip_figname}_combined_TDC_{tag}.pdf')
+            plt.clf()
             plt.close()
 
 ## --------------------------------------
