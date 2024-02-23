@@ -1349,13 +1349,13 @@ def plot_TDC_summary_table(
         sum_group.columns = sum_group.columns.droplevel()
         sum_group.reset_index(inplace=True)
 
-        table_mean = sum_group.pivot_table(index='row', columns='col', values='mean')
+        table_mean = sum_group.pivot_table(index='row', columns='col', values='mean', fill_value=0.001)
         table_mean = table_mean.round(1)
 
         table_mean = table_mean.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
         table_mean = table_mean.reindex(columns=np.arange(0,16))
 
-        table_std = sum_group.pivot_table(index='row', columns='col', values='std')
+        table_std = sum_group.pivot_table(index='row', columns='col', values='std', fill_value=0.001)
         table_std = table_std.round(2)
 
         table_std = table_std.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
@@ -1368,8 +1368,8 @@ def plot_TDC_summary_table(
 
         fig, axes = plt.subplots(1, 2, figsize=(20, 20))
 
-        im1 = axes[0].imshow(table_mean, vmin=-1)
-        im2 = axes[1].imshow(table_std, vmin=-1)
+        im1 = axes[0].imshow(table_mean, vmin=0.1)
+        im2 = axes[1].imshow(table_std, vmin=0.01)
 
         hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
         hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
@@ -1382,25 +1382,25 @@ def plot_TDC_summary_table(
         axes[1].set_xticks(np.arange(0,16))
         axes[1].set_yticks(np.arange(0,16))
 
+        # i for col, j for row
+        for i in range(16):
+            for j in range(16):
+                if np.isnan(table_mean.iloc[i,j]) or table_mean.iloc[i,j] == 0.:
+                    continue
+                text_color = 'black' if table_mean.iloc[i,j] > 0.5*(table_mean.stack().max() + table_mean.stack().min()) else 'white'
+                axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
+
+        for i in range(16):
+            for j in range(16):
+                if np.isnan(table_std.iloc[i,j]) or table_mean.iloc[i,j] == 0.:
+                    continue
+                text_color = 'black' if table_std.iloc[i,j] > 0.5*(table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
+                axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
+
         axes[0].invert_xaxis()
         axes[0].invert_yaxis()
         axes[1].invert_xaxis()
         axes[1].invert_yaxis()
-
-        # i for col, j for row
-        for i in range(16):
-            for j in range(16):
-                if np.isnan(table_mean.iloc[i,j]):
-                    continue
-                text_color = 'black' if table_mean.iloc[i,j] > 0.75*(table_mean.stack().max() + table_mean.stack().min()) else 'white'
-                axes[0].text(15-j, 15-i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
-
-        for i in range(16):
-            for j in range(16):
-                if np.isnan(table_std.iloc[i,j]):
-                    continue
-                text_color = 'black' if table_std.iloc[i,j] > 0.75*(table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
-                axes[1].text(15-j, 15-i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
 
         plt.minorticks_off()
         plt.tight_layout()
