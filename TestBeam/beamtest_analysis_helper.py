@@ -1340,6 +1340,10 @@ def plot_TDC_summary_table(
         var: str
     ):
 
+    from matplotlib import colormaps
+    cmap = colormaps['viridis']
+    cmap.set_under(color='lightgrey')
+
     for id in chipLabels:
 
         if input_df[input_df['board'] == id].empty:
