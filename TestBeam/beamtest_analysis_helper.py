@@ -257,10 +257,9 @@ class DecodeBinary:
         self.reset_params()
 
         self.data_template = {
-            'evt_number': [],
+            'evt': [],
             'bcid': [],
             'l1a_counter': [],
-            'evt': [],
             'ea': [],
             'board': [],
             'row': [],
@@ -270,7 +269,17 @@ class DecodeBinary:
             'cal': [],
         }
 
+        self.event_data_template = {
+            'evt': [],
+            'bcid': [],
+            'l1a_counter': [],
+            'fpga_evt_number': [],
+            'hamming_count': [],
+            'overflow_count': [],
+        }
+
         self.data_to_load = copy.deepcopy(self.data_template)
+        self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
     def reset_params(self):
         self.in_event                = False
@@ -284,6 +293,7 @@ class DecodeBinary:
         self.current_channel         = -1
         self.in_40bit                = False
         self.data                    = {}
+        self.event_data              = {}
         self.version                 = None
         self.event_type              = None
 
@@ -353,7 +363,7 @@ class DecodeBinary:
             TOA = (word >> 19) & 0x3ff
             TOT = (word >> 10) & 0x1ff
             CAL = (word) & 0x3ff
-            self.data[self.current_channel]['evt_number'].append(self.event_number)
+            #self.data[self.current_channel]['evt_number'].append(self.event_number)
             self.data[self.current_channel]['bcid'].append(self.bcid)
             self.data[self.current_channel]['l1a_counter'].append(self.l1acounter)
             self.data[self.current_channel]['evt'].append(self.event_counter)
@@ -396,6 +406,10 @@ class DecodeBinary:
 
         df = pd.DataFrame(self.data_template)
         df = df.astype('int')
+        df['evt'] = df['evt'].astype('uint64')
+        event_df = pd.DataFrame(self.event_data_template)
+        event_df = event_df.astype('int')
+        event_df['evt'] = event_df['evt'].astype('uint64')
         decoding = False
         for ifile in self.files_to_process:
             with open(file=ifile, mode='rb') as infile:
@@ -428,7 +442,9 @@ class DecodeBinary:
                         self.eth_words_in_event = self.div_ceil(40*self.words_in_event, 32)
                         # print(f"Num Words {self.words_in_event} & Eth Words {self.eth_words_in_event}")
                         # Set valid_data to true once we see fresh data
-                        if(self.event_number==1 or self.event_number==0): self.valid_data = True
+                        if(self.event_number==1 or self.event_number==0):
+                            self.valid_data = True
+                            self.event_data = copy.deepcopy(self.event_data_template)
                         # print('Event Header Line Two Found')
                         # print(self.event_number)
                         if self.nem_file is not None:
@@ -454,15 +470,27 @@ class DecodeBinary:
                                 self.data_to_load[key] += self.data[board][key]
                         # print(self.event_number)
                         # print(self.data)
+
+                        crc            = (word) & 0xff
+                        overflow_count = (word >> 11) & 0x7
+                        hamming_count  = (word >> 8) & 0x7
+
+                        self.event_data['evt'].append(self.event_counter)
+                        self.event_data['bcid'].append(self.bcid)
+                        self.event_data['l1a_counter'].append(self.l1acounter)
+                        self.event_data['fpga_evt_number'].append(self.event_number)
+                        self.event_data['hamming_count'].append(hamming_count)
+                        self.event_data['overflow_count'].append(overflow_count)
+                        for key in self.event_data_to_load:
+                            self.event_data_to_load[key] += self.event_data[key]
                         self.event_counter += 1
 
                         if len(self.data_to_load['evt']) >= 10000:
                             df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
                             self.data_to_load = copy.deepcopy(self.data_template)
 
-                        crc            = (word) & 0xff
-                        overflow_count = (word >> 11) & 0x7
-                        hamming_count  = (word >> 8) & 0x7
+                            event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load)], ignore_index=True)
+                            self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
                         if self.nem_file is not None:
                             self.write_to_nem(f"ET {self.event_number} {overflow_count} {hamming_count} 0b{crc:08b}\n")
@@ -498,7 +526,7 @@ class DecodeBinary:
                     self.data_to_load = copy.deepcopy(self.data_template)
 
         self.close_file()
-        return df
+        return df, event_df
 
 ## --------------- Decoding Class -----------------------
 
