@@ -1642,6 +1642,7 @@ def plot_distance(
         fig_title: str,
         fig_tag: str = '',
         do_logy: bool = False,
+        no_show: bool = False,
     ):
     h_dis = hist.Hist(hist.axis.Regular(32, 0, 32, name='dis', label=f'Distance (Trigger - {xaxis_label_board_name})'))
 
@@ -1658,6 +1659,9 @@ def plot_distance(
 
     if do_logy:
         ax.set_yscale('log')
+
+    if no_show:
+        plt.close(fig)
 
     return h_dis
 
