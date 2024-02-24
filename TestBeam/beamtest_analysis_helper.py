@@ -444,7 +444,7 @@ class DecodeBinary:
                         # Set valid_data to true once we see fresh data
                         if(self.event_number==1 or self.event_number==0):
                             self.valid_data = True
-                            self.event_data = copy.deepcopy(self.event_data_template)
+                        self.event_data = copy.deepcopy(self.event_data_template)
                         # print('Event Header Line Two Found')
                         # print(self.event_number)
                         if self.nem_file is not None:
