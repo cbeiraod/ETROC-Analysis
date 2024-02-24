@@ -1486,7 +1486,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_CAL_{tag}.pdf')
             plt.clf()
-            plt.close()
+            plt.close(fig)
 
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
@@ -1500,7 +1500,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOT_{tag}.pdf')
             plt.clf()
-            plt.close()
+            plt.close(fig)
 
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
@@ -1514,7 +1514,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOA_{tag}.pdf')
             plt.clf()
-            plt.close()
+            plt.close(fig)
 
         fig = plt.figure(dpi=50, figsize=(20,20))
         gs = fig.add_gridspec(1,1)
@@ -1528,7 +1528,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.pdf')
             plt.clf()
-        plt.close()
+            plt.close(fig)
 
 
         if event_hist is not None:
@@ -1544,7 +1544,7 @@ def plot_1d_TDC_histograms(
             if(save):
                 plt.savefig(fig_path/f'{chip_figname}_Hamming_Count_{tag}.pdf')
                 plt.clf()
-            plt.close()
+                plt.close(fig)
 
     else:
         fig = plt.figure(dpi=100, figsize=(30,13))
@@ -1582,7 +1582,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_combined_TDC_{tag}.pdf')
             plt.clf()
-            plt.close()
+            plt.close(fig)
 
 ## --------------------------------------
 def plot_correlation_of_pixels(
