@@ -10,6 +10,7 @@ import os
 from tqdm import tqdm
 import pickle
 
+import matplotlib
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -18,6 +19,8 @@ import matplotlib.colors as colors
 import matplotlib.ticker as ticker
 import mplhep as hep
 plt.style.use(hep.style.CMS)
+
+matplotlib.rcParams["axes.formatter.useoffset"] = False
 
 PeriCfg = {
     0: "PLL Config",
