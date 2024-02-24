@@ -233,6 +233,7 @@ class DecodeBinary:
         self.trailer_pattern         = 0b001011
         self.channel_header_pattern  = 0x3c5c0 >> 2
         self.firmware_filler_pattern = 0x5555
+        self.firmware_filler_pattern_new = 0x556
         self.previous_event          = -1
         self.event_counter           = 0
         self.board_ids               = board_id
@@ -521,6 +522,11 @@ class DecodeBinary:
                     elif (word >> 16) == self.firmware_filler_pattern:
                         if self.nem_file is not None and not self.skip_filler:
                             self.write_to_nem(f"Filler: 0b{word & 0xffff:016b}\n")
+
+                    # New firmware filler
+                    elif (word >> 20) == self.firmware_filler_pattern_new:
+                        if self.nem_file is not None and not self.skip_filler:
+                            self.write_to_nem(f"Filler: 0b{word & 0xfffff:020b}\n")
 
                     # Reset anyway!
                     self.reset_params()
@@ -896,26 +902,49 @@ def singlehit_event_clear(
 ## --------------------------------------
 def tdc_event_selection(
         input_df: pd.DataFrame,
-        tdc_cuts_dict: dict
+        tdc_cuts_dict: dict,
+        select_by_hit: bool = False,
     ):
 
-    from functools import reduce
+    if select_by_hit:
 
-    # Create boolean masks for each board's filtering criteria
-    masks = {}
-    for board, cuts in tdc_cuts_dict.items():
-        mask = (
-            (input_df['board'] == board) &
-            input_df['cal'].between(cuts[0], cuts[1]) &
-            input_df['toa'].between(cuts[2], cuts[3]) &
-            input_df['tot'].between(cuts[4], cuts[5])
-        )
-        masks[board] = input_df[mask]['evt'].unique()
+        # Create boolean masks for each board's filtering criteria
+        masks = {}
+        for board, cuts in tdc_cuts_dict.items():
+            mask = (
+                (input_df['board'] == board) &
+                input_df['cal'].between(cuts[0], cuts[1]) &
+                input_df['toa'].between(cuts[2], cuts[3]) &
+                input_df['tot'].between(cuts[4], cuts[5])
+            )
+            masks[board] = mask
 
-    common_elements = reduce(np.intersect1d, list(masks.values()))
-    tdc_filtered_df = input_df.loc[input_df['evt'].isin(common_elements)].reset_index(drop=True)
+        # Combine the masks using logical OR
+        combined_mask = pd.concat(masks, axis=1).any(axis=1)
 
-    return tdc_filtered_df
+        # Apply the combined mask to the DataFrame
+        tdc_filtered_df = input_df[combined_mask].reset_index(drop=True)
+
+        return tdc_filtered_df
+
+    else:
+        from functools import reduce
+
+        # Create boolean masks for each board's filtering criteria
+        masks = {}
+        for board, cuts in tdc_cuts_dict.items():
+            mask = (
+                (input_df['board'] == board) &
+                input_df['cal'].between(cuts[0], cuts[1]) &
+                input_df['toa'].between(cuts[2], cuts[3]) &
+                input_df['tot'].between(cuts[4], cuts[5])
+            )
+            masks[board] = input_df[mask]['evt'].unique()
+
+        common_elements = reduce(np.intersect1d, list(masks.values()))
+        tdc_filtered_df = input_df.loc[input_df['evt'].isin(common_elements)].reset_index(drop=True)
+
+        return tdc_filtered_df
 
 ## --------------------------------------
 def tdc_event_selection_pivot(
@@ -1224,6 +1253,10 @@ def plot_number_of_hits_per_event(
     gs = fig.add_gridspec(2,2)
 
     for i, plot_info in enumerate(gs):
+
+        if i not in hists.keys():
+            continue
+
         ax = fig.add_subplot(plot_info)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
         hists[i].plot1d(ax=ax, lw=2)
@@ -1260,6 +1293,10 @@ def plot_2d_nHits_nBoard(
     gs = fig.add_gridspec(2,2)
 
     for i, plot_info in enumerate(gs):
+
+        if i not in hists.keys():
+            continue
+
         ax = fig.add_subplot(plot_info)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
         hep.hist2dplot(hists[i], ax=ax, norm=colors.LogNorm())
@@ -1269,7 +1306,7 @@ def plot_2d_nHits_nBoard(
     del hists, hit_df, nboard_df
 
 ## --------------------------------------
-def plot_heatmap_byPandas(
+def plot_occupany_map(
         input_df: pd.DataFrame,
         chipLabels: list[int],
         chipNames: list[str],
@@ -1301,6 +1338,9 @@ def plot_heatmap_byPandas(
             values='hits',
             fill_value=0  # Fill missing values with 0 (if any)
         )
+
+        if pivot_table.empty:
+            continue
 
         if (pivot_table.shape[0] != 16) or (pivot_table.shape[1]!= 16):
             pivot_table = pivot_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
@@ -1349,6 +1389,10 @@ def plot_TDC_summary_table(
         var: str
     ):
 
+    from matplotlib import colormaps
+    cmap = colormaps['viridis']
+    cmap.set_under(color='lightgrey')
+
     for id in chipLabels:
 
         if input_df[input_df['board'] == id].empty:
@@ -1358,13 +1402,13 @@ def plot_TDC_summary_table(
         sum_group.columns = sum_group.columns.droplevel()
         sum_group.reset_index(inplace=True)
 
-        table_mean = sum_group.pivot_table(index='row', columns='col', values='mean')
+        table_mean = sum_group.pivot_table(index='row', columns='col', values='mean', fill_value=-1)
         table_mean = table_mean.round(1)
 
         table_mean = table_mean.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
         table_mean = table_mean.reindex(columns=np.arange(0,16))
 
-        table_std = sum_group.pivot_table(index='row', columns='col', values='std')
+        table_std = sum_group.pivot_table(index='row', columns='col', values='std', fill_value=-1)
         table_std = table_std.round(2)
 
         table_std = table_std.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
@@ -1377,8 +1421,8 @@ def plot_TDC_summary_table(
 
         fig, axes = plt.subplots(1, 2, figsize=(20, 20))
 
-        im1 = axes[0].imshow(table_mean, vmin=-1)
-        im2 = axes[1].imshow(table_std, vmin=-1)
+        im1 = axes[0].imshow(table_mean, cmap=cmap, vmin=0)
+        im2 = axes[1].imshow(table_std, cmap=cmap, vmin=0)
 
         hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
         hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
@@ -1391,25 +1435,25 @@ def plot_TDC_summary_table(
         axes[1].set_xticks(np.arange(0,16))
         axes[1].set_yticks(np.arange(0,16))
 
+        # i for col, j for row
+        for i in range(16):
+            for j in range(16):
+                if np.isnan(table_mean.iloc[i,j]) or table_mean.iloc[i,j] < 0.:
+                    continue
+                text_color = 'black' if table_mean.iloc[i,j] > 0.5*(table_mean.stack().max() + table_mean.stack().min()) else 'white'
+                axes[0].text(j, i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
+
+        for i in range(16):
+            for j in range(16):
+                if np.isnan(table_std.iloc[i,j]) or table_std.iloc[i,j] < 0.:
+                    continue
+                text_color = 'black' if table_std.iloc[i,j] > 0.5*(table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
+                axes[1].text(j, i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
+
         axes[0].invert_xaxis()
         axes[0].invert_yaxis()
         axes[1].invert_xaxis()
         axes[1].invert_yaxis()
-
-        # i for col, j for row
-        for i in range(16):
-            for j in range(16):
-                if np.isnan(table_mean.iloc[i,j]):
-                    continue
-                text_color = 'black' if table_mean.iloc[i,j] > 0.75*(table_mean.stack().max() + table_mean.stack().min()) else 'white'
-                axes[0].text(15-j, 15-i, table_mean.iloc[i,j], ha="center", va="center", rotation=45, fontweight="bold", fontsize=12, color=text_color)
-
-        for i in range(16):
-            for j in range(16):
-                if np.isnan(table_std.iloc[i,j]):
-                    continue
-                text_color = 'black' if table_std.iloc[i,j] > 0.75*(table_std.stack().max() + table_std.stack().min()) / 2 else 'white'
-                axes[1].text(15-j, 15-i, table_std.iloc[i,j], ha="center", va="center", rotation=45, color=text_color, fontweight="bold", fontsize=12)
 
         plt.minorticks_off()
         plt.tight_layout()
@@ -1442,7 +1486,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_CAL_{tag}.pdf')
             plt.clf()
-        plt.close()
+            plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
@@ -1456,7 +1500,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOT_{tag}.pdf')
             plt.clf()
-        plt.close()
+            plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
@@ -1470,7 +1514,7 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOA_{tag}.pdf')
             plt.clf()
-        plt.close()
+            plt.close()
 
         fig = plt.figure(dpi=50, figsize=(20,20))
         gs = fig.add_gridspec(1,1)
@@ -1543,51 +1587,24 @@ def plot_1d_TDC_histograms(
 ## --------------------------------------
 def plot_correlation_of_pixels(
         input_df: pd.DataFrame,
-        hit_type: str,
-        board_id_to_correlate: int,
+        board_ids: np.array,
+        xaxis_label_board_name: str,
         fig_title: str,
         fit_tag: str = '',
     ):
 
-    if board_id_to_correlate == 0:
-        print("Self correlation!!")
-
-    xaxis_label = None
-    if (board_id_to_correlate == 1):
-        xaxis_label = 'DUT 1'
-    elif (board_id_to_correlate == 3):
-        xaxis_label = 'DUT 2'
-    else:
-        xaxis_label = 'Reference Board'
-
     h_row = hist.Hist(
         hist.axis.Regular(16, 0, 16, name='row1', label='Trigger Board Row'),
-        hist.axis.Regular(16, 0, 16, name='row2', label=f'{xaxis_label} Row'),
+        hist.axis.Regular(16, 0, 16, name='row2', label=f'{xaxis_label_board_name} Row'),
     )
     h_col = hist.Hist(
         hist.axis.Regular(16, 0, 16, name='col1', label='Trigger Board Col'),
-        hist.axis.Regular(16, 0, 16, name='col2', label=f'{xaxis_label} Col'),
+        hist.axis.Regular(16, 0, 16, name='col2', label=f'{xaxis_label_board_name} Col'),
     )
 
-    if hit_type == "single":
-        h_row.fill(input_df.loc[input_df['board'] == 0]['row'], input_df.loc[input_df['board'] == board_id_to_correlate]['row'])
-        h_col.fill(input_df.loc[input_df['board'] == 0]['col'], input_df.loc[input_df['board'] == board_id_to_correlate]['col'])
+    h_row.fill(input_df.loc[input_df['board'] == board_ids[0]]['row'], input_df.loc[input_df['board'] == board_ids[1]]['row'])
+    h_col.fill(input_df.loc[input_df['board'] == board_ids[0]]['col'], input_df.loc[input_df['board'] == board_ids[1]]['col'])
 
-    elif hit_type == "multiple":
-        n = int(0.01*input_df.shape[0]) # ~100k events
-        indices = np.random.choice(input_df['evt'].unique(), n, replace=False)
-        test_df = input_df.loc[input_df['evt'].isin(indices)]
-
-        for name, group in test_df.groupby('evt'):
-            cnt = len(group[group['board'] == board_id_to_correlate]['row'])
-            broadcasted_trig_row = np.full(cnt, group.loc[group['board'] == 0]['row'].values)
-            broadcasted_trig_col = np.full(cnt, group.loc[group['board'] == 0]['col'].values)
-            h_row.fill(broadcasted_trig_row, group.loc[group['board'] == board_id_to_correlate]['row'].to_numpy())
-            h_col.fill(broadcasted_trig_col, group.loc[group['board'] == board_id_to_correlate]['col'].to_numpy())
-
-    else:
-        print('Please specify hit_type. Either single or multiple')
-        return
 
     location = np.arange(0, 16) + 0.5
     tick_labels = np.char.mod('%d', np.arange(0, 16))
@@ -1595,7 +1612,7 @@ def plot_correlation_of_pixels(
 
     hep.hist2dplot(h_row, ax=ax[0])
     hep.cms.text(loc=0, ax=ax[0], text="Preliminary", fontsize=25)
-    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=15)
+    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[0].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -1606,7 +1623,7 @@ def plot_correlation_of_pixels(
 
     hep.hist2dplot(h_col, ax=ax[1])
     hep.cms.text(loc=0, ax=ax[1], text="Preliminary", fontsize=25)
-    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=15)
+    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[1].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -1620,49 +1637,19 @@ def plot_correlation_of_pixels(
 ## --------------------------------------
 def plot_distance(
         input_df: pd.DataFrame,
-        hit_type: str,
-        board_id_to_correlate: int,
+        board_ids: np.array,
+        xaxis_label_board_name: str,
         fig_title: str,
         fig_tag: str = '',
         do_logy: bool = False,
     ):
+    h_dis = hist.Hist(hist.axis.Regular(32, 0, 32, name='dis', label=f'Distance (Trigger - {xaxis_label_board_name})'))
 
-    xaxis_label = None
-    if (board_id_to_correlate == 1):
-        xaxis_label = 'DUT 1'
-    elif (board_id_to_correlate == 3):
-        xaxis_label = 'DUT 2'
-    else:
-        xaxis_label = 'Reference'
-
-    h_dis = hist.Hist(hist.axis.Regular(32, 0, 32, name='dis', label=f'Distance (Trigger - {xaxis_label})'))
-
-    if hit_type == "single":
-        diff_row = (input_df.loc[input_df['board'] == 0]['row'].values - input_df.loc[input_df['board'] == board_id_to_correlate]['row'].values)
-        diff_col = (input_df.loc[input_df['board'] == 0]['col'].values - input_df.loc[input_df['board'] == board_id_to_correlate]['col'].values)
-        dis = np.sqrt(diff_row**2 + diff_col**2)
-        h_dis.fill(dis)
-        del diff_row, diff_col, dis
-
-    elif hit_type == "multiple":
-        n = int(0.01*input_df.shape[0]) # ~100k events
-        indices = np.random.choice(input_df['evt'].unique(), n, replace=False)
-        test_df = input_df.loc[input_df['evt'].isin(indices)]
-
-        for name, group in test_df.groupby('evt'):
-            cnt = len(group.loc[group['board'] == board_id_to_correlate]['row'])
-            broadcasted_trig_row = np.full(cnt, group.loc[group['board'] == 0]['row'].values)
-            broadcasted_trig_col = np.full(cnt, group.loc[group['board'] == 0]['col'].values)
-            diff_row = (broadcasted_trig_row - group.loc[group['board'] == board_id_to_correlate]['row'].values)
-            diff_col = (broadcasted_trig_col - group.loc[group['board'] == board_id_to_correlate]['col'].values)
-            dis = np.sqrt(diff_row**2 + diff_col**2)
-            h_dis.fill(dis)
-
-        del test_df, indices, n
-
-    else:
-        print('Please specify hit_type. Either single or multiple')
-        return
+    diff_row = (input_df.loc[input_df['board'] == board_ids[0]]['row'].reset_index(drop=True) - input_df.loc[input_df['board'] == board_ids[1]]['row'].reset_index(drop=True)).values
+    diff_col = (input_df.loc[input_df['board'] == board_ids[0]]['col'].reset_index(drop=True) - input_df.loc[input_df['board'] == board_ids[1]]['col'].reset_index(drop=True)).values
+    dis = np.sqrt(diff_row**2 + diff_col**2)
+    h_dis.fill(dis)
+    del diff_row, diff_col, dis
 
     fig, ax = plt.subplots(dpi=100, figsize=(15, 8))
     hep.histplot(h_dis, ax=ax)
