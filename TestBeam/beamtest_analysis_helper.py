@@ -21,6 +21,7 @@ import mplhep as hep
 plt.style.use(hep.style.CMS)
 
 matplotlib.rcParams["axes.formatter.useoffset"] = False
+matplotlib.rcParams["axes.formatter.use_mathtext"] = False
 
 PeriCfg = {
     0: "PLL Config",
