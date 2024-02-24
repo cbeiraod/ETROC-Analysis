@@ -1138,6 +1138,17 @@ def return_hist(
     return h
 
 ## --------------------------------------
+def return_event_hist(
+        input_df: pd.DataFrame,
+):
+
+    h = hist.Hist(hist.axis.Regular(8, 0, 8, name="HA", label="Hamming Count"))
+
+    h.fill(input_df["hamming_count"].values)
+
+    return h
+
+## --------------------------------------
 def return_hist_pivot(
         input_df: pd.DataFrame,
         chipNames: list[str],
@@ -1411,6 +1422,7 @@ def plot_1d_TDC_histograms(
         fig_tag: str = '',
         slide_friendly: bool = False,
         do_logy: bool = False,
+        event_hist: hist.Hist | None = None,
     ):
 
     if not slide_friendly:
@@ -1468,8 +1480,23 @@ def plot_1d_TDC_histograms(
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.pdf')
             plt.clf()
+        plt.close()
+
+
+        if event_hist is not None:
+            fig = plt.figure(dpi=50, figsize=(20,20))
+            gs = fig.add_gridspec(1,1)
+            ax = fig.add_subplot(gs[0,0])
+            ax.set_title(f"{fig_title}, Hamming Code{fig_tag}", loc="right", size=25)
+            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+            event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
+            if do_logy:
+                ax.set_yscale('log')
+            plt.tight_layout()
+            if(save):
+                plt.savefig(fig_path/f'{chip_figname}_Hamming_Count_{tag}.pdf')
+                plt.clf()
             plt.close()
-        # plt.close()
 
     else:
         fig = plt.figure(dpi=100, figsize=(30,13))
@@ -1494,8 +1521,14 @@ def plot_1d_TDC_histograms(
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 3:
-                ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
-                input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+                if event_hist is None:
+                    ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
+                    input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+                else:
+                    ax.set_title(f"{fig_title}, Hamming Count{fig_tag}", loc="right", size=15)
+                    event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
+                    if do_logy:
+                        ax.set_yscale('log')
 
         plt.tight_layout()
         if(save):
