@@ -409,12 +409,8 @@ class DecodeBinary:
         if self.save_nem is not None:
             self.open_next_file()
 
-        df = pd.DataFrame(self.data_template)
-        df = df.astype('int')
-        df['evt'] = df['evt'].astype('uint64')
-        event_df = pd.DataFrame(self.event_data_template)
-        event_df = event_df.astype('int')
-        event_df['evt'] = event_df['evt'].astype('uint64')
+        df = pd.DataFrame(self.data_template, dtype=np.uint64)
+        event_df = pd.DataFrame(self.event_data_template, dtype=np.uint64)
         decoding = False
         for ifile in self.files_to_process:
             with open(file=ifile, mode='rb') as infile:
@@ -491,10 +487,10 @@ class DecodeBinary:
                         self.event_counter += 1
 
                         if len(self.data_to_load['evt']) >= 10000:
-                            df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
+                            df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
                             self.data_to_load = copy.deepcopy(self.data_template)
 
-                            event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load)], ignore_index=True)
+                            event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
                             self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
                         if self.nem_file is not None:
@@ -532,7 +528,7 @@ class DecodeBinary:
                     self.reset_params()
 
                 if len(self.data_to_load['evt']) > 0:
-                    df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
+                    df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
                     self.data_to_load = copy.deepcopy(self.data_template)
 
         self.close_file()
