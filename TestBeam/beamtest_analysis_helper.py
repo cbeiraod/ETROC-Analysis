@@ -223,6 +223,47 @@ def compare_chip_configs(config_file1: Path, config_file2: Path):
 
     print("Done comparing!")
 
+def diff_chip_configs(config_file1: Path, config_file2: Path):
+    with open(config_file1, 'rb') as f:
+        loaded_obj1 = pickle.load(f)
+    with open(config_file2, 'rb') as f:
+        loaded_obj2 = pickle.load(f)
+
+    if loaded_obj1['chip'] != loaded_obj2['chip']:
+        raise RuntimeError("The config files are for different chips.")
+
+    chip1: dict = loaded_obj1['object']
+    chip2: dict = loaded_obj2['object']
+
+    retVal = {}
+
+    common_keys = []
+    for key in chip1.keys():
+        if key not in chip2:
+            raise RuntimeError(f"Address Space \"{key}\" in config file 1 and not in config file 2")
+        else:
+            if key not in common_keys:
+                common_keys += [key]
+    for key in chip2.keys():
+        if key not in chip1:
+            raise RuntimeError(f"Address Space \"{key}\" in config file 2 and not in config file 1")
+        else:
+            if key not in common_keys:
+                common_keys += [key]
+
+    for address_space_name in common_keys:
+        retVal[address_space_name] = {}
+        if len(chip1[address_space_name]) != len(chip2[address_space_name]):
+            raise RuntimeError(f"The length of the \"{address_space_name}\" memory for config file 1 ({len(chip1[address_space_name])}) is not the same as for config file 2 ({len(chip2[address_space_name])})")
+
+        length = min(len(chip1[address_space_name]), len(chip2[address_space_name]))
+
+        for idx in range(length):
+            if chip1[address_space_name][idx] != chip2[address_space_name][idx]:
+                retVal[address_space_name][idx] = (chip1[address_space_name][idx], chip2[address_space_name][idx])
+
+    return retVal
+
 
 ## --------------- Decoding Class -----------------------
 ## --------------------------------------
