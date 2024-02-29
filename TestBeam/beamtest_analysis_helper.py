@@ -1895,12 +1895,12 @@ def plot_TDC_correlation_scatter_matrix(
     board_ids = input_df['board'].unique()
     val_names = [f'toa_{board_ids[0]}', f'toa_{board_ids[1]}', f'tot_{board_ids[0]}', f'tot_{board_ids[1]}', f'cal_{board_ids[0]}', f'cal_{board_ids[1]}']
     val_labels = {
-        f'toa_{board_ids[0]}':f'TOA_{chip_names[board_ids[0]]}',
-        f'toa_{board_ids[1]}':f'TOA_{chip_names[board_ids[1]]}',
-        f'tot_{board_ids[0]}':f'TOT_{chip_names[board_ids[0]]}',
-        f'tot_{board_ids[1]}':f'TOT_{chip_names[board_ids[1]]}',
-        f'cal_{board_ids[0]}':f'CAL_{chip_names[board_ids[0]]}',
-        f'cal_{board_ids[1]}':f'CAL_{chip_names[board_ids[1]]}',
+        f'toa_{board_ids[0]}':f'TOA_{chip_names[int(board_ids[0])]}',
+        f'toa_{board_ids[1]}':f'TOA_{chip_names[int(board_ids[1])]}',
+        f'tot_{board_ids[0]}':f'TOT_{chip_names[int(board_ids[0])]}',
+        f'tot_{board_ids[1]}':f'TOT_{chip_names[int(board_ids[1])]}',
+        f'cal_{board_ids[0]}':f'CAL_{chip_names[int(board_ids[0])]}',
+        f'cal_{board_ids[1]}':f'CAL_{chip_names[int(board_ids[1])]}',
     }
     extra_tag = ''
 
