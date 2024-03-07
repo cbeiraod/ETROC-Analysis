@@ -10,6 +10,7 @@ import os
 from tqdm import tqdm
 import pickle
 
+import matplotlib
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -18,6 +19,9 @@ import matplotlib.colors as colors
 import matplotlib.ticker as ticker
 import mplhep as hep
 plt.style.use(hep.style.CMS)
+
+matplotlib.rcParams["axes.formatter.useoffset"] = False
+matplotlib.rcParams["axes.formatter.use_mathtext"] = False
 
 PeriCfg = {
     0: "PLL Config",
@@ -229,6 +233,7 @@ class DecodeBinary:
         self.trailer_pattern         = 0b001011
         self.channel_header_pattern  = 0x3c5c0 >> 2
         self.firmware_filler_pattern = 0x5555
+        self.firmware_filler_pattern_new = 0x556
         self.previous_event          = -1
         self.event_counter           = 0
         self.board_ids               = board_id
@@ -257,10 +262,9 @@ class DecodeBinary:
         self.reset_params()
 
         self.data_template = {
-            'evt_number': [],
+            'evt': [],
             'bcid': [],
             'l1a_counter': [],
-            'evt': [],
             'ea': [],
             'board': [],
             'row': [],
@@ -270,7 +274,17 @@ class DecodeBinary:
             'cal': [],
         }
 
+        self.event_data_template = {
+            'evt': [],
+            'bcid': [],
+            'l1a_counter': [],
+            'fpga_evt_number': [],
+            'hamming_count': [],
+            'overflow_count': [],
+        }
+
         self.data_to_load = copy.deepcopy(self.data_template)
+        self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
     def reset_params(self):
         self.in_event                = False
@@ -284,6 +298,7 @@ class DecodeBinary:
         self.current_channel         = -1
         self.in_40bit                = False
         self.data                    = {}
+        self.event_data              = {}
         self.version                 = None
         self.event_type              = None
 
@@ -353,7 +368,7 @@ class DecodeBinary:
             TOA = (word >> 19) & 0x3ff
             TOT = (word >> 10) & 0x1ff
             CAL = (word) & 0x3ff
-            self.data[self.current_channel]['evt_number'].append(self.event_number)
+            #self.data[self.current_channel]['evt_number'].append(self.event_number)
             self.data[self.current_channel]['bcid'].append(self.bcid)
             self.data[self.current_channel]['l1a_counter'].append(self.l1acounter)
             self.data[self.current_channel]['evt'].append(self.event_counter)
@@ -394,8 +409,8 @@ class DecodeBinary:
         if self.save_nem is not None:
             self.open_next_file()
 
-        df = pd.DataFrame(self.data_template)
-        df = df.astype('int')
+        df = pd.DataFrame(self.data_template, dtype=np.uint64)
+        event_df = pd.DataFrame(self.event_data_template, dtype=np.uint64)
         decoding = False
         for ifile in self.files_to_process:
             with open(file=ifile, mode='rb') as infile:
@@ -428,7 +443,9 @@ class DecodeBinary:
                         self.eth_words_in_event = self.div_ceil(40*self.words_in_event, 32)
                         # print(f"Num Words {self.words_in_event} & Eth Words {self.eth_words_in_event}")
                         # Set valid_data to true once we see fresh data
-                        if(self.event_number==1 or self.event_number==0): self.valid_data = True
+                        if(self.event_number==1 or self.event_number==0):
+                            self.valid_data = True
+                        self.event_data = copy.deepcopy(self.event_data_template)
                         # print('Event Header Line Two Found')
                         # print(self.event_number)
                         if self.nem_file is not None:
@@ -454,15 +471,27 @@ class DecodeBinary:
                                 self.data_to_load[key] += self.data[board][key]
                         # print(self.event_number)
                         # print(self.data)
-                        self.event_counter += 1
-
-                        if len(self.data_to_load['evt']) >= 10000:
-                            df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
-                            self.data_to_load = copy.deepcopy(self.data_template)
 
                         crc            = (word) & 0xff
                         overflow_count = (word >> 11) & 0x7
                         hamming_count  = (word >> 8) & 0x7
+
+                        self.event_data['evt'].append(self.event_counter)
+                        self.event_data['bcid'].append(self.bcid)
+                        self.event_data['l1a_counter'].append(self.l1acounter)
+                        self.event_data['fpga_evt_number'].append(self.event_number)
+                        self.event_data['hamming_count'].append(hamming_count)
+                        self.event_data['overflow_count'].append(overflow_count)
+                        for key in self.event_data_to_load:
+                            self.event_data_to_load[key] += self.event_data[key]
+                        self.event_counter += 1
+
+                        if len(self.data_to_load['evt']) >= 10000:
+                            df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
+                            self.data_to_load = copy.deepcopy(self.data_template)
+
+                            event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
+                            self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
                         if self.nem_file is not None:
                             self.write_to_nem(f"ET {self.event_number} {overflow_count} {hamming_count} 0b{crc:08b}\n")
@@ -490,15 +519,20 @@ class DecodeBinary:
                         if self.nem_file is not None and not self.skip_filler:
                             self.write_to_nem(f"Filler: 0b{word & 0xffff:016b}\n")
 
+                    # New firmware filler
+                    elif (word >> 20) == self.firmware_filler_pattern_new:
+                        if self.nem_file is not None and not self.skip_filler:
+                            self.write_to_nem(f"Filler: 0b{word & 0xfffff:020b}\n")
+
                     # Reset anyway!
                     self.reset_params()
 
                 if len(self.data_to_load['evt']) > 0:
-                    df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
+                    df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
                     self.data_to_load = copy.deepcopy(self.data_template)
 
         self.close_file()
-        return df
+        return df, event_df
 
 ## --------------- Decoding Class -----------------------
 
@@ -1133,6 +1167,17 @@ def return_hist(
     return h
 
 ## --------------------------------------
+def return_event_hist(
+        input_df: pd.DataFrame,
+):
+
+    h = hist.Hist(hist.axis.Regular(8, 0, 8, name="HA", label="Hamming Count"))
+
+    h.fill(input_df["hamming_count"].values)
+
+    return h
+
+## --------------------------------------
 def return_hist_pivot(
         input_df: pd.DataFrame,
         chipNames: list[str],
@@ -1421,6 +1466,7 @@ def plot_1d_TDC_histograms(
         fig_tag: str = '',
         slide_friendly: bool = False,
         do_logy: bool = False,
+        event_hist: hist.Hist | None = None,
     ):
 
     if not slide_friendly:
@@ -1430,11 +1476,13 @@ def plot_1d_TDC_histograms(
         ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
+        if do_logy:
+            ax.set_yscale('log')
         plt.tight_layout()
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_CAL_{tag}.pdf')
             plt.clf()
-            plt.close()
+            plt.close(fig)
 
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
@@ -1442,11 +1490,13 @@ def plot_1d_TDC_histograms(
         ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+        if do_logy:
+            ax.set_yscale('log')
         plt.tight_layout()
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOT_{tag}.pdf')
             plt.clf()
-            plt.close()
+            plt.close(fig)
 
         fig = plt.figure(dpi=50, figsize=(20,10))
         gs = fig.add_gridspec(1,1)
@@ -1454,11 +1504,13 @@ def plot_1d_TDC_histograms(
         ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+        if do_logy:
+            ax.set_yscale('log')
         plt.tight_layout()
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOA_{tag}.pdf')
             plt.clf()
-            plt.close()
+            plt.close(fig)
 
         fig = plt.figure(dpi=50, figsize=(20,20))
         gs = fig.add_gridspec(1,1)
@@ -1466,11 +1518,29 @@ def plot_1d_TDC_histograms(
         ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=25)
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+        if do_logy:
+            ax.set_yscale('log')
         plt.tight_layout()
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.pdf')
             plt.clf()
-            plt.close()
+            plt.close(fig)
+
+
+        if event_hist is not None:
+            fig = plt.figure(dpi=50, figsize=(20,20))
+            gs = fig.add_gridspec(1,1)
+            ax = fig.add_subplot(gs[0,0])
+            ax.set_title(f"{fig_title}, Hamming Code{fig_tag}", loc="right", size=25)
+            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+            event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
+            if do_logy:
+                ax.set_yscale('log')
+            plt.tight_layout()
+            if(save):
+                plt.savefig(fig_path/f'{chip_figname}_Hamming_Count_{tag}.pdf')
+                plt.clf()
+                plt.close(fig)
 
     else:
         fig = plt.figure(dpi=100, figsize=(30,13))
@@ -1495,14 +1565,20 @@ def plot_1d_TDC_histograms(
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 3:
-                ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
-                input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+                if event_hist is None:
+                    ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
+                    input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+                else:
+                    ax.set_title(f"{fig_title}, Hamming Count{fig_tag}", loc="right", size=15)
+                    event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
+                    if do_logy:
+                        ax.set_yscale('log')
 
         plt.tight_layout()
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_combined_TDC_{tag}.pdf')
             plt.clf()
-            plt.close()
+            plt.close(fig)
 
 ## --------------------------------------
 def plot_correlation_of_pixels(
@@ -1562,6 +1638,7 @@ def plot_distance(
         fig_title: str,
         fig_tag: str = '',
         do_logy: bool = False,
+        no_show: bool = False,
     ):
     h_dis = hist.Hist(hist.axis.Regular(32, 0, 32, name='dis', label=f'Distance (Trigger - {xaxis_label_board_name})'))
 
@@ -1578,6 +1655,9 @@ def plot_distance(
 
     if do_logy:
         ax.set_yscale('log')
+
+    if no_show:
+        plt.close(fig)
 
     return h_dis
 
@@ -1815,12 +1895,12 @@ def plot_TDC_correlation_scatter_matrix(
     board_ids = input_df['board'].unique()
     val_names = [f'toa_{board_ids[0]}', f'toa_{board_ids[1]}', f'tot_{board_ids[0]}', f'tot_{board_ids[1]}', f'cal_{board_ids[0]}', f'cal_{board_ids[1]}']
     val_labels = {
-        f'toa_{board_ids[0]}':f'TOA_{chip_names[board_ids[0]]}',
-        f'toa_{board_ids[1]}':f'TOA_{chip_names[board_ids[1]]}',
-        f'tot_{board_ids[0]}':f'TOT_{chip_names[board_ids[0]]}',
-        f'tot_{board_ids[1]}':f'TOT_{chip_names[board_ids[1]]}',
-        f'cal_{board_ids[0]}':f'CAL_{chip_names[board_ids[0]]}',
-        f'cal_{board_ids[1]}':f'CAL_{chip_names[board_ids[1]]}',
+        f'toa_{board_ids[0]}':f'TOA_{chip_names[int(board_ids[0])]}',
+        f'toa_{board_ids[1]}':f'TOA_{chip_names[int(board_ids[1])]}',
+        f'tot_{board_ids[0]}':f'TOT_{chip_names[int(board_ids[0])]}',
+        f'tot_{board_ids[1]}':f'TOT_{chip_names[int(board_ids[1])]}',
+        f'cal_{board_ids[0]}':f'CAL_{chip_names[int(board_ids[0])]}',
+        f'cal_{board_ids[1]}':f'CAL_{chip_names[int(board_ids[1])]}',
     }
     extra_tag = ''
 

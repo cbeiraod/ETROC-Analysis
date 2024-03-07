@@ -6,3 +6,7 @@ highpower_offset10/*
 desy_TB_run*
 testbeam_*
 *.csv
+*.sqlite
+*.feather
+*.bin
+*.pkl
