@@ -2241,9 +2241,69 @@ def lmfit_gaussfit_with_pulls(
 
 
     if get_chisqure:
-        return [out.params['sigma'].value, out.params['sigma'].stderr, out.chisqr/(out.ndata-1)]
+        return [out.params['sigma'].value, out.params['sigma'].stderr, out.redchi]
     else:
         return [out.params['sigma'].value, out.params['sigma'].stderr]
+
+## --------------------------------------
+def fwhm_based_on_gaussian_mixture_model(
+        input_data: np.array,
+        n_components: int = 2,
+        each_component: bool = False,
+        plotting: bool = False,
+    ):
+
+    from sklearn.mixture import GaussianMixture
+
+    x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
+    models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
+
+    logprob = models.score_samples(x_range)
+    pdf = np.exp(logprob)
+
+    peak_height = np.max(pdf)
+
+    # Find the half-maximum points.
+    half_max = peak_height*0.5
+    half_max_indices = np.where(pdf >= half_max)[0]
+
+    # Calculate the FWHM.
+    fwhm = x_range[half_max_indices[-1]] - x_range[half_max_indices[0]]
+
+    ### GMM - sigma
+    # Get the standard deviations (sigma) for each component
+    sigma_values = np.sqrt(models.covariances_.diagonal())
+
+    # Get the mixing coefficients and Calculate the combined sigma using a weighted sum
+    combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
+
+    ### Draw plot
+    if each_component:
+        # Compute PDF for each component
+        responsibilities = models.predict_proba(x_range)
+        pdf_individual = responsibilities * pdf[:, np.newaxis]
+
+    if plotting:
+
+        fig, ax = plt.subplots(figsize=(10,10))
+
+        # Plot data histogram
+        bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
+
+        # Plot PDF of whole model
+        ax.plot(x_range, pdf, '-k', label='Mixture PDF')
+
+        if each_component:
+            # Plot PDF of each component
+            ax.plot(x_range, pdf_individual, '--', label='Component PDF')
+
+        # Plot
+        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label='FWHM')
+        ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+
+        ax.legend(loc='best', fontsize=14)
+
+    return fwhm, combined_sigma
 
 ## --------------- Time Walk Correction -----------------------
 
@@ -2258,9 +2318,24 @@ def return_resolution_three_board(
     ):
 
     results = {
-        board_list[0]: np.sqrt((1/2)*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
-        board_list[1]: np.sqrt((1/2)*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
-        board_list[2]: np.sqrt((1/2)*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
+        board_list[0]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
+        board_list[1]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
+        board_list[2]: np.sqrt(0.5*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
+    }
+
+    return results
+
+## --------------------------------------
+def return_resolution_three_board_fromFWHM(
+        fit_params: dict,
+        var: list,
+        board_list:list,
+    ):
+
+    results = {
+        board_list[0]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[1]]**2 - fit_params[var[2]]**2)),
+        board_list[1]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[2]]**2 - fit_params[var[1]]**2)),
+        board_list[2]: np.sqrt(0.5*(fit_params[var[1]]**2 + fit_params[var[2]]**2 - fit_params[var[0]]**2)),
     }
 
     return results
