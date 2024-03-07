@@ -1313,6 +1313,10 @@ def plot_occupany_map(
         save: bool = False,
     ):
 
+    from matplotlib import colormaps
+    cmap = colormaps['viridis']
+    cmap.set_under(color='lightgrey')
+
     if exclude_noise:
         ana_df = input_df.loc[input_df['tot'] > 10].copy()
     else:
@@ -1345,7 +1349,7 @@ def plot_occupany_map(
         # Create a heatmap to visualize the count of hits
         fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
         ax.cla()
-        im = ax.imshow(pivot_table, cmap="viridis", interpolation="nearest")
+        im = ax.imshow(pivot_table, cmap=cmap, interpolation="nearest", vmin=0)
 
         # Add color bar
         cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
