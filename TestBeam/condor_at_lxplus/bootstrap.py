@@ -1,8 +1,188 @@
-import beamtest_analysis_helper as helper
 import pandas as pd
 import numpy as np
 from collections import defaultdict
 
+## --------------------------------------
+def three_board_iterative_timewalk_correction(
+    input_df: pd.DataFrame,
+    iterative_cnt: int,
+    poly_order: int,
+    board_list: list,
+):
+
+    corr_toas = {}
+    corr_b0 = input_df[f'toa_b{board_list[0]}'].values
+    corr_b1 = input_df[f'toa_b{board_list[1]}'].values
+    corr_b2 = input_df[f'toa_b{board_list[2]}'].values
+
+    del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
+    del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
+    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
+
+    for i in range(iterative_cnt):
+        coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+        poly_func_b0 = np.poly1d(coeff_b0)
+
+        coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+        poly_func_b1 = np.poly1d(coeff_b1)
+
+        coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+        poly_func_b2 = np.poly1d(coeff_b2)
+
+        corr_b0 = corr_b0 + poly_func_b0(input_df[f'tot_b{board_list[0]}'].values)
+        corr_b1 = corr_b1 + poly_func_b1(input_df[f'tot_b{board_list[1]}'].values)
+        corr_b2 = corr_b2 + poly_func_b2(input_df[f'tot_b{board_list[2]}'].values)
+
+        del_toa_b0 = (0.5*(corr_b1 + corr_b2) - corr_b0)
+        del_toa_b1 = (0.5*(corr_b0 + corr_b2) - corr_b1)
+        del_toa_b2 = (0.5*(corr_b0 + corr_b1) - corr_b2)
+
+        if i == iterative_cnt-1:
+            corr_toas[f'toa_b{board_list[0]}'] = corr_b0
+            corr_toas[f'toa_b{board_list[1]}'] = corr_b1
+            corr_toas[f'toa_b{board_list[2]}'] = corr_b2
+
+    return corr_toas
+
+## --------------------------------------
+def four_board_iterative_timewalk_correction(
+    input_df: pd.DataFrame,
+    iterative_cnt: int,
+    poly_order: int,
+    ):
+
+    corr_toas = {}
+    corr_b0 = input_df['toa_b0'].values
+    corr_b1 = input_df['toa_b1'].values
+    corr_b2 = input_df['toa_b2'].values
+    corr_b3 = input_df['toa_b3'].values
+
+    del_toa_b3 = ((1/3)*(input_df['toa_b0'] + input_df['toa_b1'] + input_df['toa_b2']) - input_df['toa_b3']).values
+    del_toa_b2 = ((1/3)*(input_df['toa_b0'] + input_df['toa_b1'] + input_df['toa_b3']) - input_df['toa_b2']).values
+    del_toa_b1 = ((1/3)*(input_df['toa_b0'] + input_df['toa_b3'] + input_df['toa_b2']) - input_df['toa_b1']).values
+    del_toa_b0 = ((1/3)*(input_df['toa_b3'] + input_df['toa_b1'] + input_df['toa_b2']) - input_df['toa_b0']).values
+
+    for i in range(iterative_cnt):
+        coeff_b0 = np.polyfit(input_df['tot_b0'].values, del_toa_b0, poly_order)
+        poly_func_b0 = np.poly1d(coeff_b0)
+
+        coeff_b1 = np.polyfit(input_df['tot_b1'].values, del_toa_b1, poly_order)
+        poly_func_b1 = np.poly1d(coeff_b1)
+
+        coeff_b2 = np.polyfit(input_df['tot_b2'].values, del_toa_b2, poly_order)
+        poly_func_b2 = np.poly1d(coeff_b2)
+
+        coeff_b3 = np.polyfit(input_df['tot_b3'].values, del_toa_b3, poly_order)
+        poly_func_b3 = np.poly1d(coeff_b3)
+
+        corr_b0 = corr_b0 + poly_func_b0(input_df['tot_b0'].values)
+        corr_b1 = corr_b1 + poly_func_b1(input_df['tot_b1'].values)
+        corr_b2 = corr_b2 + poly_func_b2(input_df['tot_b2'].values)
+        corr_b3 = corr_b3 + poly_func_b3(input_df['tot_b3'].values)
+
+        del_toa_b3 = ((1/3)*(corr_b0 + corr_b1 + corr_b2) - corr_b3)
+        del_toa_b2 = ((1/3)*(corr_b0 + corr_b1 + corr_b3) - corr_b2)
+        del_toa_b1 = ((1/3)*(corr_b0 + corr_b3 + corr_b2) - corr_b1)
+        del_toa_b0 = ((1/3)*(corr_b3 + corr_b1 + corr_b2) - corr_b0)
+
+        if i == iterative_cnt-1:
+            corr_toas[f'toa_b0'] = corr_b0
+            corr_toas[f'toa_b1'] = corr_b1
+            corr_toas[f'toa_b2'] = corr_b2
+            corr_toas[f'toa_b3'] = corr_b3
+
+    return corr_toas
+
+## --------------------------------------
+def fwhm_based_on_gaussian_mixture_model(
+        input_data: np.array,
+        n_components: int = 2,
+        each_component: bool = False,
+        plotting: bool = False,
+    ):
+
+    from sklearn.mixture import GaussianMixture
+
+    x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
+    models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
+
+    logprob = models.score_samples(x_range)
+    pdf = np.exp(logprob)
+
+    peak_height = np.max(pdf)
+
+    # Find the half-maximum points.
+    half_max = peak_height*0.5
+    half_max_indices = np.where(pdf >= half_max)[0]
+
+    # Calculate the FWHM.
+    fwhm = x_range[half_max_indices[-1]] - x_range[half_max_indices[0]]
+
+    ### GMM - sigma
+    # Get the standard deviations (sigma) for each component
+    sigma_values = np.sqrt(models.covariances_.diagonal())
+
+    # Get the mixing coefficients and Calculate the combined sigma using a weighted sum
+    combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
+
+    ### Draw plot
+    if each_component:
+        # Compute PDF for each component
+        responsibilities = models.predict_proba(x_range)
+        pdf_individual = responsibilities * pdf[:, np.newaxis]
+
+    if plotting:
+
+        fig, ax = plt.subplots(figsize=(10,10))
+
+        # Plot data histogram
+        bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
+
+        # Plot PDF of whole model
+        ax.plot(x_range, pdf, '-k', label='Mixture PDF')
+
+        if each_component:
+            # Plot PDF of each component
+            ax.plot(x_range, pdf_individual, '--', label='Component PDF')
+
+        # Plot
+        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label='FWHM')
+        ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+
+        ax.legend(loc='best', fontsize=14)
+
+    return fwhm, combined_sigma
+
+## --------------------------------------
+def return_resolution_three_board_fromFWHM(
+        fit_params: dict,
+        var: list,
+        board_list:list,
+    ):
+
+    results = {
+        board_list[0]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[1]]**2 - fit_params[var[2]]**2)),
+        board_list[1]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[2]]**2 - fit_params[var[1]]**2)),
+        board_list[2]: np.sqrt(0.5*(fit_params[var[1]]**2 + fit_params[var[2]]**2 - fit_params[var[0]]**2)),
+    }
+
+    return results
+
+## --------------------------------------
+def return_resolution_four_board_fromFWHM(
+        fit_params: dict,
+    ):
+
+    results = {
+        0: np.sqrt((1/6)*(2*fit_params['01']**2+2*fit_params['02']**2+2*fit_params['03']**2-fit_params['12']**2-fit_params['13']**2-fit_params['23']**2)),
+        1: np.sqrt((1/6)*(2*fit_params['01']**2+2*fit_params['12']**2+2*fit_params['13']**2-fit_params['02']**2-fit_params['03']**2-fit_params['23']**2)),
+        2: np.sqrt((1/6)*(2*fit_params['02']**2+2*fit_params['12']**2+2*fit_params['23']**2-fit_params['01']**2-fit_params['03']**2-fit_params['13']**2)),
+        3: np.sqrt((1/6)*(2*fit_params['03']**2+2*fit_params['13']**2+2*fit_params['23']**2-fit_params['01']**2-fit_params['02']**2-fit_params['12']**2)),
+    }
+
+    return results
+
+## --------------------------------------
 def bootstrap(
         input_df: pd.DataFrame,
         board_to_analyze: list[int],
