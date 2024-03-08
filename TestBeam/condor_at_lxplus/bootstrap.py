@@ -217,9 +217,9 @@ def bootstrap(
         del d, tdc_filtered_df
 
         if(len(board_to_analyze)==3):
-            corr_toas = helper.three_board_iterative_timewalk_correction(df_in_time, 5, 3, board_list=board_to_analyze)
+            corr_toas = three_board_iterative_timewalk_correction(df_in_time, 5, 3, board_list=board_to_analyze)
         elif(len(board_to_analyze)==4):
-            corr_toas = helper.four_board_iterative_timewalk_correction(df_in_time, 5, 3)
+            corr_toas = four_board_iterative_timewalk_correction(df_in_time, 5, 3)
         else:
             print("You have less than 3 boards to analyze")
             break
@@ -235,12 +235,18 @@ def bootstrap(
         try:
             fit_params = {}
             for key in diffs.keys():
-                params = helper.fwhm_based_on_gaussian_mixture_model(diffs[key], n_components=2, each_component=False, plotting=False)
+                params = fwhm_based_on_gaussian_mixture_model(diffs[key], n_components=2, each_component=False, plotting=False)
                 fit_params[key] = float(params[0]/2.355)
 
             del params, diffs, corr_toas
 
-            resolutions = helper.return_resolution_three_board_fromFWHM(fit_params, var=list(fit_params.keys()), board_list=board_to_analyze)
+            if(len(board_to_analyze)==3):
+                resolutions = return_resolution_three_board_fromFWHM(fit_params, var=list(fit_params.keys()), board_list=board_to_analyze)
+            elif(len(board_to_analyze)==4):
+                resolutions = return_resolution_four_board_fromFWHM(fit_params)
+            else:
+                print("You have less than 3 boards to analyze")
+                break
 
             if any(np.isnan(val) for key, val in resolutions.items()):
                 print('fit results is not good, skipping this iteration')
@@ -257,7 +263,6 @@ def bootstrap(
         print('Track is not validate for bootstrapping')
 
     resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
-
     return resolution_from_bootstrap_df
 
 
