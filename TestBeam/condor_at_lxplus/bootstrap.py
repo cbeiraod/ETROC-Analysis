@@ -1,3 +1,4 @@
+from os import getcwd
 import pandas as pd
 import numpy as np
 from collections import defaultdict
@@ -187,16 +188,17 @@ def bootstrap(
         input_df: pd.DataFrame,
         board_to_analyze: list[int],
         iteration: int = 100,
-        sampling_fraction: float = 0.75,
+        sampling_fraction: int = 75,
     ):
 
     resolution_from_bootstrap = defaultdict(list)
+    random_sampling_fraction = sampling_fraction*0.01
 
     for iloop in range(iteration):
 
-        tdc_filtered_df = input_df
+        tdc_filtered_df = input_df.reset_index()
 
-        n = int(sampling_fraction*tdc_filtered_df.shape[0])
+        n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
         indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
         tdc_filtered_df = tdc_filtered_df.loc[tdc_filtered_df['evt'].isin(indices)]
 
@@ -298,9 +300,9 @@ if __name__ == "__main__":
         '-s',
         '--sampling',
         metavar = 'SAMPLING',
-        type = float,
+        type = int,
         help = 'Random sampling fraction',
-        default = 0.75,
+        default = 75,
         dest = 'sampling',
     )
 
@@ -313,7 +315,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    fname = args.file.split('.')[0]
+    fname = getcwd().split('/')[-1]
     df = pd.read_pickle(args.file)
     board_ids = df.columns.get_level_values('board').unique().tolist()
 
@@ -323,4 +325,3 @@ if __name__ == "__main__":
         resolution_df.to_pickle(fname+'_resolution.pkl')
     else:
         resolution_df.to_csv(fname+'_resolution.csv', index=False)
-    pass
