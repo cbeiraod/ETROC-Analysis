@@ -33,7 +33,7 @@ for idx, ifile in enumerate(files):
     submit_dir = base_dir / single_name
     submit_dir.mkdir(exist_ok=False)
 
-    shutil.copyfile(src=ifile, dst=submit_dir / file_names[idx])
+    shutil.copyfile(src=ifile, dst=submit_dir / 'input.pkl' )
     shutil.copyfile(src='bootstrap.py', dst=submit_dir / 'bootstrap.py')
 
     bash_script = """
@@ -42,9 +42,9 @@ for idx, ifile in enumerate(files):
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_96python3/x86_64-centos7-gcc8-opt/setup.sh
 
-echo "python3 bootstrap.py -f {0} -i {1} -s {2}"
-python3 bootstrap.py -f {0} -i {1} -s {2}
-""".format(ifile, 100, 0.75)
+echo "python3 bootstrap.py -f input.pkl -i {0} -s {1}"
+python3 bootstrap.py -f input.pkl -i {0} -s {1}
+""".format(100, 75)
 
     with open(submit_dir / 'run.sh','w') as bashfile:
         bashfile.write(bash_script)
@@ -57,7 +57,7 @@ universe              = vanilla
 Executable            = $(directory)/run.sh
 Should_Transfer_Files = YES
 WhenToTransferOutput  = ON_EXIT
-Transfer_Input_Files  = $(directory)/bootstrap.py, $(directory)/*pkl
+Transfer_Input_Files  = $(directory)/bootstrap.py, $(directory)/input.pkl
 Output                = {0}/$(ClusterId).$(ProcId).stdout
 Error                 = {0}/$(ClusterId).$(ProcId).stderr
 Log                   = {0}/$(ClusterId).$(ProcId).log
