@@ -40,7 +40,7 @@ for idx, ifile in enumerate(files):
 #!/bin/bash
 
 # Load python environment from work node
-source /cvmfs/sft.cern.ch/lcg/views/LCG_96python3/x86_64-centos7-gcc8-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_105a/x86_64-centos7-gcc12-opt/setup.sh
 
 echo "python3 bootstrap.py -f input.pkl -i {0} -s {1}"
 python3 bootstrap.py -f input.pkl -i {0} -s {1}
