@@ -54,15 +54,15 @@ log_dir.mkdir(exist_ok=True)
 
 jdl = """
 universe              = vanilla
-Executable            = run.sh
+Executable            = $(directory)/run.sh
 Should_Transfer_Files = YES
 WhenToTransferOutput  = ON_EXIT
-Transfer_Input_Files  = bootstrap.py, $(filename)
+Transfer_Input_Files  = $(directory)/bootstrap.py, $(directory)/*pkl
 Output                = {0}/$(ClusterId).$(ProcId).stdout
 Error                 = {0}/$(ClusterId).$(ProcId).stderr
 Log                   = {0}/$(ClusterId).$(ProcId).log
 +JobFlavour           = "espresso"
-Queue filename matching ({1}/*/*.pkl)
+Queue directory matching ({1}/*)
 """.format(str(log_dir), str(base_dir))
 
 with open(f'condor_submit.sub','w') as jdlfile:
