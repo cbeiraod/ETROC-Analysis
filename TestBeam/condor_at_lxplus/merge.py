@@ -54,4 +54,4 @@ for ifile in files:
         final_dict[f'err{columns[idx]}'].append(df[columns[idx]].std())
 
 final_df = pd.DataFrame(final_dict)
-final_df.to_pickle(args.outname+'.pkl')
+final_df.to_csv(args.outname+'.csv', index=False)
