@@ -315,13 +315,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    fname = getcwd().split('/')[-1]
+    output_name = args.file.split('.')[0]
     df = pd.read_pickle(args.file)
     board_ids = df.columns.get_level_values('board').unique().tolist()
 
     resolution_df = bootstrap(input_df=df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling)
 
     if not args.do_csv:
-        resolution_df.to_pickle(fname+'_resolution.pkl')
+        resolution_df.to_pickle(f'{output_name}_resolution.pkl')
     else:
-        resolution_df.to_csv(fname+'_resolution.csv', index=False)
+        resolution_df.to_csv(f'{output_name}_resolution.csv', index=False)
