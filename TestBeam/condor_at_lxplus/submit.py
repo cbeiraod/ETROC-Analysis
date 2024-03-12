@@ -18,54 +18,74 @@ parser.add_argument(
     dest = 'dirname',
 )
 
-args = parser.parse_args()
+parser.add_argument(
+    '-i',
+    '--iteration',
+    metavar = 'ITERATION',
+    type = int,
+    help = 'Number of bootstrapping',
+    default = 100,
+    dest = 'iteration',
+)
 
+parser.add_argument(
+    '-s',
+    '--sampling',
+    metavar = 'SAMPLING',
+    type = int,
+    help = 'Random sampling fraction',
+    default = 75,
+    dest = 'sampling',
+)
+
+args = parser.parse_args()
 current_dir = Path('./')
-base_dir = current_dir / 'condor_submit'
-base_dir.mkdir(exist_ok=False)
 
 files = glob(f'{args.dirname}/*pkl')
-file_names = [os.path.basename(ifile) for ifile in files]
+listfile = current_dir / 'input_names.txt'
+if listfile.is_file():
+    listfile.unlink()
 
-for idx, ifile in enumerate(files):
+with open(listfile, 'a') as listfile:
+    for ifile in files:
+        name = ifile.split('/')[-1].split('.')[0]
+        save_string = f"{name}, {ifile}"
+        listfile.write(save_string + '\n')
 
-    single_name = file_names[idx].split('.')[0]
-    submit_dir = base_dir / single_name
-    submit_dir.mkdir(exist_ok=False)
+bash_script = """#!/bin/bash
 
-    shutil.copyfile(src=ifile, dst=submit_dir / 'input.pkl' )
-    shutil.copyfile(src='bootstrap.py', dst=submit_dir / 'bootstrap.py')
-
-    bash_script = """
-#!/bin/bash
+ls -ltrh
+echo ""
+pwd
 
 # Load python environment from work node
-source /cvmfs/sft.cern.ch/lcg/views/LCG_105a/x86_64-centos7-gcc12-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python3 bootstrap.py -f input.pkl -i {0} -s {1}"
-python3 bootstrap.py -f input.pkl -i {0} -s {1}
-""".format(100, 75)
+echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1}"
+python bootstrap.py -f ${{1}}.pkl -i {0} -s {1}
+""".format(args.iteration, args.sampling)
 
-    with open(submit_dir / 'run.sh','w') as bashfile:
-        bashfile.write(bash_script)
+with open('run.sh','w') as bashfile:
+    bashfile.write(bash_script)
 
 log_dir = current_dir / 'condor_logs'
 log_dir.mkdir(exist_ok=True)
 
-jdl = """
-universe              = vanilla
-Executable            = $(directory)/run.sh
-Should_Transfer_Files = YES
-WhenToTransferOutput  = ON_EXIT
-Transfer_Input_Files  = $(directory)/bootstrap.py, $(directory)/input.pkl
-Output                = {0}/$(ClusterId).$(ProcId).stdout
-Error                 = {0}/$(ClusterId).$(ProcId).stderr
-Log                   = {0}/$(ClusterId).$(ProcId).log
+jdl = """universe              = vanilla
+executable            = run.sh
+should_Transfer_Files = YES
+whenToTransferOutput  = ON_EXIT
+arguments             = $(ifile)
+transfer_Input_Files  = bootstrap.py,$(path)
+output                = {0}/$(ClusterId).$(ProcId).stdout
+error                 = {0}/$(ClusterId).$(ProcId).stderr
+log                   = {0}/$(ClusterId).$(ProcId).log
+MY.WantOS             = "el9"
 +JobFlavour           = "espresso"
-Queue directory matching ({1}/*)
-""".format(str(log_dir), str(base_dir))
+Queue ifile,path from input_names.txt
+""".format(str(log_dir))
 
-with open(f'condor_submit.sub','w') as jdlfile:
+with open(f'condor_jdl.jdl','w') as jdlfile:
     jdlfile.write(jdl)
 
-os.system(f'condor_submit condor_submit.sub')
+os.system(f'condor_submit condor_jdl.jdl')
