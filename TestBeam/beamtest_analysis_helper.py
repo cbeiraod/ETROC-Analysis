@@ -1548,7 +1548,9 @@ def plot_1d_TDC_histograms(
         hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
         if do_logy:
-            ax.set_yscale('log')
+            #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
+            #plt.colorbar(pcm)
+            pass
         plt.tight_layout()
         if(save):
             plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.pdf')
@@ -1557,7 +1559,7 @@ def plot_1d_TDC_histograms(
 
 
         if event_hist is not None:
-            fig = plt.figure(dpi=50, figsize=(20,20))
+            fig = plt.figure(dpi=50, figsize=(20,10))
             gs = fig.add_gridspec(1,1)
             ax = fig.add_subplot(gs[0,0])
             ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=25)
@@ -1597,6 +1599,10 @@ def plot_1d_TDC_histograms(
                 if event_hist is None:
                     ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
                     input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+                    if do_logy:
+                        #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
+                        #plt.colorbar(pcm)
+                        pass
                 else:
                     ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=15)
                     event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
