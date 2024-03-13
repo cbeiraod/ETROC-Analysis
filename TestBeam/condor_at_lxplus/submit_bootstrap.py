@@ -38,6 +38,13 @@ parser.add_argument(
     dest = 'sampling',
 )
 
+parser.add_argument(
+    '--dryrun',
+    action = 'store_true',
+    help = 'If set, condor submission will not happen',
+    dest = 'dryrun',
+)
+
 args = parser.parse_args()
 current_dir = Path('./')
 
@@ -88,4 +95,5 @@ Queue ifile,path from input_names.txt
 with open(f'condor_jdl.jdl','w') as jdlfile:
     jdlfile.write(jdl)
 
-os.system(f'condor_submit condor_jdl.jdl')
+if not args.dryrun:
+    os.system(f'condor_submit condor_jdl.jdl')
