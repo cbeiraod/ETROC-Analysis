@@ -1167,12 +1167,13 @@ def return_hist(
     h = {chipNames[board_idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
                 hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
                 hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
+                hist.axis.Regular(4, 0, 3, name="EA", label="EA"),
         )
     for board_idx in range(len(chipLabels))}
 
     for board_idx in range(len(chipLabels)):
         tmp_df = input_df.loc[input_df['board'] == chipLabels[board_idx]]
-        h[chipNames[board_idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values)
+        h[chipNames[board_idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values, tmp_df['ea'].values)
 
     return h
 
@@ -1526,6 +1527,20 @@ def plot_1d_TDC_histograms(
             plt.clf()
             plt.close(fig)
 
+        fig = plt.figure(dpi=50, figsize=(20,10))
+        gs = fig.add_gridspec(1,1)
+        ax = fig.add_subplot(gs[0,0])
+        ax.set_title(f"{fig_title}, EA{fig_tag}", loc="right", size=25)
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        input_hist[chip_name].project("EA")[:].plot1d(ax=ax, lw=2)
+        if do_logy:
+            ax.set_yscale('log')
+        plt.tight_layout()
+        if(save):
+            plt.savefig(fig_path/f'{chip_figname}_EA_{tag}.pdf')
+            plt.clf()
+            plt.close(fig)
+
         fig = plt.figure(dpi=50, figsize=(20,20))
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
@@ -1545,7 +1560,7 @@ def plot_1d_TDC_histograms(
             fig = plt.figure(dpi=50, figsize=(20,20))
             gs = fig.add_gridspec(1,1)
             ax = fig.add_subplot(gs[0,0])
-            ax.set_title(f"{fig_title}, Hamming Code{fig_tag}", loc="right", size=25)
+            ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=25)
             hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
             event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
             if do_logy:
@@ -1583,7 +1598,7 @@ def plot_1d_TDC_histograms(
                     ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
                     input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
                 else:
-                    ax.set_title(f"{fig_title}, Hamming Count{fig_tag}", loc="right", size=15)
+                    ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=15)
                     event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
                     if do_logy:
                         ax.set_yscale('log')
