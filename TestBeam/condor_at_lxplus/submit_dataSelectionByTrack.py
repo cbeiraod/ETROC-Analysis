@@ -110,8 +110,8 @@ MY.WantOS             = "el9"
 Queue run,path from input_files.txt
 """.format(str(log_dir), args.track)
 
-with open(f'condor_jdl.jdl','w') as jdlfile:
+with open(f'condor_dataSelection.jdl','w') as jdlfile:
     jdlfile.write(jdl)
 
 if not args.dryrun:
-    os.system(f'condor_submit condor_jdl.jdl')
+    os.system(f'condor_submit condor_dataSelection.jdl')
