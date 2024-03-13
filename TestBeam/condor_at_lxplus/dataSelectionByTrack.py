@@ -250,6 +250,7 @@ if __name__ == "__main__":
     run_df = pd.read_feather(args.inputfile, columns=columns_to_read)
 
     if run_df.empty:
+        print('Empty input file!')
         exit(0)
 
     track_df = pd.read_csv(args.track)
