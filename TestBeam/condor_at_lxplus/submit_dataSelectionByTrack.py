@@ -73,8 +73,9 @@ if listfile.is_file():
 with open(listfile, 'a') as listfile:
     for ifile in files:
         pattern = r'Run_(\d+)'
+        fname = ifile.split('/')[-1]
         matches = re.findall(pattern, ifile)
-        save_string = f"run{matches[0]}, {ifile}"
+        save_string = f"run{matches[0]}, {fname}, {ifile}"
         listfile.write(save_string + '\n')
 
 bash_script = """#!/bin/bash
@@ -100,14 +101,14 @@ jdl = """universe              = vanilla
 executable            = run.sh
 should_Transfer_Files = YES
 whenToTransferOutput  = ON_EXIT
-arguments             = $(path) $(run)
+arguments             = $(fname) $(run)
 transfer_Input_Files  = dataSelectionByTrack.py,{1},$(path)
 output                = {0}/$(ClusterId).$(ProcId).stdout
 error                 = {0}/$(ClusterId).$(ProcId).stderr
 log                   = {0}/$(ClusterId).$(ProcId).log
 MY.WantOS             = "el9"
 +JobFlavour           = "espresso"
-Queue run,path from input_files.txt
+Queue run,fname,path from input_files.txt
 """.format(str(log_dir), args.track)
 
 with open(f'condor_dataSelection.jdl','w') as jdlfile:
