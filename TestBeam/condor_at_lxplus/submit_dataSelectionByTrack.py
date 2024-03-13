@@ -106,4 +106,4 @@ Queue run,path from input_files.txt
 with open(f'condor_jdl.jdl','w') as jdlfile:
     jdlfile.write(jdl)
 
-# os.system(f'condor_submit condor_jdl.jdl')
+os.system(f'condor_submit condor_jdl.jdl')
