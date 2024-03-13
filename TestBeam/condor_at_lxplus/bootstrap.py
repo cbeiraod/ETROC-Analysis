@@ -1,4 +1,3 @@
-from os import getcwd
 import pandas as pd
 import numpy as np
 from collections import defaultdict
@@ -103,6 +102,7 @@ def fwhm_based_on_gaussian_mixture_model(
     ):
 
     from sklearn.mixture import GaussianMixture
+    import matplotlib.pyplot as plt
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
     models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
