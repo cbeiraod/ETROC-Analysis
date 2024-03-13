@@ -968,15 +968,26 @@ def tdc_event_selection_pivot(
 ## --------------------------------------
 def pixel_filter(
         input_df: pd.DataFrame,
-        pixel_dict: dict
+        pixel_dict: dict,
+        filter_by_area: bool = False,
+        pixel_buffer: int = 2,
     ):
-    # Create boolean masks for each board's filtering criteria
+
     masks = {}
-    for board, pix in pixel_dict.items():
-        mask = (
-            (input_df['board'] == board) & (input_df['row'] == pix[0]) & (input_df['col'] == pix[1])
-        )
-        masks[board] = mask
+    if filter_by_area:
+        for board, pix in pixel_dict.items():
+            mask = (
+                (input_df['board'] == board)
+                & (input_df['row'] >= pix[0]-pixel_buffer) & (input_df['row'] <= pix[0]+pixel_buffer)
+                & (input_df['col'] >= pix[1]-pixel_buffer) & (input_df['col'] <= pix[1]+pixel_buffer)
+            )
+            masks[board] = mask
+    else:
+        for board, pix in pixel_dict.items():
+            mask = (
+                (input_df['board'] == board) & (input_df['row'] == pix[0]) & (input_df['col'] == pix[1])
+            )
+            masks[board] = mask
 
     # Combine the masks using logical OR
     combined_mask = pd.concat(masks, axis=1).any(axis=1)
