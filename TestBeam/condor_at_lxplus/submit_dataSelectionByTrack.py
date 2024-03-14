@@ -11,6 +11,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     '-d',
     '--inputdir',
+    nargs='+',
     metavar = 'DIRNAME',
     type = str,
     help = 'input directory name',
@@ -65,18 +66,21 @@ parser.add_argument(
 args = parser.parse_args()
 current_dir = Path('./')
 
-files = glob(f'{args.dirname}/*feather')
+dirs = args.dirname
+
 listfile = current_dir / 'input_files.txt'
 if listfile.is_file():
     listfile.unlink()
 
 with open(listfile, 'a') as listfile:
-    for ifile in files:
-        pattern = r'Run_(\d+)'
-        fname = ifile.split('/')[-1]
-        matches = re.findall(pattern, ifile)
-        save_string = f"run{matches[0]}, {fname}, {ifile}"
-        listfile.write(save_string + '\n')
+    for idir in dirs:
+        files = glob(f'{idir}/*feather')
+        for ifile in files:
+            pattern = r'Run_(\d+)'
+            fname = ifile.split('/')[-1]
+            matches = re.findall(pattern, ifile)
+            save_string = f"run{matches[0]}, {fname}, {ifile}"
+            listfile.write(save_string + '\n')
 
 bash_script = """#!/bin/bash
 
