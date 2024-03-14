@@ -49,7 +49,7 @@ args = parser.parse_args()
 current_dir = Path('./')
 
 files = glob(f'{args.dirname}/*pkl')
-listfile = current_dir / 'input_names.txt'
+listfile = current_dir / 'input_list_for_bootstrap.txt'
 if listfile.is_file():
     listfile.unlink()
 
@@ -93,7 +93,7 @@ error                 = {0}/$(ClusterId).$(ProcId).stderr
 log                   = {0}/$(ClusterId).$(ProcId).log
 MY.WantOS             = "el9"
 +JobFlavour           = "espresso"
-Queue ifile,path from input_names.txt
+Queue ifile,path from input_list_for_bootstrap.txt
 """.format(str(log_dir), str(outdir))
 
 with open(f'condor_bootstrap.jdl','w') as jdlfile:
