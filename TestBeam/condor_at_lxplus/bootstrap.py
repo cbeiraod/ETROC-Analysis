@@ -196,7 +196,7 @@ def bootstrap(
 
     for iloop in range(iteration):
 
-        tdc_filtered_df = input_df.reset_index()
+        tdc_filtered_df = input_df
 
         n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
         indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
@@ -317,7 +317,8 @@ if __name__ == "__main__":
 
     output_name = args.file.split('.')[0]
     df = pd.read_pickle(args.file)
-    board_ids = df.columns.get_level_values('board').unique().tolist()
+    columns = df.columns.get_level_values('board').unique().tolist()
+    board_ids = [x for x in columns if x != '' or x == 0]
 
     resolution_df = bootstrap(input_df=df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling)
 
