@@ -59,6 +59,9 @@ with open(listfile, 'a') as listfile:
         save_string = f"{name}, {ifile}"
         listfile.write(save_string + '\n')
 
+outdir = current_dir / f'resolution_{args.dirname}'
+outdir.mkdir(exist_ok = False)
+
 bash_script = """#!/bin/bash
 
 ls -ltrh
@@ -72,25 +75,26 @@ echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1}"
 python bootstrap.py -f ${{1}}.pkl -i {0} -s {1}
 """.format(args.iteration, args.sampling)
 
-with open('run.sh','w') as bashfile:
+with open('run_bootstrap.sh','w') as bashfile:
     bashfile.write(bash_script)
 
 log_dir = current_dir / 'condor_logs'
 log_dir.mkdir(exist_ok=True)
 
 jdl = """universe              = vanilla
-executable            = run.sh
+executable            = run_bootstrap.sh
 should_Transfer_Files = YES
 whenToTransferOutput  = ON_EXIT
 arguments             = $(ifile)
 transfer_Input_Files  = bootstrap.py,$(path)
+TransferOutputRemaps = "$(ifile)_resolution.pkl={1}/$(ifile)_resolution.pkl"
 output                = {0}/$(ClusterId).$(ProcId).stdout
 error                 = {0}/$(ClusterId).$(ProcId).stderr
 log                   = {0}/$(ClusterId).$(ProcId).log
 MY.WantOS             = "el9"
 +JobFlavour           = "espresso"
 Queue ifile,path from input_names.txt
-""".format(str(log_dir))
+""".format(str(log_dir), str(outdir))
 
 with open(f'condor_bootstrap.jdl','w') as jdlfile:
     jdlfile.write(jdl)
