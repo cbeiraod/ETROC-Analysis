@@ -68,7 +68,7 @@ current_dir = Path('./')
 
 dirs = args.dirname
 
-listfile = current_dir / 'input_files.txt'
+listfile = current_dir / 'input_list_for_dataSelection.txt'
 if listfile.is_file():
     listfile.unlink()
 
@@ -95,14 +95,14 @@ echo "python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --refID {1} --du
 python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --refID {1} --dutID {2} --ignoreID {3}
 """.format(args.track, args.refID, args.dutID, args.ignoreID)
 
-with open('run.sh','w') as bashfile:
+with open('run_dataSelection.sh','w') as bashfile:
     bashfile.write(bash_script)
 
 log_dir = current_dir / 'condor_logs'
 log_dir.mkdir(exist_ok=True)
 
 jdl = """universe              = vanilla
-executable            = run.sh
+executable            = run_dataSelection.sh
 should_Transfer_Files = YES
 whenToTransferOutput  = ON_EXIT
 arguments             = $(fname) $(run)
@@ -112,7 +112,7 @@ error                 = {0}/$(ClusterId).$(ProcId).stderr
 log                   = {0}/$(ClusterId).$(ProcId).log
 MY.WantOS             = "el9"
 +JobFlavour           = "espresso"
-Queue run,fname,path from input_files.txt
+Queue run,fname,path from input_list_for_dataSelection.txt
 """.format(str(log_dir), args.track)
 
 with open(f'condor_dataSelection.jdl','w') as jdlfile:
