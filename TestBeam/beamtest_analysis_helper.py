@@ -1,5 +1,4 @@
 import numpy as np
-import datetime
 import pandas as pd
 from natsort import natsorted
 from glob import glob
@@ -11,9 +10,9 @@ from tqdm import tqdm
 import pickle
 
 import matplotlib
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.collections import PolyCollection
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+# from mpl_toolkits.mplot3d import Axes3D
+# from matplotlib.collections import PolyCollection
+# from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.ticker as ticker
@@ -969,15 +968,26 @@ def tdc_event_selection_pivot(
 ## --------------------------------------
 def pixel_filter(
         input_df: pd.DataFrame,
-        pixel_dict: dict
+        pixel_dict: dict,
+        filter_by_area: bool = False,
+        pixel_buffer: int = 2,
     ):
-    # Create boolean masks for each board's filtering criteria
+
     masks = {}
-    for board, pix in pixel_dict.items():
-        mask = (
-            (input_df['board'] == board) & (input_df['row'] == pix[0]) & (input_df['col'] == pix[1])
-        )
-        masks[board] = mask
+    if filter_by_area:
+        for board, pix in pixel_dict.items():
+            mask = (
+                (input_df['board'] == board)
+                & (input_df['row'] >= pix[0]-pixel_buffer) & (input_df['row'] <= pix[0]+pixel_buffer)
+                & (input_df['col'] >= pix[1]-pixel_buffer) & (input_df['col'] <= pix[1]+pixel_buffer)
+            )
+            masks[board] = mask
+    else:
+        for board, pix in pixel_dict.items():
+            mask = (
+                (input_df['board'] == board) & (input_df['row'] == pix[0]) & (input_df['col'] == pix[1])
+            )
+            masks[board] = mask
 
     # Combine the masks using logical OR
     combined_mask = pd.concat(masks, axis=1).any(axis=1)
@@ -1157,12 +1167,13 @@ def return_hist(
     h = {chipNames[board_idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
                 hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
                 hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
+                hist.axis.Regular(4, 0, 3, name="EA", label="EA"),
         )
     for board_idx in range(len(chipLabels))}
 
     for board_idx in range(len(chipLabels)):
         tmp_df = input_df.loc[input_df['board'] == chipLabels[board_idx]]
-        h[chipNames[board_idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values)
+        h[chipNames[board_idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values, tmp_df['ea'].values)
 
     return h
 
@@ -1314,6 +1325,10 @@ def plot_occupany_map(
         save: bool = False,
     ):
 
+    from matplotlib import colormaps
+    cmap = colormaps['viridis']
+    cmap.set_under(color='lightgrey')
+
     if exclude_noise:
         ana_df = input_df.loc[input_df['tot'] > 10].copy()
     else:
@@ -1346,7 +1361,7 @@ def plot_occupany_map(
         # Create a heatmap to visualize the count of hits
         fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
         ax.cla()
-        im = ax.imshow(pivot_table, cmap="viridis", interpolation="nearest")
+        im = ax.imshow(pivot_table, cmap=cmap, interpolation="nearest", vmin=0)
 
         # Add color bar
         cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -1512,6 +1527,20 @@ def plot_1d_TDC_histograms(
             plt.clf()
             plt.close(fig)
 
+        fig = plt.figure(dpi=50, figsize=(20,10))
+        gs = fig.add_gridspec(1,1)
+        ax = fig.add_subplot(gs[0,0])
+        ax.set_title(f"{fig_title}, EA{fig_tag}", loc="right", size=25)
+        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        input_hist[chip_name].project("EA")[:].plot1d(ax=ax, lw=2)
+        if do_logy:
+            ax.set_yscale('log')
+        plt.tight_layout()
+        if(save):
+            plt.savefig(fig_path/f'{chip_figname}_EA_{tag}.pdf')
+            plt.clf()
+            plt.close(fig)
+
         fig = plt.figure(dpi=50, figsize=(20,20))
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
@@ -1531,7 +1560,7 @@ def plot_1d_TDC_histograms(
             fig = plt.figure(dpi=50, figsize=(20,20))
             gs = fig.add_gridspec(1,1)
             ax = fig.add_subplot(gs[0,0])
-            ax.set_title(f"{fig_title}, Hamming Code{fig_tag}", loc="right", size=25)
+            ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=25)
             hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
             event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
             if do_logy:
@@ -1569,7 +1598,7 @@ def plot_1d_TDC_histograms(
                     ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
                     input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
                 else:
-                    ax.set_title(f"{fig_title}, Hamming Count{fig_tag}", loc="right", size=15)
+                    ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=15)
                     event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
                     if do_logy:
                         ax.set_yscale('log')
@@ -2114,133 +2143,204 @@ def four_board_iterative_timewalk_correction(
     return corr_toas
 
 ## --------------------------------------
-def lmfit_gaussfit_with_pulls(
-        input_data: pd.Series,
-        input_hist: hist.Hist,
-        std_range_cut: float,
-        width_factor: float,
-        fig_title: str,
-        chipNames: str,
-        use_pred_uncert: bool,
-        no_show_fit: bool,
-        no_draw: bool,
-        get_chisqure: bool = False,
-        skip_reduce: bool = False,
-        save: bool = False,
+# def lmfit_gaussfit_with_pulls(
+#         model: str,
+#         input_data: np.array,
+#         input_hist: hist.Hist,
+#         width_factor: float,
+#         fig_title: str,
+#         chipNames: str,
+#         use_pred_uncert: bool,
+#         no_show_fit: bool,
+#         no_draw: bool,
+#         get_chisqure: bool = False,
+#         full_data: bool = False,
+#         save: bool = False,
+#     ):
+
+#     from lmfit.models import GaussianModel
+#     # from lmfit.lineshapes import gaussian
+
+#     mod = GaussianModel(nan_policy='omit')
+
+#     if full_data:
+#         fit_min = input_data.min()
+#         fit_max = input_data.max()
+#         input_hist_peak = input_hist
+#         centers = input_hist.axes[0].centers
+#     else:
+#         fit_min = input_data.mean()-width_factor*input_data.std()
+#         fit_max = input_data.mean()+width_factor*input_data.std()
+
+
+#     input_hist_peak = input_hist[(fit_min)*1j:(fit_max)*1j]
+#     centers = input_hist.axes[0].centers
+#     fit_centers = input_hist_peak.axes[0].centers
+#     # pars = mod.guess(input_hist.values(), x=centers)
+#     pars = mod.guess(input_hist_peak.values(), x=fit_centers)
+#     out = mod.fit(input_hist_peak.values(), pars, x=fit_centers, weights=1/np.sqrt(input_hist_peak.values()))
+
+#     if not no_draw:
+
+#         x_range = np.linspace(fit_min, fit_max, 500)
+#         # x_range = np.linspace(centers[0], centers[-1], 500)
+#         dely = out.eval_uncertainty(x=x_range)
+
+#         # popt = [par for name, par in out.best_values.items()]
+#         # pcov = out.covar
+
+#         # if np.isfinite(pcov).all():
+#         #     n_samples = 100
+#         #     vopts = np.random.multivariate_normal(popt, pcov, n_samples)
+#         #     # sampled_ydata = np.vstack([gaussian(fit_centers, *vopt).T for vopt in vopts])
+#         #     # sampled_ydata = np.vstack([gaussian(np.linspace(fit_min-1, fit_max+1, 500), *vopt).T for vopt in vopts])
+#         #     sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
+#         #     dely = np.nanstd(sampled_ydata, axis=0)
+#         #     # model_uncert = np.nanstd(sampled_ydata, axis=0)
+
+#         # else:
+#         #     # model_uncert = np.zeros_like(np.sqrt(input_hist.variances()))
+#         #     dely = np.zeros_like(np.sqrt(input_hist.variances()))
+
+#         ### Calculate pull
+#         if use_pred_uncert:
+#             pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
+#         else:
+#             pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(input_hist.variances())
+#         pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
+
+#         left_edge = centers[0]
+#         right_edge = centers[-1]
+
+#         # Pull: plot the pulls using Matplotlib bar method
+#         width = (right_edge - left_edge) / len(pulls)
+
+#         fig = plt.figure()
+
+#         if no_show_fit:
+#             grid = fig.add_gridspec(1, 1, hspace=0)
+#             main_ax = fig.add_subplot(grid[0])
+#             hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
+#             main_ax.set_title(f'{fig_title}', loc="right", size=20)
+#             main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
+#                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+#                             ms=6, capsize=1, capthick=2, alpha=0.8)
+#             main_ax.plot(x_range, out.eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
+#                         label=fr"$\mu:{out.params['center'].value:.2f}, \sigma: {abs(out.params['sigma'].value):.2f}$")
+#             main_ax.set_ylabel('Counts')
+#             main_ax.set_ylim(-20, None)
+#             main_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
+#             plt.tight_layout()
+
+#         else:
+#             grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
+#             main_ax = fig.add_subplot(grid[0])
+#             subplot_ax = fig.add_subplot(grid[1], sharex=main_ax)
+#             plt.setp(main_ax.get_xticklabels(), visible=False)
+#             hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
+
+#             main_ax.set_title(f'{fig_title}', loc="right", size=25)
+#             main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
+#                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+#                             ms=6, capsize=1, capthick=2, alpha=0.8)
+#             main_ax.plot(x_range, out.eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
+#                         label=fr"$\mu:{out.params['center'].value:.2f}, \sigma: {abs(out.params['sigma'].value):.2f}$")
+#             main_ax.set_ylabel('Counts')
+#             main_ax.set_ylim(-20, None)
+
+#             main_ax.fill_between(
+#                 x_range,
+#                 out.eval(x=x_range) - dely,
+#                 out.eval(x=x_range) + dely,
+#                 color="hotpink",
+#                 alpha=0.2,
+#                 label='Uncertainty'
+#             )
+#             main_ax.legend(fontsize=18, loc='upper right')
+
+#             subplot_ax.axvline(fit_min, c='red', lw=2)
+#             subplot_ax.axvline(fit_max, c='red', lw=2)
+#             subplot_ax.axhline(1, c='black', lw=0.75)
+#             subplot_ax.axhline(0, c='black', lw=1.2)
+#             subplot_ax.axhline(-1, c='black', lw=0.75)
+#             subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
+#             subplot_ax.set_ylim(-2, 2)
+#             subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1])
+#             subplot_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ps]')
+#             subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+#             subplot_ax.minorticks_off()
+
+#             plt.tight_layout()
+
+#         if (save):
+#             fig.savefig(f'./lmfit_{chipNames}.png')
+#             plt.close(fig)
+
+
+#     if get_chisqure:
+#         return [out.params['sigma'].value, out.params['sigma'].stderr, out.redchi]
+#     else:
+#         return [out.params['sigma'].value, out.params['sigma'].stderr]
+
+## --------------------------------------
+def fwhm_based_on_gaussian_mixture_model(
+        input_data: np.array,
+        n_components: int = 2,
+        each_component: bool = False,
+        plotting: bool = False,
     ):
 
-    from lmfit.models import GaussianModel
-    from lmfit.lineshapes import gaussian
+    from sklearn.mixture import GaussianMixture
 
-    mod = GaussianModel(nan_policy='omit')
+    x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
+    models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
 
-    if skip_reduce:
-        reduced_data = input_data
-    else:
-        reduced_data = input_data[(input_data > input_data.mean()-std_range_cut) & (input_data < input_data.mean()+std_range_cut)]
+    logprob = models.score_samples(x_range)
+    pdf = np.exp(logprob)
 
-    fit_min = reduced_data.mean()-width_factor*reduced_data.std()
-    fit_max = reduced_data.mean()+width_factor*reduced_data.std()
-    del reduced_data
+    peak_height = np.max(pdf)
 
-    input_hist_peak = input_hist[(fit_min)*1j:(fit_max)*1j]
-    centers = input_hist.axes[0].centers
-    fit_centers = input_hist_peak.axes[0].centers
-    pars = mod.guess(input_hist.values(), x=centers)
-    out = mod.fit(input_hist_peak.values(), pars, x=fit_centers, weights=1/np.sqrt(input_hist_peak.values()))
+    # Find the half-maximum points.
+    half_max = peak_height*0.5
+    half_max_indices = np.where(pdf >= half_max)[0]
 
-    if not no_draw:
+    # Calculate the FWHM.
+    fwhm = x_range[half_max_indices[-1]] - x_range[half_max_indices[0]]
 
-        popt = [par for name, par in out.best_values.items()]
-        pcov = out.covar
+    ### GMM - sigma
+    # Get the standard deviations (sigma) for each component
+    sigma_values = np.sqrt(models.covariances_.diagonal())
 
-        if np.isfinite(pcov).all():
-            n_samples = 100
-            vopts = np.random.multivariate_normal(popt, pcov, n_samples)
-            sampled_ydata = np.vstack([gaussian(fit_centers, *vopt).T for vopt in vopts])
-            model_uncert = np.nanstd(sampled_ydata, axis=0)
-        else:
-            model_uncert = np.zeros_like(np.sqrt(input_hist.variances()))
+    # Get the mixing coefficients and Calculate the combined sigma using a weighted sum
+    combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
 
-        ### Calculate pull
-        if use_pred_uncert:
-            pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
-        else:
-            pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(input_hist.variances())
-        pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
+    ### Draw plot
+    if each_component:
+        # Compute PDF for each component
+        responsibilities = models.predict_proba(x_range)
+        pdf_individual = responsibilities * pdf[:, np.newaxis]
 
-        left_edge = centers[0]
-        right_edge = centers[-1]
+    if plotting:
 
-        # Pull: plot the pulls using Matplotlib bar method
-        width = (right_edge - left_edge) / len(pulls)
+        fig, ax = plt.subplots(figsize=(10,10))
 
-        fig = plt.figure()
+        # Plot data histogram
+        bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
-        if no_show_fit:
-            grid = fig.add_gridspec(1, 1, hspace=0)
-            main_ax = fig.add_subplot(grid[0])
-            hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
-            main_ax.set_title(f'{fig_title}', loc="right", size=20)
-            main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
-                            ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
-                            ms=6, capsize=1, capthick=2, alpha=0.8)
-            main_ax.plot(fit_centers, out.best_fit, color="hotpink", ls="-", lw=2, alpha=0.8,
-                        label=fr"$\mu:{out.params['center'].value:.3f}, \sigma: {abs(out.params['sigma'].value):.3f}$")
-            main_ax.set_ylabel('Counts')
-            main_ax.set_ylim(-20, None)
-            main_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
-            plt.tight_layout()
+        # Plot PDF of whole model
+        ax.plot(x_range, pdf, '-k', label='Mixture PDF')
 
-        else:
-            grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
-            main_ax = fig.add_subplot(grid[0])
-            subplot_ax = fig.add_subplot(grid[1], sharex=main_ax)
-            plt.setp(main_ax.get_xticklabels(), visible=False)
-            hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
+        if each_component:
+            # Plot PDF of each component
+            ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
-            main_ax.set_title(f'{fig_title}', loc="right", size=25)
-            main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
-                            ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
-                            ms=6, capsize=1, capthick=2, alpha=0.8)
-            main_ax.plot(fit_centers, out.best_fit, color="hotpink", ls="-", lw=2, alpha=0.8,
-                        label=fr"$\mu:{out.params['center'].value:.3f}, \sigma: {abs(out.params['sigma'].value):.3f}$")
-            main_ax.set_ylabel('Counts')
-            main_ax.set_ylim(-20, None)
+        # Plot
+        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label='FWHM')
+        ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
 
-            main_ax.fill_between(
-                fit_centers,
-                out.eval(x=fit_centers) - model_uncert,
-                out.eval(x=fit_centers) + model_uncert,
-                color="hotpink",
-                alpha=0.2,
-                label='Uncertainty'
-            )
-            main_ax.legend(fontsize=20, loc='upper right')
+        ax.legend(loc='best', fontsize=14)
 
-            subplot_ax.axvline(fit_centers[0], c='red', lw=2)
-            subplot_ax.axvline(fit_centers[-1], c='red', lw=2)
-            subplot_ax.axhline(1, c='black', lw=0.75)
-            subplot_ax.axhline(0, c='black', lw=1.2)
-            subplot_ax.axhline(-1, c='black', lw=0.75)
-            subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
-            subplot_ax.set_ylim(-2, 2)
-            subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1])
-            subplot_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
-            subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
-            subplot_ax.minorticks_off()
-
-            plt.tight_layout()
-
-        if (save):
-            fig.savefig(f'./lmfit_{chipNames}.png')
-            plt.close(fig)
-
-
-    if get_chisqure:
-        return [out.params['sigma'].value, out.params['sigma'].stderr, out.chisqr/(out.ndata-1)]
-    else:
-        return [out.params['sigma'].value, out.params['sigma'].stderr]
+    return fwhm, combined_sigma
 
 ## --------------- Time Walk Correction -----------------------
 
@@ -2255,9 +2355,24 @@ def return_resolution_three_board(
     ):
 
     results = {
-        board_list[0]: np.sqrt((1/2)*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
-        board_list[1]: np.sqrt((1/2)*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
-        board_list[2]: np.sqrt((1/2)*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
+        board_list[0]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
+        board_list[1]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
+        board_list[2]: np.sqrt(0.5*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
+    }
+
+    return results
+
+## --------------------------------------
+def return_resolution_three_board_fromFWHM(
+        fit_params: dict,
+        var: list,
+        board_list:list,
+    ):
+
+    results = {
+        board_list[0]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[1]]**2 - fit_params[var[2]]**2)),
+        board_list[1]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[2]]**2 - fit_params[var[1]]**2)),
+        board_list[2]: np.sqrt(0.5*(fit_params[var[1]]**2 + fit_params[var[2]]**2 - fit_params[var[0]]**2)),
     }
 
     return results
