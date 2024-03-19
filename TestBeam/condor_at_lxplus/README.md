@@ -4,9 +4,11 @@
 #### Condor submission only available on LXPLUS
 
 Let's load python 3.9 enviornment if you're on the server. (e.g. Lxplus)
+
 ```bash load_python39.sh```
 
 Find track candidates based on pixel ID, and save them into csv format.
+
 ```python finding_good_track_candidates.py -p <path> -o <output file name> -i <iteration> -s <sampling> -m <minimum # of tracks> --refID N1 --dutID N2 --ignoreID N3```
 
 Placeholder.
