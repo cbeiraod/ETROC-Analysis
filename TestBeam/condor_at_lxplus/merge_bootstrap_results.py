@@ -4,6 +4,7 @@ import argparse
 from glob import glob
 import pandas as pd
 import re
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(
             prog='PlaceHolder',
@@ -35,7 +36,7 @@ args = parser.parse_args()
 final_dict = defaultdict(list)
 files = natsorted(glob(args.dirname+'/*pkl'))
 
-for ifile in files:
+for ifile in tqdm(files):
 
     # Define the pattern to match "RxCx" part
     pattern = r'R(\d+)C(\d+)'
