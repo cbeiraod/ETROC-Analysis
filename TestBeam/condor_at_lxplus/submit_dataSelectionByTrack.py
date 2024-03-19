@@ -34,7 +34,7 @@ parser.add_argument(
     metavar = 'ID',
     type = int,
     help = 'reference board ID',
-    required = True,
+    default = 3,
     dest = 'refID',
 )
 
@@ -43,7 +43,7 @@ parser.add_argument(
     metavar = 'ID',
     type = int,
     help = 'DUT board ID',
-    required = True,
+    default = 1,
     dest = 'dutID',
 )
 
@@ -52,8 +52,24 @@ parser.add_argument(
     metavar = 'ID',
     type = int,
     help = 'board ID be ignored',
-    required = True,
+    default = 2,
     dest = 'ignoreID',
+)
+
+parser.add_argument(
+    '--trigTOALower',
+    metavar = 'NUM',
+    type = int,
+    help = 'Lower TOA selection boundary for the trigger board',
+    dest = 'trigTOALower',
+)
+
+parser.add_argument(
+    '--trigTOAUpper',
+    metavar = 'NUM',
+    type = int,
+    help = 'Upper TOA selection boundary for the trigger board',
+    dest = 'trigTOAUpper',
 )
 
 parser.add_argument(
@@ -91,9 +107,9 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --refID {1} --dutID {2} --ignoreID {3}"
-python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --refID {1} --dutID {2} --ignoreID {3}
-""".format(args.track, args.refID, args.dutID, args.ignoreID)
+echo "python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --refID {1} --dutID {2} --ignoreID {3} --trigTOALower {4} --trigTOAUpper {5}"
+python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --refID {1} --dutID {2} --ignoreID {3} --trigTOALower {4} --trigTOAUpper {5}
+""".format(args.track, args.refID, args.dutID, args.ignoreID, args.trigTOALower, args.trigTOAUpper)
 
 with open('run_dataSelection.sh','w') as bashfile:
     bashfile.write(bash_script)
