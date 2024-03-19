@@ -290,7 +290,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    input_files = Path(f'{args.path}').glob('*/*feather')
+    input_files = list(Path(f'{args.path}').glob('*/*feather'))
 
     list_of_ignore_boards = [args.ignoreID]
     columns_want_to_drop = [f'toa_{i}' for i in set([0, 1, 2, 3])-set(list_of_ignore_boards)]
@@ -300,6 +300,16 @@ if __name__ == "__main__":
     for i in set([0, 1, 2, 3])-set(list_of_ignore_boards):
         columns_want_to_group.append(f'row_{i}')
         columns_want_to_group.append(f'col_{i}')
+
+    print('***********************************')
+    print(f'Output csv file name is: {args.outfilename}')
+    print(f'Number track finding iteration: {args.iteration}')
+    print(f'Sampling fraction is: {args.sampling*0.01}')
+    print(f'Minimum number of track for selection is: {args.track}')
+    print(f'Reference board ID is: {args.refID}')
+    print(f'Device Under Test board ID is: {args.dutID}')
+    print(f'Board ID {args.ignoreID} will be ignored')
+    print('***********************************')
 
     finding_tracks(input_files=input_files, columns_to_read=columns_to_read, ignore_board_ids=list_of_ignore_boards,
                    outfile_name=args.outfilename, iteration=args.iteration, sampling_fraction=args.sampling, minimum_number_of_tracks=args.track,
