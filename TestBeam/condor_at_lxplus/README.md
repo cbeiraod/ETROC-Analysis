@@ -5,7 +5,7 @@
 
 Let's load python 3.9 enviornment if you're on the server. (e.g. Lxplus)
 
-```bash load_python39.sh```
+```source load_python39.sh```
 
 Find track candidates based on pixel ID, and save them into csv format.
 
