@@ -113,7 +113,6 @@ def finding_tracks(
         minimum_number_of_tracks: int = 1000,
         dut_id: int = 1,
         ref_id: int = 3,
-
     ):
 
     final_list = []
@@ -177,7 +176,7 @@ def finding_tracks(
         pivot_data_df = making_pivot(single_filtered_df, 'evt', 'board', set({'board', 'evt', 'cal', 'tot'}), ignore_boards=ignore_board_ids)
         del single_filtered_df
 
-        min_hit_counter = minimum_number_of_tracks*(len(files)-num_failed_files)/len(original_files)
+        min_hit_counter = minimum_number_of_tracks*(len(files)-num_failed_files)/len(input_files)
         combinations_df = pivot_data_df.groupby(group_for_pivot).count()
         combinations_df['count'] = combinations_df['toa_0']
         combinations_df.drop(drop_for_pivot, axis=1, inplace=True)
@@ -202,7 +201,7 @@ def finding_tracks(
     final_df = final_df.drop_duplicates(subset=columns_want_to_group, keep='first')
     final_df.to_csv(f'{outfile_name}.csv', index=False)
 
-
+## --------------------------------------
 if __name__ == "__main__":
     import argparse
 
