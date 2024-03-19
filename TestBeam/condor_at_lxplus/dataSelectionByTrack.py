@@ -127,7 +127,7 @@ def data_selection_by_track(
         board_to_analyze: list[int],
         trig_ref_params: np.array,
         trig_dut_params: np.array,
-
+        toa_cuts: list[int],
     ):
 
     track_tmp_df = pixel_filter(input_df, pix_dict, filter_by_area=True, pixel_buffer=2)
@@ -144,9 +144,11 @@ def data_selection_by_track(
     for idx in board_to_analyze:
         # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
         if idx == 0:
-            tdc_cuts[idx] = [track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]-3, track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]+3,  100, 500, 0, 600]
+            tdc_cuts[idx] = [track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]-3, track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]+3,
+                    toa_cuts[0], toa_cuts[1], 0, 600]
         else:
-            tdc_cuts[idx] = [track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]-3, track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]+3,  0, 1100, 0, 600]
+            tdc_cuts[idx] = [track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]-3, track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]+3,
+                    0, 1100, 0, 600]
 
     track_tmp_df = tdc_event_selection(track_tmp_df, tdc_cuts_dict=tdc_cuts)
 
@@ -236,10 +238,29 @@ if __name__ == "__main__":
         dest = 'ignoreID',
     )
 
+    parser.add_argument(
+        '--trigTOALower',
+        metavar = 'NUM',
+        type = int,
+        help = 'Lower TOA selection boundary for the trigger board',
+        default = 100,
+        dest = 'trigTOALower',
+    )
+
+    parser.add_argument(
+        '--trigTOAUpper',
+        metavar = 'NUM',
+        type = int,
+        help = 'Upper TOA selection boundary for the trigger board',
+        default = 500,
+        dest = 'trigTOAUpper',
+    )
+
     args = parser.parse_args()
 
     board_ids = [0,1,2,3]
     ignore_boards = [args.ignoreID]
+    toa_cuts = [args.trigTOALower, args.trigTOAUpper]
     board_to_analyze = list(set(board_ids) - set(ignore_boards))
 
     ref_id = args.refID
@@ -272,7 +293,7 @@ if __name__ == "__main__":
             pix_dict[idx] = [track_df.iloc[itrack][f'row_{idx}'], track_df.iloc[itrack][f'col_{idx}']]
 
         table = data_selection_by_track(input_df=run_df, pix_dict=pix_dict, dut_id=dut_id, ref_id=ref_id, board_to_analyze=board_to_analyze,
-                                        trig_ref_params=ref_params, trig_dut_params=dut_params)
+                                        trig_ref_params=ref_params, trig_dut_params=dut_params, toa_cuts=toa_cuts)
         track_pivots[itrack] = table
 
     fname = args.inputfile.split('.')[0]
