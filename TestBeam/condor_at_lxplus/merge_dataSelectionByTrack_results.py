@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import pickle
 import argparse
+from tqdm import tqdm
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -42,13 +43,13 @@ outputdir.mkdir(exist_ok=False)
 
 def merge_dataframes_from_pickles(pickle_files: list[str]):
     dict_list = []
-    for pickle_file in pickle_files:
+    for pickle_file in tqdm(pickle_files):
         with open(pickle_file, 'rb') as f:
             dictionary = pickle.load(f)
             dict_list.append(dictionary)
 
     merged_dict = {}
-    for key in dict_list[0].keys():
+    for key in tqdm(dict_list[0].keys()):
         merged_df = pd.concat([d[key] for d in dict_list], ignore_index=True)
         merged_dict[key] = merged_df
 
@@ -60,7 +61,7 @@ files = natsorted(glob(args.dirname+'/*pickle'))
 # Merge the dataframes
 merged_dict = merge_dataframes_from_pickles(files)
 
-for ikey in merged_dict.keys():
+for ikey in tqdm(merged_dict.keys()):
     merged_dict[ikey].drop(columns=['evt'], inplace=True)
 
     board_ids = merged_dict[ikey].columns.get_level_values('board').unique().tolist()
