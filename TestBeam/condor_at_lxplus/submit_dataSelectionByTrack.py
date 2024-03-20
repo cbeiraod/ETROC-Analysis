@@ -61,6 +61,7 @@ parser.add_argument(
     metavar = 'NUM',
     type = int,
     help = 'Lower TOA selection boundary for the trigger board',
+    default = 100,
     dest = 'trigTOALower',
 )
 
@@ -69,6 +70,7 @@ parser.add_argument(
     metavar = 'NUM',
     type = int,
     help = 'Upper TOA selection boundary for the trigger board',
+    default = 500,
     dest = 'trigTOAUpper',
 )
 
