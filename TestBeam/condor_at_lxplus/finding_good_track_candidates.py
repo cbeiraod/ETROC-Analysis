@@ -139,7 +139,12 @@ def finding_tracks(
 
             ## Selecting good hits
             tdc_cuts = {}
-            for idx in set([0, 1, 2, 3])-set(ignore_board_ids):
+            if ignore_board_ids is None:
+                ids_to_loop = [0, 1, 2, 3]
+            else:
+                ids_to_loop = set([0, 1, 2, 3])-set(ignore_board_ids)
+
+            for idx in ids_to_loop:
                 # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
                 if idx == 0:
                     tdc_cuts[idx] = [tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]-50, tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]+50,  100, 500, 50, 250]
