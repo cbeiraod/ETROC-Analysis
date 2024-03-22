@@ -233,6 +233,7 @@ class DecodeBinary:
         self.channel_header_pattern  = 0x3c5c0 >> 2
         self.firmware_filler_pattern = 0x5555
         self.firmware_filler_pattern_new = 0x556
+        self.check_link_filler_pattern = 0x559
         self.previous_event          = -1
         self.event_counter           = 0
         self.board_ids               = board_id
@@ -520,6 +521,11 @@ class DecodeBinary:
 
                     # New firmware filler
                     elif (word >> 20) == self.firmware_filler_pattern_new:
+                        if self.nem_file is not None and not self.skip_filler:
+                            self.write_to_nem(f"Filler: 0b{word & 0xfffff:020b}\n")
+
+                    # Check link filler
+                    elif (word >> 20) == self.check_link_filler_pattern:
                         if self.nem_file is not None and not self.skip_filler:
                             self.write_to_nem(f"Filler: 0b{word & 0xfffff:020b}\n")
 
