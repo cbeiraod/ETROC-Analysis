@@ -193,7 +193,7 @@ def data_4board_selection_by_track(
 
     track_tmp_df = pixel_filter(isolated_df, pix_dict, filter_by_area=False)
 
-    board_to_analyze = list(set(board_to_analyze) - set(ref_2nd_id))
+    board_to_analyze = list(set(board_to_analyze) - set([ref_2nd_id]))
 
     ## Selecting good hits with TDC cuts
     tdc_cuts = {}
