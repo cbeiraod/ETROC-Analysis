@@ -102,7 +102,7 @@ def find_toa_linear_fit_params(
 
     ## Selecting good hits
     tdc_cuts = {}
-    for idx in board_to_analyze:
+    for idx in [0, ref_id]:
         # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
         if idx == 0:
             tdc_cuts[idx] = [sub_df.loc[sub_df['board'] == idx]['cal'].mode()[0]-50, sub_df.loc[sub_df['board'] == idx]['cal'].mode()[0]+50,  100, 500, 0, 600]
