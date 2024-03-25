@@ -338,7 +338,7 @@ if __name__ == "__main__":
 
     track_pivots = defaultdict(pd.DataFrame)
 
-    if len(track_df.shape[1]) == 8:
+    if track_df.shape[1] == 8:
         board_to_analyze = board_ids
 
         for itrack in tqdm(range(track_df.shape[0])):
