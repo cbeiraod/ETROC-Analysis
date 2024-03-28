@@ -135,7 +135,7 @@ output                = {0}/$(ClusterId).$(ProcId).stdout
 error                 = {0}/$(ClusterId).$(ProcId).stderr
 log                   = {0}/$(ClusterId).$(ProcId).log
 MY.WantOS             = "el9"
-+JobFlavour           = "espresso"
++JobFlavour           = "microcentury"
 Queue run,fname,path from input_list_for_dataSelection.txt
 """.format(str(log_dir), args.track)
 
