@@ -1853,7 +1853,7 @@ def plot_resolution_table(
             if idx not in tables:
                 ax.set_axis_off()
                 continue
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30)#, vmax=85)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=25)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -1869,7 +1869,7 @@ def plot_resolution_table(
                     plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
 
-            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
             ax.set_xlabel('Column (col)', fontsize=20)
             ax.set_ylabel('Row (row)', fontsize=20)
             ticks = range(0, 16)
