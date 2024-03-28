@@ -1723,8 +1723,11 @@ def plot_resolution_with_pulls(
         hists[key].fill(input_df[f'res{key}'].values)
         means[key] = np.mean(input_df[f'res{key}'].values)
         centers = hists[key].axes[0].centers
-        pars = mod.guess(hists[key].values(), x=centers)
-        out = mod.fit(hists[key].values(), pars, x=centers, weights=1/np.sqrt(hists[key].values()))
+        fit_range = centers[np.argmax(hists[key].values())-5:np.argmax(hists[key].values())+5]
+        fit_vals = hists[key].values()[np.argmax(hists[key].values())-5:np.argmax(hists[key].values())+5]
+
+        pars = mod.guess(fit_vals, x=fit_range)
+        out = mod.fit(fit_vals, pars, x=fit_range, weights=1/np.sqrt(fit_vals))
         fit_params[key] = out
 
         ### Calculate pull
@@ -1857,7 +1860,7 @@ def plot_resolution_table(
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cbar.set_label('Time Resolution', fontsize=20)
+            cbar.set_label('Time Resolution (ps)', fontsize=20)
 
             for i in range(16):
                 for j in range(16):
