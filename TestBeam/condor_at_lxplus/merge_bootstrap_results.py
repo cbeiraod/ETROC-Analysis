@@ -8,6 +8,8 @@ from tqdm import tqdm
 from lmfit.models import GaussianModel
 import hist
 import numpy as np
+import warnings
+warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser(
             prog='PlaceHolder',
