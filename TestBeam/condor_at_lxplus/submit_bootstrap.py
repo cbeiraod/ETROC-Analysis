@@ -92,7 +92,7 @@ output                = {0}/$(ClusterId).$(ProcId).stdout
 error                 = {0}/$(ClusterId).$(ProcId).stderr
 log                   = {0}/$(ClusterId).$(ProcId).log
 MY.WantOS             = "el9"
-+JobFlavour           = "espresso"
++JobFlavour           = "microcentury"
 Queue ifile,path from input_list_for_bootstrap.txt
 """.format(str(log_dir), str(outdir))
 
