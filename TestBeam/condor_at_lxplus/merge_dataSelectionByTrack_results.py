@@ -69,4 +69,4 @@ for ikey in tqdm(merged_dict.keys()):
     merged_dict[ikey] = merged_dict[ikey].astype('uint64')
     positions = [f'R{merged_dict[ikey]["row"][idx].unique()[0]}C{merged_dict[ikey]["col"][idx].unique()[0]}' for idx in board_ids]
 
-    merged_dict[ikey].to_pickle(outputdir / f'track_{board_names[0]}_{positions[0]}_{board_names[1]}_{positions[1]}_{board_names[2]}_{positions[2]}.pkl')
+    merged_dict[ikey].to_pickle(outputdir / f'track_{ikey}_{board_names[0]}_{positions[0]}_{board_names[1]}_{positions[1]}_{board_names[2]}_{positions[2]}.pkl')
