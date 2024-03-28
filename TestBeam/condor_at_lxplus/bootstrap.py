@@ -194,7 +194,7 @@ def bootstrap(
     resolution_from_bootstrap = defaultdict(list)
     random_sampling_fraction = sampling_fraction*0.01
 
-    for iloop in range(iteration):
+    while True:
 
         tdc_filtered_df = input_df
 
@@ -261,8 +261,9 @@ def bootstrap(
             print(inst)
             del diffs, corr_toas
 
-    else:
-        print('Track is not validate for bootstrapping')
+        if len(resolution_from_bootstrap[0]) > iteration:
+            print('Escaping bootstrap loop')
+            break
 
     resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
     return resolution_from_bootstrap_df
