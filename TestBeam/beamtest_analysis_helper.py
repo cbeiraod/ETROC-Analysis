@@ -2407,6 +2407,41 @@ def return_resolution_four_board(
 
     return results
 
+## --------------------------------------
+def return_board_resolution(
+        input_df: pd.DataFrame,
+        board_ids: list[int],
+        key_names: list[str],
+        hist_bins: int = 15,
+    ):
+
+    from collections import defaultdict
+    from lmfit.models import GaussianModel
+    mod = GaussianModel(nan_policy='omit')
+
+    results = defaultdict(float)
+
+    for key in range(len(board_ids)):
+        hist_x_min = int(input_df[f'res{board_ids[key]}'].min())-5
+        hist_x_max = int(input_df[f'res{board_ids[key]}'].max())+5
+        h_temp = hist.Hist(hist.axis.Regular(hist_bins, hist_x_min, hist_x_max, name="time_resolution", label=r'Time Resolution [ps]'))
+        h_temp.fill(input_df[f'res{board_ids[key]}'].values)
+        mean = np.mean(input_df[f'res{board_ids[key]}'].values)
+        std = np.std(input_df[f'res{board_ids[key]}'].values)
+        centers = h_temp.axes[0].centers
+        fit_range = centers[np.argmax(h_temp.values())-5:np.argmax(h_temp.values())+5]
+        fit_vals = h_temp.values()[np.argmax(h_temp.values())-5:np.argmax(h_temp.values())+5]
+
+        pars = mod.guess(fit_vals, x=fit_range)
+        out = mod.fit(fit_vals, pars, x=fit_range, weights=1/np.sqrt(fit_vals))
+
+        results[f'{key_names[key]}_mean'] = mean
+        results[f'{key_names[key]}_std'] = std
+        results[f'{key_names[key]}_res'] = out.params['center'].value
+        results[f'{key_names[key]}_err'] = abs(out.params['sigma'].value)
+
+    return results
+
 ## --------------- Result -----------------------
 
 
