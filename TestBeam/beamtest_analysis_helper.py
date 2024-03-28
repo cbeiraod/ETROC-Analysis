@@ -1703,6 +1703,7 @@ def plot_resolution_with_pulls(
         fig_title: list[str],
         fig_tag: str = '',
         hist_bins: int = 15,
+        draw_arithmetic_mean: bool = False,
     ):
     import matplotlib.gridspec as gridspec
     from lmfit.models import GaussianModel
@@ -1713,12 +1714,14 @@ def plot_resolution_with_pulls(
     hists = {}
     fit_params = {}
     pulls_dict = {}
+    means = {}
 
     for key in board_ids:
         hist_x_min = int(input_df[f'res{key}'].min())-5
         hist_x_max = int(input_df[f'res{key}'].max())+5
         hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_x_min, hist_x_max, name="time_resolution", label=r'Time Resolution [ps]'))
         hists[key].fill(input_df[f'res{key}'].values)
+        means[key] = np.mean(input_df[f'res{key}'].values)
         centers = hists[key].axes[0].centers
         pars = mod.guess(hists[key].values(), x=centers)
         out = mod.fit(hists[key].values(), pars, x=centers, weights=1/np.sqrt(hists[key].values()))
@@ -1749,12 +1752,16 @@ def plot_resolution_with_pulls(
             continue
 
         centers = hists[i].axes[0].centers
-        hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=20)
+        hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
         main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=11)
 
         main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
                         ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
                         ms=6, capsize=1, capthick=2, alpha=0.8)
+
+        if draw_arithmetic_mean:
+            main_ax.vlines(means[i], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
+
         main_ax.set_ylabel('Counts', fontsize=20)
         main_ax.set_ylim(-5, None)
         main_ax.tick_params(axis='x', labelsize=20)
