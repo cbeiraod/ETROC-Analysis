@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 from collections import defaultdict
+import warnings
+warnings.filterwarnings("ignore")
 
 ## --------------------------------------
 def three_board_iterative_timewalk_correction(
@@ -194,6 +196,8 @@ def bootstrap(
     resolution_from_bootstrap = defaultdict(list)
     random_sampling_fraction = sampling_fraction*0.01
 
+    counter = 0
+
     while True:
 
         tdc_filtered_df = input_df
@@ -261,8 +265,15 @@ def bootstrap(
             print(inst)
             del diffs, corr_toas
 
+        counter += 1
+
         if len(resolution_from_bootstrap[0]) > iteration:
             print('Escaping bootstrap loop')
+            break
+
+        if counter > 5000:
+            print("Don't know why but something is wrong")
+            print(input_df.head())
             break
 
     resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
