@@ -252,6 +252,7 @@ def bootstrap(
 
             if np.any(np.asarray(scores) > 0.5):
                 print('Found modeling failure of Gaussian Mixture Model. Skipping this iteration')
+                counter += 1
                 continue
 
             if(len(board_to_analyze)==3):
@@ -264,6 +265,7 @@ def bootstrap(
 
             if any(np.isnan(val) for key, val in resolutions.items()):
                 print('At least one of time resolution values is NaN. Skipping this iteration')
+                counter += 1
                 continue
 
             for key in resolutions.keys():
@@ -279,8 +281,8 @@ def bootstrap(
             print('Escaping bootstrap loop')
             break
 
-        if counter > 5000:
-            print("Don't know why but something is wrong")
+        if counter > 15000:
+            print("Loop is over maximum. Escaping bootstrap loop")
             print(input_df.head())
             break
 
