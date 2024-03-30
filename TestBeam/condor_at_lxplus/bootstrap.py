@@ -249,7 +249,7 @@ def bootstrap(
             fit_params = {}
             scores = []
             for ikey in diffs.keys():
-                params, score = fwhm_based_on_gaussian_mixture_model(diffs[ikey], n_components=2, each_component=False, plotting=False)
+                params, score = fwhm_based_on_gaussian_mixture_model(diffs[ikey], n_components=2, plotting=False, plotting_each_component=False)
                 fit_params[ikey] = float(params[0]/2.355)
                 scores.append(score)
 
