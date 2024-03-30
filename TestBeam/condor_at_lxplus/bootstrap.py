@@ -99,8 +99,8 @@ def four_board_iterative_timewalk_correction(
 def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
         n_components: int = 2,
-        each_component: bool = False,
         plotting: bool = False,
+        plotting_each_component: bool = False,
     ):
 
     from sklearn.mixture import GaussianMixture
@@ -131,7 +131,7 @@ def fwhm_based_on_gaussian_mixture_model(
     # combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
 
     ### Draw plot
-    if each_component:
+    if plotting_each_component:
         # Compute PDF for each component
         responsibilities = models.predict_proba(x_range)
         pdf_individual = responsibilities * pdf[:, np.newaxis]
@@ -146,7 +146,7 @@ def fwhm_based_on_gaussian_mixture_model(
         # Plot PDF of whole model
         ax.plot(x_range, pdf, '-k', label='Mixture PDF')
 
-        if each_component:
+        if plotting_each_component:
             # Plot PDF of each component
             ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
@@ -293,8 +293,6 @@ def bootstrap(
         if len(resolution_from_bootstrap[0]) > iteration:
             print('Escaping bootstrap loop')
             break
-
-
 
     resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
     return resolution_from_bootstrap_df
