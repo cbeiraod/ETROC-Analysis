@@ -202,6 +202,10 @@ def bootstrap(
 
     while True:
 
+        if counter > 15000:
+            print("Loop is over maximum. Escaping bootstrap loop")
+            break
+
         tdc_filtered_df = input_df
 
         n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
@@ -281,10 +285,7 @@ def bootstrap(
             print('Escaping bootstrap loop')
             break
 
-        if counter > 15000:
-            print("Loop is over maximum. Escaping bootstrap loop")
-            print(input_df.head())
-            break
+
 
     resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
     return resolution_from_bootstrap_df
