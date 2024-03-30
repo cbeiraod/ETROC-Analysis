@@ -1382,7 +1382,7 @@ def plot_occupany_map(
                 text = str("{:.0f}".format(value))
                 plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=17)
 
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         ax.set_xlabel('Column (col)', fontsize=20)
         ax.set_ylabel('Row (row)', fontsize=20)
         ticks = range(0, 16)
@@ -1441,8 +1441,8 @@ def plot_TDC_summary_table(
         im1 = axes[0].imshow(table_mean, cmap=cmap, vmin=0)
         im2 = axes[1].imshow(table_std, cmap=cmap, vmin=0)
 
-        hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
-        hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=25)
 
         axes[0].set_title(f'{var.upper()} Mean', loc="right")
         axes[1].set_title(f'{var.upper()} Std', loc="right")
@@ -1495,7 +1495,7 @@ def plot_1d_TDC_histograms(
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
         ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
         if do_logy:
             ax.set_yscale('log')
@@ -1509,7 +1509,7 @@ def plot_1d_TDC_histograms(
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
         ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
         if do_logy:
             ax.set_yscale('log')
@@ -1523,7 +1523,7 @@ def plot_1d_TDC_histograms(
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
         ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
         if do_logy:
             ax.set_yscale('log')
@@ -1537,7 +1537,7 @@ def plot_1d_TDC_histograms(
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
         ax.set_title(f"{fig_title}, EA{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         input_hist[chip_name].project("EA")[:].plot1d(ax=ax, lw=2)
         if do_logy:
             ax.set_yscale('log')
@@ -1551,7 +1551,7 @@ def plot_1d_TDC_histograms(
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
         ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
         if do_logy:
             ax.set_yscale('log')
@@ -1567,7 +1567,7 @@ def plot_1d_TDC_histograms(
             gs = fig.add_gridspec(1,1)
             ax = fig.add_subplot(gs[0,0])
             ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=25)
-            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
             event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
             if do_logy:
                 ax.set_yscale('log')
@@ -1583,7 +1583,7 @@ def plot_1d_TDC_histograms(
 
         for i, plot_info in enumerate(gs):
             ax = fig.add_subplot(plot_info)
-            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
             if i == 0:
                 ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=15)
                 input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
