@@ -55,26 +55,36 @@ for ifile in tqdm(files):
     df = pd.read_pickle(ifile)
     columns = df.columns
 
+    if df.shape[0] < 100:
+        print('Bootstrap result is not correct. Do not process!')
+        continue
+
     for idx in range(len(columns)):
 
-        h_temp = hist.Hist(hist.axis.Regular(100, 0, 100, name="time_resolution", label=r'Time Resolution [ps]'))
+        x_min = df[columns[idx]].min()-5
+        x_max = df[columns[idx]].max()+5
+
+        h_temp = hist.Hist(hist.axis.Regular(100, x_min, x_max, name="time_resolution", label=r'Time Resolution [ps]'))
         h_temp.fill(df[columns[idx]])
         centers = h_temp.axes[0].centers
 
         fit_constrain = (centers > df[columns[idx]].astype(int).mode()[0]-7) & (centers < df[columns[idx]].astype(int).mode()[0]+7)
 
-        pars = mod.guess(h_temp.values()[fit_constrain], x=centers[fit_constrain])
-        out = mod.fit(h_temp.values()[fit_constrain], pars, x=centers[fit_constrain], weights=1/np.sqrt(h_temp.values()[fit_constrain]))
-
         final_dict[f'row{columns[idx]}'].append(matches[idx][0])
         final_dict[f'col{columns[idx]}'].append(matches[idx][1])
-        if abs(out.params['sigma'].value) < 10:
-            final_dict[f'res{columns[idx]}'].append(out.params['center'].value)
-            final_dict[f'err{columns[idx]}'].append(abs(out.params['sigma'].value))
-        else:
+
+        try:
+            pars = mod.guess(h_temp.values()[fit_constrain], x=centers[fit_constrain])
+            out = mod.fit(h_temp.values()[fit_constrain], pars, x=centers[fit_constrain], weights=1/np.sqrt(h_temp.values()[fit_constrain]))
+            if abs(out.params['sigma'].value) < 10:
+                final_dict[f'res{columns[idx]}'].append(out.params['center'].value)
+                final_dict[f'err{columns[idx]}'].append(abs(out.params['sigma'].value))
+            else:
+                final_dict[f'res{columns[idx]}'].append(np.mean(df[columns[idx]]))
+                final_dict[f'err{columns[idx]}'].append(np.std(df[columns[idx]]))
+        except:
             final_dict[f'res{columns[idx]}'].append(np.mean(df[columns[idx]]))
             final_dict[f'err{columns[idx]}'].append(np.std(df[columns[idx]]))
-
 
 final_df = pd.DataFrame(final_dict)
 final_df.to_csv(args.outname+'.csv', index=False)
