@@ -1856,7 +1856,7 @@ def plot_resolution_table(
             if idx not in tables:
                 ax.set_axis_off()
                 continue
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=25)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=25, vmax=75)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -1867,10 +1867,9 @@ def plot_resolution_table(
                     value = tables[idx][0].iloc[i, j]
                     error = tables[idx][1].iloc[i, j]
                     if value == -1: continue
-                    text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
+                    text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
                     text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
                     plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
-
 
             hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
             ax.set_xlabel('Column (col)', fontsize=20)
@@ -1893,7 +1892,7 @@ def plot_resolution_table(
             # Create a heatmap to visualize the count of hits
             fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
             ax.cla()
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30)#, vmax=85)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=25, vmax=75)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -1904,7 +1903,7 @@ def plot_resolution_table(
                     value = tables[idx][0].iloc[i, j]
                     error = tables[idx][1].iloc[i, j]
                     if value == -1: continue
-                    text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
+                    text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
                     text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
                     plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
