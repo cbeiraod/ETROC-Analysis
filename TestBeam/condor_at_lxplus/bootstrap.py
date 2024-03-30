@@ -244,6 +244,7 @@ def bootstrap(
                 name = f"{board_a}{board_b}"
                 diffs[name] = np.asarray(corr_toas[f'toa_b{board_a}'] - corr_toas[f'toa_b{board_b}'])
 
+        keys = list(diffs.keys())
         try:
             fit_params = {}
             scores = []
@@ -252,15 +253,23 @@ def bootstrap(
                 fit_params[ikey] = float(params[0]/2.355)
                 scores.append(score)
 
-            del params, diffs, corr_toas
+            if np.any(np.asarray(scores) > 0.6):
+                indices = np.where(np.asarray(scores) > 0.6)[0]
 
-            if np.any(np.asarray(scores) > 0.5):
-                print('Found modeling failure of Gaussian Mixture Model. Skipping this iteration')
-                counter += 1
-                continue
+                for idx in indices:
+                    number_of_sub_gaussian = 3
+                    while True:
+                        params, score = fwhm_based_on_gaussian_mixture_model(diffs[keys[idx]], n_components=number_of_sub_gaussian, plotting=False, plotting_each_component=False)
+                        if score < 0.6:
+                            print(f'N=2 GMM was not good, replace with N={number_of_sub_gaussian} GMM results')
+                            fit_params[keys[idx]] = float(params[0]/2.355)
+                            break
+                        else:
+                            number_of_sub_gaussian += 1
+                            print(f'Index: {idx}, Increase number of sub gaussian to {number_of_sub_gaussian}')
 
             if(len(board_to_analyze)==3):
-                resolutions = return_resolution_three_board_fromFWHM(fit_params, var=list(fit_params.keys()), board_list=board_to_analyze)
+                resolutions = return_resolution_three_board_fromFWHM(fit_params, var=keys, board_list=board_to_analyze)
             elif(len(board_to_analyze)==4):
                 resolutions = return_resolution_four_board_fromFWHM(fit_params)
             else:
