@@ -102,10 +102,12 @@ def fwhm_based_on_gaussian_mixture_model(
     ):
 
     from sklearn.mixture import GaussianMixture
+    from sklearn.metrics import silhouette_score
     import matplotlib.pyplot as plt
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
     models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
+    clustering_eval_score = silhouette_score(x_range, models.predict(x_range))
 
     logprob = models.score_samples(x_range)
     pdf = np.exp(logprob)
@@ -121,10 +123,10 @@ def fwhm_based_on_gaussian_mixture_model(
 
     ### GMM - sigma
     # Get the standard deviations (sigma) for each component
-    sigma_values = np.sqrt(models.covariances_.diagonal())
+    # sigma_values = np.sqrt(models.covariances_.diagonal())
 
     # Get the mixing coefficients and Calculate the combined sigma using a weighted sum
-    combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
+    # combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
 
     ### Draw plot
     if each_component:
@@ -152,7 +154,7 @@ def fwhm_based_on_gaussian_mixture_model(
 
         ax.legend(loc='best', fontsize=14)
 
-    return fwhm, combined_sigma
+    return fwhm, clustering_eval_score
 
 ## --------------------------------------
 def return_resolution_three_board_fromFWHM(
@@ -236,11 +238,17 @@ def bootstrap(
 
         try:
             fit_params = {}
-            for key in diffs.keys():
-                params = fwhm_based_on_gaussian_mixture_model(diffs[key], n_components=2, each_component=False, plotting=False)
-                fit_params[key] = float(params[0]/2.355)
+            scores = []
+            for ikey in diffs.keys():
+                params, score = fwhm_based_on_gaussian_mixture_model(diffs[ikey], n_components=2, each_component=False, plotting=False)
+                fit_params[ikey] = float(params[0]/2.355)
+                scores.append(score)
 
             del params, diffs, corr_toas
+
+            if np.any(np.asarray(scores) > 0.5):
+                print('Found modeling failure of Gaussian Mixture Model. Skipping this iteration')
+                continue
 
             if(len(board_to_analyze)==3):
                 resolutions = return_resolution_three_board_fromFWHM(fit_params, var=list(fit_params.keys()), board_list=board_to_analyze)
@@ -251,7 +259,7 @@ def bootstrap(
                 break
 
             if any(np.isnan(val) for key, val in resolutions.items()):
-                print('fit results is not good, skipping this iteration')
+                print('At least one of time resolution values is NaN. Skipping this iteration')
                 continue
 
             for key in resolutions.keys():
