@@ -2411,6 +2411,20 @@ def return_resolution_four_board(
     return results
 
 ## --------------------------------------
+def return_resolution_four_board_fromFWHM(
+        fit_params: dict,
+    ):
+
+    results = {
+        0: np.sqrt((1/6)*(2*fit_params['01']**2+2*fit_params['02']**2+2*fit_params['03']**2-fit_params['12']**2-fit_params['13']**2-fit_params['23']**2)),
+        1: np.sqrt((1/6)*(2*fit_params['01']**2+2*fit_params['12']**2+2*fit_params['13']**2-fit_params['02']**2-fit_params['03']**2-fit_params['23']**2)),
+        2: np.sqrt((1/6)*(2*fit_params['02']**2+2*fit_params['12']**2+2*fit_params['23']**2-fit_params['01']**2-fit_params['03']**2-fit_params['13']**2)),
+        3: np.sqrt((1/6)*(2*fit_params['03']**2+2*fit_params['13']**2+2*fit_params['23']**2-fit_params['01']**2-fit_params['02']**2-fit_params['12']**2)),
+    }
+
+    return results
+
+## --------------------------------------
 def return_board_resolution(
         input_df: pd.DataFrame,
         board_ids: list[int],
