@@ -298,7 +298,7 @@ def bootstrap(
 
     ### Empty dictionary case
     if not resolution_from_bootstrap:
-        return 0
+        return pd.DataFrame()
     else:
         resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
         return resolution_from_bootstrap_df
@@ -368,7 +368,7 @@ if __name__ == "__main__":
 
     resolution_df = bootstrap(input_df=df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt)
 
-    if not resolution_df == 0:
+    if not resolution_df.empty:
         if not args.do_csv:
             resolution_df.to_pickle(f'{output_name}_resolution.pkl')
         else:
