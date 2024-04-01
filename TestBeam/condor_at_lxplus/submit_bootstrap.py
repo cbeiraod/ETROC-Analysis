@@ -85,6 +85,12 @@ echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2}"
 python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2}
 """.format(args.iteration, args.sampling, args.minimum_nevt)
 
+print('\n========= Run option =========')
+print(f'Bootstrap iteration: {args.iteration}')
+print(f'{args.sampling}% of random sampling')
+print(f'Number of events larger than {args.minimum_nevt} will be considered')
+print('========= Run option =========\n')
+
 with open('run_bootstrap.sh','w') as bashfile:
     bashfile.write(bash_script)
 
