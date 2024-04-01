@@ -193,6 +193,7 @@ def bootstrap(
         board_to_analyze: list[int],
         iteration: int = 100,
         sampling_fraction: int = 75,
+        minimum_nevt_cut: int = 1000,
     ):
 
     resolution_from_bootstrap = defaultdict(list)
@@ -212,7 +213,7 @@ def bootstrap(
         indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
         tdc_filtered_df = tdc_filtered_df.loc[tdc_filtered_df['evt'].isin(indices)]
 
-        if tdc_filtered_df.shape[0] < iteration/(3.*(1-sampling_fraction)):
+        if tdc_filtered_df.shape[0] < minimum_nevt_cut:
             print('Warning!! Sampling size is too small. Skipping this track')
             break
 
@@ -294,8 +295,12 @@ def bootstrap(
             print('Escaping bootstrap loop')
             break
 
-    resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
-    return resolution_from_bootstrap_df
+    ### Empty dictionary case
+    if not resolution_from_bootstrap:
+        return 0
+    else:
+        resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
+        return resolution_from_bootstrap_df
 
 
 if __name__ == "__main__":
@@ -337,6 +342,16 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '-n',
+        '--minimum_nevt',
+        metavar = 'NUM',
+        type = int,
+        help = 'Minimum number of events for bootstrap',
+        default = 1000,
+        dest = 'minimum_nevt',
+    )
+
+    parser.add_argument(
         '--csv',
         action = 'store_true',
         help = 'If set, save final dataframe in csv format',
@@ -350,9 +365,12 @@ if __name__ == "__main__":
     columns = df.columns.get_level_values('board').unique().tolist()
     board_ids = [x for x in columns if x != '' or x == 0]
 
-    resolution_df = bootstrap(input_df=df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling)
+    resolution_df = bootstrap(input_df=df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt)
 
-    if not args.do_csv:
-        resolution_df.to_pickle(f'{output_name}_resolution.pkl')
+    if not resolution_df == 0:
+        if not args.do_csv:
+            resolution_df.to_pickle(f'{output_name}_resolution.pkl')
+        else:
+            resolution_df.to_csv(f'{output_name}_resolution.csv', index=False)
     else:
-        resolution_df.to_csv(f'{output_name}_resolution.csv', index=False)
+        print(f'With {args.sampling}% sampling, number of events in sample is not enough to do bootstrap')
