@@ -214,6 +214,7 @@ def bootstrap(
         tdc_filtered_df = tdc_filtered_df.loc[tdc_filtered_df['evt'].isin(indices)]
 
         if tdc_filtered_df.shape[0] < minimum_nevt_cut:
+            print(f'Number of events in random sample is {tdc_filtered_df.shape[0]}')
             print('Warning!! Sampling size is too small. Skipping this track')
             break
 
