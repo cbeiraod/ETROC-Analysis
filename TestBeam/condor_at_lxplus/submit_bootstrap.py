@@ -39,6 +39,16 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '-n',
+    '--minimum_nevt',
+    metavar = 'NUM',
+    type = int,
+    help = 'Minimum number of events for bootstrap',
+    default = 1000,
+    dest = 'minimum_nevt',
+)
+
+parser.add_argument(
     '--dryrun',
     action = 'store_true',
     help = 'If set, condor submission will not happen',
@@ -71,9 +81,9 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1}"
-python bootstrap.py -f ${{1}}.pkl -i {0} -s {1}
-""".format(args.iteration, args.sampling)
+echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2}"
+python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2}
+""".format(args.iteration, args.sampling, args.minimum_nevt)
 
 with open('run_bootstrap.sh','w') as bashfile:
     bashfile.write(bash_script)
