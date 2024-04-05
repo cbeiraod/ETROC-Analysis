@@ -1618,6 +1618,33 @@ def plot_correlation_of_pixels(
     plt.tight_layout()
 
 ## --------------------------------------
+def plot_difference_of_pixels(
+        input_df: pd.DataFrame,
+        board_ids: np.array,
+        fig_title: str,
+        fit_tag: str = '',
+    ):
+    diff_row = input_df.loc[input_df['board'] == board_ids[0]]['row'].values.astype(np.int64) - input_df.loc[input_df['board'] == board_ids[1]]['row'].values.astype(np.int64)
+    diff_col = input_df.loc[input_df['board'] == board_ids[0]]['col'].values.astype(np.int64) - input_df.loc[input_df['board'] == board_ids[1]]['col'].values.astype(np.int64)
+
+    h = hist.Hist(
+        hist.axis.Regular(32, -16, 16, name='delta_row', label=r"$\Delta$Row"),
+        hist.axis.Regular(32, -16, 16, name='delta_col', label=r"$\Delta$Col"),
+    )
+
+    h.fill(diff_row, diff_col)
+
+    fig, ax = plt.subplots(dpi=100, figsize=(11, 11))
+
+    hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    ax.set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
+    ax.tick_params(axis='x', which='both', length=5, labelsize=17)
+    ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+    plt.minorticks_off()
+    plt.tight_layout()
+
+## --------------------------------------
 def plot_distance(
         input_df: pd.DataFrame,
         board_ids: np.array,
