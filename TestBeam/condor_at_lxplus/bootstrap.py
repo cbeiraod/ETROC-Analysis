@@ -105,11 +105,18 @@ def fwhm_based_on_gaussian_mixture_model(
 
     from sklearn.mixture import GaussianMixture
     from sklearn.metrics import silhouette_score
+    from scipy.spatial import distance
     import matplotlib.pyplot as plt
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
+    bins, edges = np.histogram(input_data, bins=30, density=True)
+    centers = 0.5*(edges[1:] + edges[:-1])
     models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
-    clustering_eval_score = silhouette_score(x_range, models.predict(x_range))
+    silhouette_eval_score = silhouette_score(centers.reshape(-1, 1), models.predict(centers.reshape(-1, 1)))
+
+    logprob = models.score_samples(centers.reshape(-1, 1))
+    pdf = np.exp(logprob)
+    jensenshannon_score = distance.jensenshannon(bins, pdf)
 
     logprob = models.score_samples(x_range)
     pdf = np.exp(logprob)
@@ -156,7 +163,7 @@ def fwhm_based_on_gaussian_mixture_model(
 
         ax.legend(loc='best', fontsize=14)
 
-    return fwhm, clustering_eval_score
+    return fwhm, [silhouette_eval_score, jensenshannon_score]
 
 ## --------------------------------------
 def return_resolution_three_board_fromFWHM(
@@ -251,24 +258,25 @@ def bootstrap(
             fit_params = {}
             scores = []
             for ikey in diffs.keys():
-                params, score = fwhm_based_on_gaussian_mixture_model(diffs[ikey], n_components=2, plotting=False, plotting_each_component=False)
+                params, eval_scores = fwhm_based_on_gaussian_mixture_model(diffs[ikey], n_components=2, plotting=False, plotting_each_component=False)
                 fit_params[ikey] = float(params[0]/2.355)
-                scores.append(score)
+                scores.append(eval_scores)
 
-            if np.any(np.asarray(scores) > 0.6):
-                indices = np.where(np.asarray(scores) > 0.6)[0]
+            if np.any(np.asarray(scores)[:,0] > 0.2) or np.any(np.asarray(scores)[:,1] > 0.075) :
+                indices1 = np.where(np.asarray(scores)[:,0] > 0.2)[0]
+                indices2 = np.where(np.asarray(scores)[:,1] > 0.075)[0]
+                indices = np.union1d(indices1, indices2)
 
+                new_scores = []
                 for idx in indices:
-                    number_of_sub_gaussian = 3
-                    while True:
-                        params, score = fwhm_based_on_gaussian_mixture_model(diffs[keys[idx]], n_components=number_of_sub_gaussian, plotting=False, plotting_each_component=False)
-                        if score < 0.6:
-                            print(f'N=2 GMM was not good, replace with N={number_of_sub_gaussian} GMM results')
-                            fit_params[keys[idx]] = float(params[0]/2.355)
-                            break
-                        else:
-                            number_of_sub_gaussian += 1
-                            print(f'Index: {idx}, Increase number of sub gaussian to {number_of_sub_gaussian}')
+                    params, eval_scores = fwhm_based_on_gaussian_mixture_model(diffs[keys[idx]], n_components=3, plotting=False, plotting_each_component=False)
+                    new_scores.append(eval_scores)
+                    fit_params[keys[idx]] = float(params[0]/2.355)
+
+                if np.any(np.asarray(new_scores)[:,0] > 0.2) or np.any(np.asarray(new_scores)[:,1] > 0.075):
+                    print('Redo the sampling')
+                    counter += 1
+                    continue
 
             if(len(board_to_analyze)==3):
                 resolutions = return_resolution_three_board_fromFWHM(fit_params, var=keys, board_list=board_to_analyze)
@@ -286,11 +294,12 @@ def bootstrap(
             for key in resolutions.keys():
                 resolution_from_bootstrap[key].append(resolutions[key])
 
+            counter += 1
+
         except Exception as inst:
             print(inst)
+            counter += 1
             del diffs, corr_toas
-
-        counter += 1
 
         if len(resolution_from_bootstrap[0]) > iteration:
             print('Escaping bootstrap loop')
@@ -302,7 +311,6 @@ def bootstrap(
     else:
         resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
         return resolution_from_bootstrap_df
-
 
 if __name__ == "__main__":
     import argparse
