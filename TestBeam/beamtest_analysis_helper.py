@@ -1593,7 +1593,7 @@ def plot_correlation_of_pixels(
     tick_labels = np.char.mod('%d', np.arange(0, 16))
     fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
-    hep.hist2dplot(h_row, ax=ax[0])
+    hep.hist2dplot(h_row, ax=ax[0], norm=matplotlib.colors.LogNorm())
     hep.cms.text(loc=0, ax=ax[0], text="Preliminary", fontsize=25)
     ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
@@ -1604,7 +1604,7 @@ def plot_correlation_of_pixels(
     ax[0].yaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
     ax[0].tick_params(axis='both', which='major', length=0)
 
-    hep.hist2dplot(h_col, ax=ax[1])
+    hep.hist2dplot(h_col, ax=ax[1], norm=matplotlib.colors.LogNorm())
     hep.cms.text(loc=0, ax=ax[1], text="Preliminary", fontsize=25)
     ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
