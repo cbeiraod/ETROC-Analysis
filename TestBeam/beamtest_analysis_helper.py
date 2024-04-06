@@ -1043,82 +1043,34 @@ def broadcast_dataframe(
 ## --------------------------------------
 def return_broadcast_dataframe(
         input_df: pd.DataFrame,
-        trig_board_id = int,
-        ref_board_id = int,
-        dut_board_id = int,
-        second_ref_board_id: int = -1,
-        trig_dut: bool = False,
-        ref_dut: bool = False,
+        reference_board_id: int,
+        board_id_want_broadcast: int,
     ):
 
     event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+    event_selections = None
 
-    if second_ref_board_id == -1:
-        print(f'3-board analysis')
+    trig_selection = (event_board_counts[board_id_want_broadcast] == 1)
+    dut_selection = (event_board_counts[reference_board_id] == 1)
+    event_selections = trig_selection & dut_selection
 
-        event_selections = None
+    dut_single_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
+    dut_single_df = dut_single_df.loc[(dut_single_df['board'] == reference_board_id) | (dut_single_df['board'] == board_id_want_broadcast)]
+    dut_single_df.reset_index(inplace=True, drop=True)
 
-        trig_selection = (event_board_counts[trig_board_id] == 1)
-        ref_selection = (event_board_counts[ref_board_id] == 1)
-        dut_selection = (event_board_counts[dut_board_id] == 1)
-        event_selections = trig_selection & ref_selection & dut_selection
+    event_selections = None
 
-        dut_single_df = input_df[input_df['evt'].isin(event_board_counts[event_selections].index)]
-        dut_single_df.reset_index(inplace=True, drop=True)
+    dut_selection = (event_board_counts[reference_board_id] >= 2)
+    event_selections = trig_selection & dut_selection
 
-        event_selections = None
+    dut_multiple_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
+    dut_multiple_df = dut_multiple_df.loc[(dut_multiple_df['board'] == reference_board_id) | (dut_multiple_df['board'] == board_id_want_broadcast)]
+    dut_multiple_df.reset_index(inplace=True, drop=True)
 
-        dut_selection = (event_board_counts[dut_board_id] >= 2)
-        event_selections = trig_selection & ref_selection & dut_selection
+    broadcasted_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=reference_board_id, board_id_want_broadcast=board_id_want_broadcast).reset_index(drop=True)
+    broadcasted_df = broadcasted_df.astype('uint64')
 
-        dut_multiple_df = input_df[input_df['evt'].isin(event_board_counts[event_selections].index)]
-        dut_multiple_df.reset_index(inplace=True, drop=True)
-
-        if trig_dut:
-            tmp_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=dut_board_id, board_id_want_broadcast=trig_board_id).reset_index(drop=True)
-            dut_df = pd.concat([dut_single_df.loc[(dut_single_df['board'] == trig_board_id) | (dut_single_df['board'] == dut_board_id)].reset_index(drop=True), tmp_df])
-            return dut_df
-        elif ref_dut:
-            tmp_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=dut_board_id, board_id_want_broadcast=ref_board_id).reset_index(drop=True)
-            dut_df = pd.concat([dut_single_df.loc[(dut_single_df['board'] == ref_board_id) | (dut_single_df['board'] == dut_board_id)].reset_index(drop=True), tmp_df])
-            return dut_df
-        else:
-            print("You need to set either 'trig_dut = True' OR 'ref_dut = True' in the argument")
-            return None
-
-    else:
-        print('4-board analysis')
-
-        event_selections = None
-
-        trig_selection = (event_board_counts[trig_board_id] == 1)
-        ref_selection = (event_board_counts[ref_board_id] == 1)
-        ref_dut_selection = (event_board_counts[second_ref_board_id] == 1)
-        dut_selection = (event_board_counts[dut_board_id] == 1)
-        event_selections = trig_selection & ref_selection & ref_dut_selection & dut_selection
-
-        dut_single_df = input_df[input_df['evt'].isin(event_board_counts[event_selections].index)]
-        dut_single_df.reset_index(inplace=True, drop=True)
-
-        event_selections = None
-
-        dut_selection = (event_board_counts[dut_board_id] >= 2)
-        event_selections = trig_selection & ref_selection & ref_dut_selection & dut_selection
-
-        dut_multiple_df = input_df[input_df['evt'].isin(event_board_counts[event_selections].index)]
-        dut_multiple_df.reset_index(inplace=True, drop=True)
-
-        if trig_dut:
-            tmp_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=dut_board_id, board_id_want_broadcast=trig_board_id).reset_index(drop=True)
-            dut_df = pd.concat([dut_single_df.loc[(dut_single_df['board'] == trig_board_id) | (dut_single_df['board'] == dut_board_id)].reset_index(drop=True), tmp_df])
-            return dut_df
-        elif ref_dut:
-            tmp_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=dut_board_id, board_id_want_broadcast=ref_board_id).reset_index(drop=True)
-            dut_df = pd.concat([dut_single_df.loc[(dut_single_df['board'] == ref_board_id) | (dut_single_df['board'] == dut_board_id)].reset_index(drop=True), tmp_df])
-            return dut_df
-        else:
-            print("You need to set either 'trig_dut = True' OR 'ref_dut = True' in the argument")
-            return None
+    return dut_single_df, broadcasted_df
 
 
 ## --------------- Modify DataFrame -----------------------
@@ -1641,7 +1593,7 @@ def plot_correlation_of_pixels(
     tick_labels = np.char.mod('%d', np.arange(0, 16))
     fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
-    hep.hist2dplot(h_row, ax=ax[0])
+    hep.hist2dplot(h_row, ax=ax[0], norm=matplotlib.colors.LogNorm())
     hep.cms.text(loc=0, ax=ax[0], text="Preliminary", fontsize=25)
     ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
@@ -1652,7 +1604,7 @@ def plot_correlation_of_pixels(
     ax[0].yaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
     ax[0].tick_params(axis='both', which='major', length=0)
 
-    hep.hist2dplot(h_col, ax=ax[1])
+    hep.hist2dplot(h_col, ax=ax[1], norm=matplotlib.colors.LogNorm())
     hep.cms.text(loc=0, ax=ax[1], text="Preliminary", fontsize=25)
     ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
@@ -1663,6 +1615,33 @@ def plot_correlation_of_pixels(
     ax[1].yaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
     ax[1].tick_params(axis='both', which='major', length=0)
 
+    plt.tight_layout()
+
+## --------------------------------------
+def plot_difference_of_pixels(
+        input_df: pd.DataFrame,
+        board_ids: np.array,
+        fig_title: str,
+        fit_tag: str = '',
+    ):
+    diff_row = input_df.loc[input_df['board'] == board_ids[0]]['row'].values.astype(np.int64) - input_df.loc[input_df['board'] == board_ids[1]]['row'].values.astype(np.int64)
+    diff_col = input_df.loc[input_df['board'] == board_ids[0]]['col'].values.astype(np.int64) - input_df.loc[input_df['board'] == board_ids[1]]['col'].values.astype(np.int64)
+
+    h = hist.Hist(
+        hist.axis.Regular(32, -16, 16, name='delta_row', label=r"$\Delta$Row"),
+        hist.axis.Regular(32, -16, 16, name='delta_col', label=r"$\Delta$Col"),
+    )
+
+    h.fill(diff_row, diff_col)
+
+    fig, ax = plt.subplots(dpi=100, figsize=(11, 11))
+
+    hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    ax.set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
+    ax.tick_params(axis='x', which='both', length=5, labelsize=17)
+    ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+    plt.minorticks_off()
     plt.tight_layout()
 
 ## --------------------------------------
@@ -2081,7 +2060,7 @@ def three_board_iterative_timewalk_correction(
 
     del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
     del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
-    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
+    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
 
     for i in range(iterative_cnt):
         coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
