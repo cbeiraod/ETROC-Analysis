@@ -30,6 +30,15 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--trigID',
+    metavar = 'ID',
+    type = int,
+    help = 'trigger board ID',
+    required = True,
+    dest = 'trigID',
+)
+
+parser.add_argument(
     '--refID',
     metavar = 'ID',
     type = int,
@@ -109,9 +118,9 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --refID {1} --dutID {2} --ignoreID {3} --trigTOALower {4} --trigTOAUpper {5}"
-python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --refID {1} --dutID {2} --ignoreID {3} --trigTOALower {4} --trigTOAUpper {5}
-""".format(args.track, args.refID, args.dutID, args.ignoreID, args.trigTOALower, args.trigTOAUpper)
+echo "python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --trigID {1} --refID {2} --dutID {3} --ignoreID {4} --trigTOALower {5} --trigTOAUpper {6}"
+python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --trigID {1} --refID {2} --dutID {3} --ignoreID {4} --trigTOALower {5} --trigTOAUpper {6}
+""".format(args.track, args.trigID, args.refID, args.dutID, args.ignoreID, args.trigTOALower, args.trigTOAUpper)
 
 with open('run_dataSelection.sh','w') as bashfile:
     bashfile.write(bash_script)
