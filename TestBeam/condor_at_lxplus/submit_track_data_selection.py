@@ -118,8 +118,8 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --trigID {1} --refID {2} --dutID {3} --ignoreID {4} --trigTOTLower {5} --trigTOTUpper {6}"
-python dataSelectionByTrack.py -f ${{1}} -r ${{2}} -t {0} --trigID {1} --refID {2} --dutID {3} --ignoreID {4} --trigTOTLower {5} --trigTOTUpper {6}
+echo "python track_data_selection.py -f ${{1}} -r ${{2}} -t {0} --trigID {1} --refID {2} --dutID {3} --ignoreID {4} --trigTOTLower {5} --trigTOTUpper {6}"
+python track_data_selection.py -f ${{1}} -r ${{2}} -t {0} --trigID {1} --refID {2} --dutID {3} --ignoreID {4} --trigTOTLower {5} --trigTOTUpper {6}
 """.format(args.track, args.trigID, args.refID, args.dutID, args.ignoreID, args.trigTOTLower, args.trigTOTUpper)
 
 with open('run_track_data_selection.sh','w') as bashfile:
