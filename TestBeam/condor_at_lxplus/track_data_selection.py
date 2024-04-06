@@ -112,7 +112,7 @@ def data_4board_selection_by_track(
     track_tmp_df = tdc_event_selection(track_tmp_df, tdc_cuts_dict=tdc_cuts)
 
     event_board_counts = track_tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-    event_selection_col = (event_board_counts[trig_id] == 1) & (event_board_counts[dut_id] == 1) & (event_board_counts[ref_id] == 1) & (event_board_counts[ref_2nd_id] == 1)
+    event_selection_col = (event_board_counts[0] == 1) & (event_board_counts[1] == 1) & (event_board_counts[2] == 1) & (event_board_counts[3] == 1)
 
     isolated_df = track_tmp_df.loc[track_tmp_df['evt'].isin(event_board_counts[event_selection_col].index)]
 
