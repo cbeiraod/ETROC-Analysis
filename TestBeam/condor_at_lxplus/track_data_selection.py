@@ -246,7 +246,7 @@ if __name__ == "__main__":
                 pix_dict[idx] = [track_df.iloc[itrack][f'row_{idx}'], track_df.iloc[itrack][f'col_{idx}']]
 
             table = data_4board_selection_by_track(input_df=run_df, pix_dict=pix_dict, trig_id=trig_id, dut_id=dut_id, ref_id=ref_id, ref_2nd_id=args.ignoreID,
-                                                   board_to_analyze=board_to_analyze, toa_cuts=tot_cuts)
+                                                   board_to_analyze=board_to_analyze, tot_cuts=tot_cuts)
             track_pivots[itrack] = table
     else:
         print('Under developing')
