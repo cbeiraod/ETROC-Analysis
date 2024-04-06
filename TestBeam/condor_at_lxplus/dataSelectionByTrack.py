@@ -86,13 +86,14 @@ def tdc_event_selection(
 ## --------------------------------------
 def find_toa_linear_fit_params(
         input_df: pd.DataFrame,
+        trig_id: int,
         ref_id: int,
     ):
 
     event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
     event_selection_col = None
 
-    trig_selection = (event_board_counts[0] == 1)
+    trig_selection = (event_board_counts[trig_id] == 1)
     ref_selection = (event_board_counts[ref_id] == 1)
     event_selection_col = trig_selection & ref_selection
 
@@ -102,9 +103,9 @@ def find_toa_linear_fit_params(
 
     ## Selecting good hits
     tdc_cuts = {}
-    for idx in [0, ref_id]:
+    for idx in [trig_id, ref_id]:
         # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
-        if idx == 0:
+        if idx == trig_id:
             tdc_cuts[idx] = [sub_df.loc[sub_df['board'] == idx]['cal'].mode()[0]-50, sub_df.loc[sub_df['board'] == idx]['cal'].mode()[0]+50,  100, 500, 0, 600]
         else:
             tdc_cuts[idx] = [sub_df.loc[sub_df['board'] == idx]['cal'].mode()[0]-50, sub_df.loc[sub_df['board'] == idx]['cal'].mode()[0]+50,  0, 1100, 0, 600]
@@ -112,7 +113,7 @@ def find_toa_linear_fit_params(
     filtered_df = tdc_event_selection(sub_df, tdc_cuts_dict=tdc_cuts)
     del sub_df
 
-    params = np.polyfit(filtered_df.loc[filtered_df['board'] == 0]['toa'].reset_index(drop=True), filtered_df.loc[filtered_df['board'] == ref_id]['toa'].reset_index(drop=True), 1)
+    params = np.polyfit(filtered_df.loc[filtered_df['board'] == trig_id]['toa'].reset_index(drop=True), filtered_df.loc[filtered_df['board'] == ref_id]['toa'].reset_index(drop=True), 1)
     del filtered_df
 
     return params
@@ -175,6 +176,7 @@ def data_3board_selection_by_track(
 def data_4board_selection_by_track(
         input_df: pd.DataFrame,
         pix_dict: dict,
+        trig_id: int,
         dut_id: int,
         ref_id: int,
         ref_2nd_id: int,
@@ -187,7 +189,7 @@ def data_4board_selection_by_track(
     track_tmp_df = pixel_filter(input_df, pix_dict, filter_by_area=True, pixel_buffer=2)
 
     event_board_counts = track_tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-    event_selection_col = (event_board_counts[0] == 1) & (event_board_counts[dut_id] == 1) & (event_board_counts[ref_id] == 1) & (event_board_counts[ref_2nd_id] == 1)
+    event_selection_col = (event_board_counts[trig_id] == 1) & (event_board_counts[dut_id] == 1) & (event_board_counts[ref_id] == 1) & (event_board_counts[ref_2nd_id] == 1)
 
     isolated_df = track_tmp_df.loc[track_tmp_df['evt'].isin(event_board_counts[event_selection_col].index)]
 
@@ -201,21 +203,24 @@ def data_4board_selection_by_track(
     tdc_cuts = {}
     for idx in board_to_analyze:
         # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
-        if idx == 0:
+        if idx == trig_id:
             tdc_cuts[idx] = [track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]-3, track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]+3,
                     toa_cuts[0], toa_cuts[1], 0, 600]
+        elif idx == ref_id:
+            tdc_cuts[idx] = [track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]-3, track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]+3,
+                    0, 1100, 0, 600]
         else:
             tdc_cuts[idx] = [track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]-3, track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]+3,
                     0, 1100, 0, 600]
 
     track_tmp_df = tdc_event_selection(track_tmp_df, tdc_cuts_dict=tdc_cuts)
 
-    x = track_tmp_df.loc[track_tmp_df['board'] == 0]['toa'].reset_index(drop=True)
+    x = track_tmp_df.loc[track_tmp_df['board'] == trig_id]['toa'].reset_index(drop=True)
     y = track_tmp_df.loc[track_tmp_df['board'] == ref_id]['toa'].reset_index(drop=True)
 
     trig_ref_distance = (x*trig_ref_params[0] - y + trig_ref_params[1])/(np.sqrt(trig_ref_params[0]**2 + 1))
 
-    x = track_tmp_df.loc[track_tmp_df['board'] == 0]['toa'].reset_index(drop=True)
+    x = track_tmp_df.loc[track_tmp_df['board'] == trig_id]['toa'].reset_index(drop=True)
     y = track_tmp_df.loc[track_tmp_df['board'] == dut_id]['toa'].reset_index(drop=True)
 
     trig_dut_distance = (x*trig_dut_params[0] - y + trig_dut_params[1])/(np.sqrt(trig_dut_params[0]**2 + 1))
@@ -271,6 +276,15 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '--trigID',
+        metavar = 'ID',
+        type = int,
+        help = 'trigger board ID',
+        required = True,
+        dest = 'trigID',
+    )
+
+    parser.add_argument(
         '--refID',
         metavar = 'ID',
         type = int,
@@ -321,6 +335,7 @@ if __name__ == "__main__":
     ignore_boards = [args.ignoreID]
     toa_cuts = [args.trigTOALower, args.trigTOAUpper]
 
+    trig_id = args.trigID
     ref_id = args.refID
     dut_id = args.dutID
 
@@ -333,8 +348,8 @@ if __name__ == "__main__":
         exit(0)
 
     ### Find parameters for diagonal cut
-    ref_params = find_toa_linear_fit_params(run_df, ref_id=ref_id)
-    dut_params = find_toa_linear_fit_params(run_df, ref_id=dut_id)
+    ref_params = find_toa_linear_fit_params(run_df, trig_id=trig_id, ref_id=ref_id)
+    dut_params = find_toa_linear_fit_params(run_df, trig_id=trig_id, ref_id=dut_id)
 
     track_df = pd.read_csv(args.track)
 
@@ -348,7 +363,7 @@ if __name__ == "__main__":
             for idx in board_to_analyze:
                 pix_dict[idx] = [track_df.iloc[itrack][f'row_{idx}'], track_df.iloc[itrack][f'col_{idx}']]
 
-            table = data_4board_selection_by_track(input_df=run_df, pix_dict=pix_dict, dut_id=dut_id, ref_id=ref_id, ref_2nd_id=args.ignoreID,
+            table = data_4board_selection_by_track(input_df=run_df, pix_dict=pix_dict, trig_id=trig_id, dut_id=dut_id, ref_id=ref_id, ref_2nd_id=args.ignoreID,
                                                    board_to_analyze=board_to_analyze, trig_ref_params=ref_params, trig_dut_params=dut_params, toa_cuts=toa_cuts)
             track_pivots[itrack] = table
     else:
