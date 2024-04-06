@@ -35,8 +35,6 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-board_names = ['ET2_EPIR_Pair1', 'ET2_BAR_4', 'ET2_EPIR_Pair4']
-
 base_dir = Path('./')
 outputdir = base_dir / args.outdir
 outputdir.mkdir(exist_ok=False)
