@@ -42,7 +42,7 @@ outputdir.mkdir(exist_ok=False)
 def merge_dataframes(files):
     merged_data = {}  # Dictionary to store merged DataFrames
     keys = None  # To store keys from the first file
-    for file in files:
+    for file in tqdm(files):
         with open(file, 'rb') as f:
             data_dict = pickle.load(f)  # Load dictionary from file (assuming files are pickled)
             if keys is None:
@@ -62,16 +62,14 @@ def merge_dataframes(files):
 files = natsorted(glob(args.dirname+'/*pickle'))
 
 # Merge the dataframes
-merged_dict = merge_dataframes(files[:2])
+merged_dict = merge_dataframes(files)
 
 for ikey in tqdm(merged_dict.keys()):
-    print(merged_dict[ikey])
-    break
-    # merged_dict[ikey].drop(columns=['evt'], inplace=True)
+    board_ids = merged_dict[ikey].columns.get_level_values('board').unique().tolist()
+    outname = f"track_{ikey}"
+    for board_id in board_ids:
+        irow = merged_dict[ikey]['row'][board_id].unique()[0]
+        icol = merged_dict[ikey]['col'][board_id].unique()[0]
+        outname += f"_R{irow}C{icol}"
 
-    # board_ids = merged_dict[ikey].columns.get_level_values('board').unique().tolist()
-    # merged_dict[ikey]['evt'] = range(merged_dict[ikey].shape[0])
-    # merged_dict[ikey] = merged_dict[ikey].astype('uint64')
-    # positions = [f'R{merged_dict[ikey]["row"][idx].unique()[0]}C{merged_dict[ikey]["col"][idx].unique()[0]}' for idx in board_ids]
-
-    # merged_dict[ikey].to_pickle(outputdir / f'track_{ikey}_{board_names[0]}_{positions[0]}_{board_names[1]}_{positions[1]}_{board_names[2]}_{positions[2]}.pkl')
+    merged_dict[ikey].to_pickle(outputdir / f'{outname}.pkl')
