@@ -1676,6 +1676,43 @@ def plot_distance(
     return h_dis
 
 ## --------------------------------------
+def plot_TOA_correlation(
+        input_df: pd.DataFrame,
+        board_id1: int,
+        board_id2: int,
+        boundary_cut: float,
+        board_names: list[str],
+        draw_boundary: bool = False,
+    ):
+
+    x = input_df['toa'][board_id1]
+    y = input_df['toa'][board_id2]
+
+    h = hist.Hist(
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'{board_names[board_id1]}'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'{board_names[board_id2]}'),
+    )
+    h.fill(x, y)
+    params = np.polyfit(x, y, 1)
+    trig_ref_distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    ax.set_title(f"TOA correlation", loc="right", size=20)
+    hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
+
+    # calculate the trendline
+    trendpoly = np.poly1d(params)
+    x_range = np.linspace(x.min(), x.max(), 500)
+
+    # plot the trend line
+    ax.plot(x_range, trendpoly(x_range), 'r-', label='linear fit')
+    if draw_boundary:
+        ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(trig_ref_distance), y2=trendpoly(x_range)+boundary_cut*np.std(trig_ref_distance),
+                        facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+    ax.legend()
+
+## --------------------------------------
 def plot_resolution_with_pulls(
         input_df: pd.DataFrame,
         board_ids: list[int],
