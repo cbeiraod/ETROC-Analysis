@@ -104,6 +104,15 @@ if __name__ == "__main__":
 
     parser.add_argument(
         '-r',
+        '--runinfo',
+        metavar = 'NAME',
+        type = str,
+        help = 'run information for the output name',
+        required = True,
+        dest = 'runinfo',
+    )
+
+    parser.add_argument(
         '--row',
         metavar = 'NUM',
         type = int,
@@ -113,7 +122,6 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        '-c',
         '--col',
         metavar = 'NUM',
         type = int,
