@@ -144,6 +144,6 @@ if __name__ == "__main__":
     results['dut1'] = dut1_hitmap(input_df=run_df, pixel=[args.row, args.col])
     results['dut2'] = dut2_hitmap(input_df=run_df, pixel=[args.row, args.col])
 
-    fname = args.inputfile.split('.')[0]
+    fname = args.file.split('.')[0]
     with open(f'{args.runinfo}_{fname}_hitmap.pickle', 'wb') as output:
         pickle.dump(results, output, protocol=pickle.HIGHEST_PROTOCOL)
