@@ -1179,7 +1179,7 @@ def plot_number_of_fired_board(
     fig = plt.figure(dpi=50, figsize=(14,12))
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
-    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
     ax.set_title(f"{fig_tag}", loc="right", size=25)
     h.plot1d(ax=ax, lw=2)
     ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
@@ -1223,7 +1223,7 @@ def plot_number_of_hits_per_event(
             continue
 
         ax = fig.add_subplot(plot_info)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
         hists[i].plot1d(ax=ax, lw=2)
         ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
         ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
@@ -1263,7 +1263,7 @@ def plot_2d_nHits_nBoard(
             continue
 
         ax = fig.add_subplot(plot_info)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
         hep.hist2dplot(hists[i], ax=ax, norm=colors.LogNorm())
         ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
 
@@ -1594,7 +1594,7 @@ def plot_correlation_of_pixels(
     fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
     hep.hist2dplot(h_row, ax=ax[0], norm=matplotlib.colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[0], text="Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=25)
     ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
@@ -1605,7 +1605,7 @@ def plot_correlation_of_pixels(
     ax[0].tick_params(axis='both', which='major', length=0)
 
     hep.hist2dplot(h_col, ax=ax[1], norm=matplotlib.colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[1], text="Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=25)
     ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
@@ -1637,7 +1637,7 @@ def plot_difference_of_pixels(
     fig, ax = plt.subplots(dpi=100, figsize=(11, 11))
 
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
     ax.set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax.tick_params(axis='x', which='both', length=5, labelsize=17)
     ax.tick_params(axis='y', which='both', length=5, labelsize=17)
@@ -1664,7 +1664,7 @@ def plot_distance(
 
     fig, ax = plt.subplots(dpi=100, figsize=(15, 8))
     hep.histplot(h_dis, ax=ax)
-    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
     ax.set_title(f"{fig_title} {fig_tag}", loc="right", size=15)
 
     if do_logy:
