@@ -1637,7 +1637,7 @@ def plot_difference_of_pixels(
     fig, ax = plt.subplots(dpi=100, figsize=(11, 11))
 
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=22)
     ax.set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax.tick_params(axis='x', which='both', length=5, labelsize=17)
     ax.tick_params(axis='y', which='both', length=5, labelsize=17)
