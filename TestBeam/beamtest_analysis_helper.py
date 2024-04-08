@@ -1103,7 +1103,23 @@ def save_TDC_summary_table(
 
         del sum_group, table_mean, table_std
 
+## --------------------------------------
+def return_TOA_correlation_param(
+        input_df: pd.DataFrame,
+        board_id1: int,
+        board_id2: int,
+    ):
+
+    x = input_df['toa'][board_id1]
+    y = input_df['toa'][board_id2]
+
+    params = np.polyfit(x, y, 1)
+    distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
+
+    return params, distance
+
 ## --------------- Extract results -----------------------
+
 
 ## --------------- Plotting -----------------------
 ## --------------------------------------
