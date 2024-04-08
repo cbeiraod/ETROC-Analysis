@@ -280,7 +280,7 @@ def bootstrap(
                 fit_params[ikey] = float(params[0]/2.355)
                 scores.append(eval_scores)
 
-            if np.any(np.asarray(scores)[:,0] > 0.2) or np.any(np.asarray(scores)[:,1] > 0.075) :
+            if np.any(np.asarray(scores)[:,0] > 0.6) or np.any(np.asarray(scores)[:,1] > 0.075) :
                 print('Redo the sampling')
                 counter += 1
                 resample_counter += 1
