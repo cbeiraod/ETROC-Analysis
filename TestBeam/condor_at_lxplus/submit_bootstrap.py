@@ -49,6 +49,24 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--trigTOALower',
+    metavar = 'NUM',
+    type = int,
+    help = 'Lower TOA selection boundary for the trigger board',
+    default = 100,
+    dest = 'trigTOALower',
+)
+
+parser.add_argument(
+    '--trigTOAUpper',
+    metavar = 'NUM',
+    type = int,
+    help = 'Upper TOA selection boundary for the trigger board',
+    default = 500,
+    dest = 'trigTOAUpper',
+)
+
+parser.add_argument(
     '--dryrun',
     action = 'store_true',
     help = 'If set, condor submission will not happen',
@@ -81,13 +99,14 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2}"
-python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2}
-""".format(args.iteration, args.sampling, args.minimum_nevt)
+echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4}"
+python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4}
+""".format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
 
 print('\n========= Run option =========')
 print(f'Bootstrap iteration: {args.iteration}')
 print(f'{args.sampling}% of random sampling')
+print(f"TOA cut for a 'NEW' trigger is {args.trigTOALower}-{args.trigTOAUpper}")
 print(f'Number of events larger than {args.minimum_nevt} will be considered')
 print('========= Run option =========\n')
 
