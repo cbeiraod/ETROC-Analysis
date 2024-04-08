@@ -1048,21 +1048,12 @@ def return_broadcast_dataframe(
     ):
 
     event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-    event_selections = None
-
-    trig_selection = (event_board_counts[board_id_want_broadcast] == 1)
-    dut_selection = (event_board_counts[reference_board_id] == 1)
-    event_selections = trig_selection & dut_selection
-
+    event_selections = (event_board_counts[board_id_want_broadcast] == 1) & (event_board_counts[reference_board_id] == 1)
     dut_single_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
     dut_single_df = dut_single_df.loc[(dut_single_df['board'] == reference_board_id) | (dut_single_df['board'] == board_id_want_broadcast)]
     dut_single_df.reset_index(inplace=True, drop=True)
 
-    event_selections = None
-
-    dut_selection = (event_board_counts[reference_board_id] >= 2)
-    event_selections = trig_selection & dut_selection
-
+    event_selections = (event_board_counts[board_id_want_broadcast] == 1) & (event_board_counts[reference_board_id] >= 2)
     dut_multiple_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
     dut_multiple_df = dut_multiple_df.loc[(dut_multiple_df['board'] == reference_board_id) | (dut_multiple_df['board'] == board_id_want_broadcast)]
     dut_multiple_df.reset_index(inplace=True, drop=True)
@@ -1694,7 +1685,7 @@ def plot_TOA_correlation(
     )
     h.fill(x, y)
     params = np.polyfit(x, y, 1)
-    trig_ref_distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
+    distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
 
     fig, ax = plt.subplots(figsize=(10, 10))
     hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
