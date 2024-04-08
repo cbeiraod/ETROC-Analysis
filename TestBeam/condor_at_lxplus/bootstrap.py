@@ -259,25 +259,29 @@ def bootstrap(
             fit_params = {}
             scores = []
             for ikey in diffs.keys():
-                params, eval_scores = fwhm_based_on_gaussian_mixture_model(diffs[ikey], n_components=2, plotting=False, plotting_each_component=False)
+                params, eval_scores = fwhm_based_on_gaussian_mixture_model(diffs[ikey], n_components=3, plotting=False, plotting_each_component=False)
                 fit_params[ikey] = float(params[0]/2.355)
                 scores.append(eval_scores)
 
             if np.any(np.asarray(scores)[:,0] > 0.2) or np.any(np.asarray(scores)[:,1] > 0.075) :
-                indices1 = np.where(np.asarray(scores)[:,0] > 0.2)[0]
-                indices2 = np.where(np.asarray(scores)[:,1] > 0.075)[0]
-                indices = np.union1d(indices1, indices2)
+                print('Redo the sampling')
+                counter += 1
+                resample_counter += 1
+                continue
+                # indices1 = np.where(np.asarray(scores)[:,0] > 0.2)[0]
+                # indices2 = np.where(np.asarray(scores)[:,1] > 0.075)[0]
+                # indices = np.union1d(indices1, indices2)
 
-                new_scores = []
-                for idx in indices:
-                    params, eval_scores = fwhm_based_on_gaussian_mixture_model(diffs[keys[idx]], n_components=3, plotting=False, plotting_each_component=False)
-                    new_scores.append(eval_scores)
-                    fit_params[keys[idx]] = float(params[0]/2.355)
+            #     new_scores = []
+            #     for idx in indices:
+            #         params, eval_scores = fwhm_based_on_gaussian_mixture_model(diffs[keys[idx]], n_components=3, plotting=False, plotting_each_component=False)
+            #         new_scores.append(eval_scores)
+            #         fit_params[keys[idx]] = float(params[0]/2.355)
 
-                if np.any(np.asarray(new_scores)[:,0] > 0.2) or np.any(np.asarray(new_scores)[:,1] > 0.075):
-                    print('Redo the sampling')
-                    counter += 1
-                    continue
+            #     if np.any(np.asarray(new_scores)[:,0] > 0.2) or np.any(np.asarray(new_scores)[:,1] > 0.075):
+            #         print('Redo the sampling')
+            #         counter += 1
+            #         continue
 
             if(len(board_to_analyze)==3):
                 resolutions = return_resolution_three_board_fromFWHM(fit_params, var=keys, board_list=board_to_analyze)
