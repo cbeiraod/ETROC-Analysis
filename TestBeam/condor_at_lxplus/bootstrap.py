@@ -154,13 +154,6 @@ def fwhm_based_on_gaussian_mixture_model(
     # Calculate the FWHM.
     fwhm = x_range[half_max_indices[-1]] - x_range[half_max_indices[0]]
 
-    ### GMM - sigma
-    # Get the standard deviations (sigma) for each component
-    # sigma_values = np.sqrt(models.covariances_.diagonal())
-
-    # Get the mixing coefficients and Calculate the combined sigma using a weighted sum
-    # combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
-
     ### Draw plot
     if plotting_each_component:
         # Compute PDF for each component
