@@ -1715,9 +1715,73 @@ def plot_TOA_correlation(
     # plot the trend line
     ax.plot(x_range, trendpoly(x_range), 'r-', label='linear fit')
     if draw_boundary:
-        ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(trig_ref_distance), y2=trendpoly(x_range)+boundary_cut*np.std(trig_ref_distance),
+        ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(distance), y2=trendpoly(x_range)+boundary_cut*np.std(distance),
                         facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
     ax.legend()
+
+## --------------------------------------
+def plot_TWC(
+        input_df: pd.DataFrame,
+        board_list: list[int],
+        poly_order: int = 2,
+        corr_toas: dict | None = None,
+    ):
+
+    if corr_toas is not None:
+        del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
+        del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
+        del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+    else:
+        del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
+        del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
+        del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
+
+    h_twc1 = hist.Hist(
+        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[0]}', label=f'tot_b{board_list[0]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[0]}', label=f'delta_toa{board_list[0]}')
+    )
+    h_twc2 = hist.Hist(
+        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[1]}', label=f'tot_b{board_list[1]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[1]}', label=f'delta_toa{board_list[1]}')
+    )
+    h_twc3 = hist.Hist(
+        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[2]}', label=f'tot_b{board_list[2]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[2]}', label=f'delta_toa{board_list[2]}')
+    )
+
+    h_twc1.fill(input_df[f'tot_b{board_list[0]}'], del_toa_b0)
+    h_twc2.fill(input_df[f'tot_b{board_list[1]}'], del_toa_b1)
+    h_twc3.fill(input_df[f'tot_b{board_list[2]}'], del_toa_b2)
+
+    b1_xrange = np.linspace(input_df[f'tot_b{board_list[0]}'].min(), input_df[f'tot_b{board_list[0]}'].max(), 100)
+    b2_xrange = np.linspace(input_df[f'tot_b{board_list[1]}'].min(), input_df[f'tot_b{board_list[1]}'].max(), 100)
+    b3_xrange = np.linspace(input_df[f'tot_b{board_list[2]}'].min(), input_df[f'tot_b{board_list[2]}'].max(), 100)
+
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+    poly_func_b0 = np.poly1d(coeff_b0)
+
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+    poly_func_b1 = np.poly1d(coeff_b1)
+
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+    poly_func_b2 = np.poly1d(coeff_b2)
+
+    fig, axes = plt.subplots(1, 3, figsize=(38, 10))
+    hep.hist2dplot(h_twc1, ax=axes[0], norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=20)
+    axes[0].plot(b1_xrange, poly_func_b0(b1_xrange), 'r-', lw=3, label='linear fit')
+    axes[0].set_xlabel('TOT1')
+    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1', fontsize=15)
+    hep.hist2dplot(h_twc2, ax=axes[1], norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=20)
+    axes[1].plot(b2_xrange, poly_func_b1(b2_xrange), 'r-', lw=3, label='linear fit')
+    axes[1].set_xlabel('TOT2')
+    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2', fontsize=15)
+    hep.hist2dplot(h_twc3, ax=axes[2], norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=axes[2], text="Phase-2 Preliminary", fontsize=20)
+    axes[2].plot(b3_xrange, poly_func_b2(b3_xrange), 'r-', lw=3, label='linear fit')
+    axes[2].set_xlabel('TOT3')
+    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3', fontsize=15)
 
 ## --------------------------------------
 def plot_resolution_with_pulls(
