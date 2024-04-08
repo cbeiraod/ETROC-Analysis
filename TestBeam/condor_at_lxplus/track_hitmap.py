@@ -23,38 +23,45 @@ def making_pivot(
         return pivot_data_df
 
 ## --------------------------------------
-def dut1_hitmap(
+def simple_hitmap(
         input_df: pd.DataFrame,
+        ref_board_id: int,
+        interest_board_id: int,
         pixel: list[int],
     ):
-    input_df = input_df.loc[(input_df['board'] == 0) | (input_df['board'] == 1)]
+    input_df = input_df.loc[(input_df['board'] == ref_board_id) | (input_df['board'] == interest_board_id)]
     event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-    event_selection_col = None
-
-    trig_selection = (event_board_counts[0] == 1)
-    ref_selection = (event_board_counts[1] == 1)
-    event_selection_col = trig_selection & ref_selection
+    event_selection_col = (event_board_counts[ref_board_id] == 1) & (event_board_counts[interest_board_id] == 1)
 
     selected_subset_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selection_col].index)]
     selected_subset_df.reset_index(inplace=True, drop=True)
 
-    evts = selected_subset_df[(selected_subset_df['board'] == 0) & (selected_subset_df['row'] == pixel[0]) & (selected_subset_df['col'] == pixel[1])]['evt'].values
+    evts = selected_subset_df[(selected_subset_df['board'] == ref_board_id) & (selected_subset_df['row'] == pixel[0]) & (selected_subset_df['col'] == pixel[1])]['evt'].values
     interest_df = selected_subset_df[selected_subset_df['evt'].isin(evts)].reset_index(drop=True)
     pivot_data_df = making_pivot(interest_df, 'evt', 'board', set({'board', 'evt', 'cal', 'tot', 'ea', 'bcid', 'l1a_counter'}), ignore_boards=None)
 
-    combinations_df = pivot_data_df.groupby(['row_1', 'col_1']).count()
-    combinations_df['count'] = combinations_df['toa_0']
-    combinations_df.drop(['toa_0', 'toa_1', 'row_0', 'col_0'], axis=1, inplace=True)
+    combinations_df = pivot_data_df.groupby([f'row_{interest_board_id}', f'col_{interest_board_id}']).count()
+    combinations_df['count'] = combinations_df[f'toa_{interest_board_id}']
+    combinations_df.drop([f'toa_{ref_board_id}', f'toa_{interest_board_id}', f'row_{ref_board_id}', f'col_{ref_board_id}'], axis=1, inplace=True)
     combinations_df = combinations_df.astype('int64')
     combinations_df.reset_index(inplace=True)
 
     return combinations_df
 
 ## --------------------------------------
-def dut2_hitmap(
+def track_based_hitmap(
         input_df: pd.DataFrame,
+        ref_board_id1: int,
+        ref_board_id2: int,
+        ref_board_id3: int,
+        interest_board_id: int,
         pixel: list[int],
     ):
+
+    drop_colums = ['toa_0', 'toa_1', 'toa_2', 'toa_3']
+    for inum in [ref_board_id1, ref_board_id2, ref_board_id3]:
+         drop_colums.append(f'row_{inum}')
+         drop_colums.append(f'col_{inum}')
 
     event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
     event_selection_col = (event_board_counts[0] == 1) & (event_board_counts[1] == 1) & (event_board_counts[2] == 1) & (event_board_counts[3] == 1)
@@ -62,9 +69,9 @@ def dut2_hitmap(
     selected_subset_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selection_col].index)]
     selected_subset_df.reset_index(inplace=True, drop=True)
 
-    board1_condition = (selected_subset_df['board'] == 0) & (selected_subset_df['row'] == pixel[0]) & (selected_subset_df['col'] == pixel[1])
-    board2_condition = (selected_subset_df['board'] == 1) & (selected_subset_df['row'] == pixel[0]) & (selected_subset_df['col'] == pixel[1])
-    board3_condition = (selected_subset_df['board'] == 3) & (selected_subset_df['row'] == pixel[0]) & (selected_subset_df['col'] == pixel[1])
+    board1_condition = (selected_subset_df['board'] == ref_board_id1) & (selected_subset_df['row'] == pixel[0]) & (selected_subset_df['col'] == pixel[1])
+    board2_condition = (selected_subset_df['board'] == ref_board_id2) & (selected_subset_df['row'] == pixel[0]) & (selected_subset_df['col'] == pixel[1])
+    board3_condition = (selected_subset_df['board'] == ref_board_id3) & (selected_subset_df['row'] == pixel[0]) & (selected_subset_df['col'] == pixel[1])
 
     evts1 = selected_subset_df[board1_condition]['evt'].values
     evts2 = selected_subset_df[board2_condition]['evt'].values
@@ -75,9 +82,9 @@ def dut2_hitmap(
     interest_df = selected_subset_df[selected_subset_df['evt'].isin(evts)].reset_index(drop=True)
     pivot_data_df = making_pivot(interest_df, 'evt', 'board', set({'board', 'evt', 'cal', 'tot', 'ea', 'bcid', 'l1a_counter'}), ignore_boards=None)
 
-    combinations_df = pivot_data_df.groupby(['row_2', 'col_2']).count()
-    combinations_df['count'] = combinations_df['toa_2']
-    combinations_df.drop(['toa_0', 'toa_1', 'toa_2', 'toa_3', 'row_0', 'col_0', 'row_1', 'col_1', 'row_3', 'col_3'], axis=1, inplace=True)
+    combinations_df = pivot_data_df.groupby([f'row_{interest_board_id}', f'col_{interest_board_id}']).count()
+    combinations_df['count'] = combinations_df[f'toa_{interest_board_id}']
+    combinations_df.drop(drop_colums, axis=1, inplace=True)
     combinations_df = combinations_df.astype('int64')
     combinations_df.reset_index(inplace=True)
 
@@ -130,6 +137,42 @@ if __name__ == "__main__":
         dest = 'col',
     )
 
+    parser.add_argument(
+        '--ref_board_id1',
+        metavar = 'NUM',
+        type = int,
+        help = 'Reference board ID',
+        default = 0,
+        dest = 'ref_board_id1',
+    )
+
+    parser.add_argument(
+        '--ref_board_id2',
+        metavar = 'NUM',
+        type = int,
+        help = 'Reference board ID',
+        default = 2,
+        dest = 'ref_board_id2',
+    )
+
+    parser.add_argument(
+        '--ref_board_id3',
+        metavar = 'NUM',
+        type = int,
+        help = 'Reference board ID',
+        default = 3,
+        dest = 'ref_board_id3',
+    )
+
+    parser.add_argument(
+        '--interest_board_id',
+        metavar = 'NUM',
+        type = int,
+        help = 'Interesting board ID',
+        default = 1,
+        dest = 'interest_board_id',
+    )
+
     args = parser.parse_args()
 
     columns_to_read = ['evt', 'board', 'row', 'col', 'toa', 'tot', 'cal']
@@ -141,8 +184,9 @@ if __name__ == "__main__":
 
     results = {}
 
-    results['dut1'] = dut1_hitmap(input_df=run_df, pixel=[args.row, args.col])
-    results['dut2'] = dut2_hitmap(input_df=run_df, pixel=[args.row, args.col])
+    results['simple_map'] = simple_hitmap(input_df=run_df, ref_board_id=args.ref_board_id1, interest_board_id=args.interest_board_id, pixel=[args.row, args.col])
+    results['track_based_map'] = track_based_hitmap(input_df=run_df, ref_board_id=args.ref_board_id1, ref_board_id=args.ref_board_id2, ref_board_id=args.ref_board_id3,
+                                                    interest_board_id=args.interest_board_id, pixel=[args.row, args.col])
 
     fname = args.file.split('.')[0]
     with open(f'{args.runinfo}_{fname}_hitmap.pickle', 'wb') as output:
