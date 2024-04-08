@@ -2385,23 +2385,35 @@ def four_board_iterative_timewalk_correction(
 #         return [out.params['sigma'].value, out.params['sigma'].stderr]
 
 ## --------------------------------------
+## --------------------------------------
 def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
         n_components: int = 2,
         plotting: bool = False,
         plotting_each_component: bool = False,
+        plotting_horizontal: bool = False,
+        title: str = '',
     ):
 
     from sklearn.mixture import GaussianMixture
     from sklearn.metrics import silhouette_score
+    from scipy.spatial import distance
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
+    bins, edges = np.histogram(input_data, bins=30, density=True)
+    centers = 0.5*(edges[1:] + edges[:-1])
     models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
-    clustering_eval_score = silhouette_score(x_range, models.predict(x_range))
+
+    silhouette_eval_score = silhouette_score(centers.reshape(-1, 1), models.predict(centers.reshape(-1, 1)))
+
+    logprob = models.score_samples(centers.reshape(-1, 1))
+    pdf = np.exp(logprob)
+    jensenshannon_score = distance.jensenshannon(bins, pdf)
+    # hellinger_score = hellinger_distance(bins, pdf)
+    # bhattacharyya_score = bhattacharyya_distance(bins, pdf) * (np.max(np.concatenate((bins, pdf)))-np.min(np.concatenate((bins, pdf))))/30.
 
     logprob = models.score_samples(x_range)
     pdf = np.exp(logprob)
-
     peak_height = np.max(pdf)
 
     # Find the half-maximum points.
@@ -2411,12 +2423,7 @@ def fwhm_based_on_gaussian_mixture_model(
     # Calculate the FWHM.
     fwhm = x_range[half_max_indices[-1]] - x_range[half_max_indices[0]]
 
-    ### GMM - sigma
-    # Get the standard deviations (sigma) for each component
-    # sigma_values = np.sqrt(models.covariances_.diagonal())
-
-    # Get the mixing coefficients and Calculate the combined sigma using a weighted sum
-    # combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
+    xval = x_range[np.argmax(pdf)][0]
 
     ### Draw plot
     if plotting_each_component:
@@ -2432,21 +2439,25 @@ def fwhm_based_on_gaussian_mixture_model(
         bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
         # Plot PDF of whole model
-        ax.plot(x_range, pdf, '-k', label='Mixture PDF')
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
+        ax.set_title(f'{title}', loc="right", fontsize=17)
+        ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
 
         if plotting_each_component:
             # Plot PDF of each component
             ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
         # Plot
-        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label=f'FWHM:{fwhm[0]:.2f}')
+        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
         ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-        ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
-        ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
+
+        if plotting_horizontal:
+            ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
+            ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
 
         ax.legend(loc='best', fontsize=14)
 
-    return fwhm, clustering_eval_score
+    return fwhm, [silhouette_eval_score, jensenshannon_score]
 
 ## --------------- Time Walk Correction -----------------------
 
