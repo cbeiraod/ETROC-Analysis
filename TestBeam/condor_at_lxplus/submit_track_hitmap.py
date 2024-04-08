@@ -40,6 +40,42 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--ref_board_id1',
+    metavar = 'NUM',
+    type = int,
+    help = 'Reference board ID',
+    default = 0,
+    dest = 'ref_board_id1',
+)
+
+parser.add_argument(
+    '--ref_board_id2',
+    metavar = 'NUM',
+    type = int,
+    help = 'Reference board ID',
+    default = 2,
+    dest = 'ref_board_id2',
+)
+
+parser.add_argument(
+    '--ref_board_id3',
+    metavar = 'NUM',
+    type = int,
+    help = 'Reference board ID',
+    default = 3,
+    dest = 'ref_board_id3',
+)
+
+parser.add_argument(
+    '--interest_board_id',
+    metavar = 'NUM',
+    type = int,
+    help = 'Interesting board ID',
+    default = 1,
+    dest = 'interest_board_id',
+)
+
+parser.add_argument(
     '--dryrun',
     action = 'store_true',
     help = 'If set, condor submission will not happen',
@@ -74,9 +110,9 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python track_hitmap.py -f ${{1}} -r ${{2}} --row {0} --col {1}"
-python track_hitmap.py -f ${{1}} -r ${{2}} --row {0} --col {1}
-""".format(args.row, args.col)
+echo "python track_hitmap.py -f ${{1}} -r ${{2}} --row {0} --col {1} --ref_board_id1 {2} --ref_board_id2 {3} --ref_board_id3 {4} --interest_board_id {5}"
+python track_hitmap.py -f ${{1}} -r ${{2}} --row {0} --col {1} --ref_board_id1 {2} --ref_board_id2 {3} --ref_board_id3 {4} --interest_board_id {5}
+""".format(args.row, args.col, args.ref_board_id1, args.ref_board_id2, args.ref_board_id3, args.interest_board_id)
 
 with open('run_track_hitmap.sh','w') as bashfile:
     bashfile.write(bash_script)
