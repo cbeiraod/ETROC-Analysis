@@ -324,7 +324,13 @@ def bootstrap(
             counter += 1
             del diffs, corr_toas
 
-        if len(resolution_from_bootstrap[0]) > iteration:
+        break_flag = False
+        for key, val in resolution_from_bootstrap.items():
+            if len(val) > iteration:
+                break_flag = True
+                break
+
+        if break_flag:
             print('Escaping bootstrap loop')
             break
 
