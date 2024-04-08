@@ -5,6 +5,30 @@ import warnings
 warnings.filterwarnings("ignore")
 
 ## --------------------------------------
+def tdc_event_selection_pivot(
+        input_df: pd.DataFrame,
+        tdc_cuts_dict: dict
+    ):
+    # Create boolean masks for each board's filtering criteria
+    masks = {}
+    for board, cuts in tdc_cuts_dict.items():
+        mask = (
+            input_df['cal'][board].between(cuts[0], cuts[1]) &
+            input_df['toa'][board].between(cuts[2], cuts[3]) &
+            input_df['tot'][board].between(cuts[4], cuts[5])
+        )
+        masks[board] = mask
+
+    # Combine the masks using logical AND
+    combined_mask = pd.concat(masks, axis=1).all(axis=1)
+    del masks
+
+    # Apply the combined mask to the DataFrame
+    tdc_filtered_df = input_df[combined_mask].reset_index(drop=True)
+    del combined_mask
+    return tdc_filtered_df
+
+## --------------------------------------
 def three_board_iterative_timewalk_correction(
     input_df: pd.DataFrame,
     iterative_cnt: int,
@@ -379,10 +403,21 @@ if __name__ == "__main__":
 
     output_name = args.file.split('.')[0]
     df = pd.read_pickle(args.file)
-    columns = df.columns.get_level_values('board').unique().tolist()
-    board_ids = [x for x in columns if x != '' or x == 0]
+    df = df.reset_index(names='evt')
 
-    resolution_df = bootstrap(input_df=df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt)
+    board_ids = [1, 2, 3]
+
+    ## Selecting good hits with TDC cuts
+    tdc_cuts = {}
+    for idx in board_ids:
+        if idx == 1:
+            tdc_cuts[idx] = [0, 1100, args.trigTOALower, args.trigTOAUpper, 0, 600]
+        else:
+            tdc_cuts[idx] = [0, 1100, 0, 1100, 0, 600]
+
+    interest_df = tdc_event_selection_pivot(df, tdc_cuts_dict=tdc_cuts)
+
+    resolution_df = bootstrap(input_df=interest_df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt)
 
     if not resolution_df.empty:
         if not args.do_csv:
