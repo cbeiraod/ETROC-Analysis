@@ -207,6 +207,7 @@ def bootstrap(
     random_sampling_fraction = sampling_fraction*0.01
 
     counter = 0
+    resample_counter = 0
 
     while True:
 
@@ -289,6 +290,7 @@ def bootstrap(
             if any(np.isnan(val) for key, val in resolutions.items()):
                 print('At least one of time resolution values is NaN. Skipping this iteration')
                 counter += 1
+                resample_counter += 1
                 continue
 
             for key in resolutions.keys():
@@ -304,6 +306,8 @@ def bootstrap(
         if len(resolution_from_bootstrap[0]) > iteration:
             print('Escaping bootstrap loop')
             break
+
+    print('How many times do resample?', resample_counter)
 
     ### Empty dictionary case
     if not resolution_from_bootstrap:
