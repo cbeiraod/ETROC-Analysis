@@ -227,7 +227,7 @@ def bootstrap(
             break
 
         d = {
-            'evt': tdc_filtered_df['evt'].unique(),
+            # 'evt': tdc_filtered_df['evt'].unique(),
         }
 
         for idx in board_to_analyze:
