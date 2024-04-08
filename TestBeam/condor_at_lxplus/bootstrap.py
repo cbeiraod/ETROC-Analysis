@@ -239,9 +239,9 @@ def bootstrap(
         del d, tdc_filtered_df
 
         if(len(board_to_analyze)==3):
-            corr_toas = three_board_iterative_timewalk_correction(df_in_time, 5, 3, board_list=board_to_analyze)
+            corr_toas = three_board_iterative_timewalk_correction(df_in_time, 2, 2, board_list=board_to_analyze)
         elif(len(board_to_analyze)==4):
-            corr_toas = four_board_iterative_timewalk_correction(df_in_time, 5, 3)
+            corr_toas = four_board_iterative_timewalk_correction(df_in_time, 2, 2)
         else:
             print("You have less than 3 boards to analyze")
             break
