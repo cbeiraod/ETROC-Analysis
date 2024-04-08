@@ -386,6 +386,24 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '--trigTOALower',
+        metavar = 'NUM',
+        type = int,
+        help = 'Lower TOA selection boundary for the trigger board',
+        default = 100,
+        dest = 'trigTOALower',
+    )
+
+    parser.add_argument(
+        '--trigTOAUpper',
+        metavar = 'NUM',
+        type = int,
+        help = 'Upper TOA selection boundary for the trigger board',
+        default = 500,
+        dest = 'trigTOAUpper',
+    )
+
+    parser.add_argument(
         '--csv',
         action = 'store_true',
         help = 'If set, save final dataframe in csv format',
