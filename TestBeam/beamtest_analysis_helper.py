@@ -149,7 +149,7 @@ PixSta = {
 
 ## --------------- Compare Chip Configs -----------------------
 ## --------------------------------------
-def compare_chip_configs(config_file1: Path, config_file2: Path):
+def compare_chip_configs(config_file1: Path, config_file2: Path, dump_i2c:bool = False):
     with open(config_file1, 'rb') as f:
         loaded_obj1 = pickle.load(f)
     with open(config_file2, 'rb') as f:
@@ -219,6 +219,10 @@ def compare_chip_configs(config_file1: Path, config_file2: Path):
                 reg_info = f" (Pix{space}{register} - Pixel R{row} C{col}{broadcast} contains {contains})"
             if chip1[address_space_name][idx] != chip2[address_space_name][idx]:
                 print(f"The register at address {idx} of {address_space_name}{reg_info} is different between config file 1 and config file 2: {chip1[address_space_name][idx]:#010b} vs {chip2[address_space_name][idx]:#010b}")
+
+            if dump_i2c:
+                print(f"The register at address {idx} of {address_space_name}{reg_info} is: {chip1[address_space_name][idx]:#010b}")
+
 
     print("Done comparing!")
 
