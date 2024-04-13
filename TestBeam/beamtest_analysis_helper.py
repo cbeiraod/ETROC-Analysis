@@ -1949,6 +1949,7 @@ def plot_resolution_table(
         fig_title: list[str],
         fig_tag: str = '',
         slides_friendly: bool = False,
+        show_number: bool = False,
     ):
 
     from matplotlib import colormaps
@@ -1991,14 +1992,15 @@ def plot_resolution_table(
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             cbar.set_label('Time Resolution (ps)', fontsize=20)
 
-            for i in range(16):
-                for j in range(16):
-                    value = tables[idx][0].iloc[i, j]
-                    error = tables[idx][1].iloc[i, j]
-                    if value == -1: continue
-                    text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
-                    text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
-                    plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+            if show_number:
+                for i in range(16):
+                    for j in range(16):
+                        value = tables[idx][0].iloc[i, j]
+                        error = tables[idx][1].iloc[i, j]
+                        if value == -1: continue
+                        text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
+                        text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
+                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
             hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
             ax.set_xlabel('Column (col)', fontsize=20)
@@ -2027,14 +2029,15 @@ def plot_resolution_table(
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             cbar.set_label('Time Resolution', fontsize=20)
 
-            for i in range(16):
-                for j in range(16):
-                    value = tables[idx][0].iloc[i, j]
-                    error = tables[idx][1].iloc[i, j]
-                    if value == -1: continue
-                    text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
-                    text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
-                    plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+            if show_number:
+                for i in range(16):
+                    for j in range(16):
+                        value = tables[idx][0].iloc[i, j]
+                        error = tables[idx][1].iloc[i, j]
+                        if value == -1: continue
+                        text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
+                        text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
+                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
             hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
             ax.set_xlabel('Column (col)', fontsize=20)
@@ -2042,7 +2045,7 @@ def plot_resolution_table(
             ticks = range(0, 16)
             ax.set_xticks(ticks)
             ax.set_yticks(ticks)
-            ax.set_title(f"{fig_title[board_id]}, Resolution map {fig_tag}", loc="right", size=20)
+            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=20)
             ax.tick_params(axis='x', which='both', length=5, labelsize=17)
             ax.tick_params(axis='y', which='both', length=5, labelsize=17)
             ax.invert_xaxis()
