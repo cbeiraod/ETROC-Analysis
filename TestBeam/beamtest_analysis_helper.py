@@ -1753,6 +1753,8 @@ def plot_TWC(
         board_list: list[int],
         poly_order: int = 2,
         corr_toas: dict | None = None,
+        boundary_cut: float = 0,
+        distance: dict | None = None,
     ):
 
     if corr_toas is not None:
@@ -1810,6 +1812,18 @@ def plot_TWC(
     axes[2].plot(b3_xrange, poly_func_b2(b3_xrange), 'r-', lw=3, label='linear fit')
     axes[2].set_xlabel('TOT3')
     axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3', fontsize=15)
+
+    if distance is not None:
+        axes[0].fill_between(b1_xrange, y1=poly_func_b0(b1_xrange)-boundary_cut*np.std(distance[0]), y2=poly_func_b0(b1_xrange)+boundary_cut*np.std(distance[0]),
+                        facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+        axes[1].fill_between(b2_xrange, y1=poly_func_b1(b2_xrange)-boundary_cut*np.std(distance[1]), y2=poly_func_b1(b2_xrange)+boundary_cut*np.std(distance[1]),
+                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+        axes[2].fill_between(b3_xrange, y1=poly_func_b2(b3_xrange)-boundary_cut*np.std(distance[2]), y2=poly_func_b2(b3_xrange)+boundary_cut*np.std(distance[2]),
+                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+
+        axes[0].legend(loc='best')
+        axes[1].legend(loc='best')
+        axes[2].legend(loc='best')
 
 ## --------------------------------------
 def plot_resolution_with_pulls(
