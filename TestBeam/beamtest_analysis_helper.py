@@ -2436,7 +2436,7 @@ def fwhm_based_on_gaussian_mixture_model(
         n_components: int = 2,
         plotting: bool = False,
         plotting_each_component: bool = False,
-        plotting_horizontal: bool = False,
+        plotting_detail: bool = False,
         title: str = '',
     ):
 
@@ -2486,17 +2486,18 @@ def fwhm_based_on_gaussian_mixture_model(
         # Plot PDF of whole model
         hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
         ax.set_title(f'{title}', loc="right", fontsize=17)
-        ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
+        if plotting_detail:
+            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
+        else:
+            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
 
         if plotting_each_component:
             # Plot PDF of each component
             ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
-        # Plot
-        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
-        ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-
-        if plotting_horizontal:
+        if plotting_detail:
+            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
+            ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
             ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
             ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
 
