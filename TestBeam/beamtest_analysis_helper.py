@@ -1122,6 +1122,30 @@ def return_TOA_correlation_param(
 
     return params, distance
 
+## --------------------------------------
+def return_TWC_param(
+        corr_toas: dict,
+        input_df: pd.DataFrame,
+        board_list: list[int],
+    ):
+
+    results = {}
+
+    del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
+    del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
+    del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, 1)
+    results[0] = (input_df[f'tot_b{board_list[0]}'].values*coeff_b0[0] - del_toa_b0 + coeff_b0[1])/(np.sqrt(coeff_b0[0]**2 + 1))
+
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, 1)
+    results[1] = (input_df[f'tot_b{board_list[1]}'].values*coeff_b1[0] - del_toa_b1 + coeff_b1[1])/(np.sqrt(coeff_b1[0]**2 + 1))
+
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, 1)
+    results[2] = (input_df[f'tot_b{board_list[2]}'].values*coeff_b2[0] - del_toa_b2 + coeff_b2[1])/(np.sqrt(coeff_b2[0]**2 + 1))
+
+    return results
+
 ## --------------- Extract results -----------------------
 
 
