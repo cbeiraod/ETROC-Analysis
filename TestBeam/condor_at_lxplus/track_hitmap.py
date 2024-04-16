@@ -185,8 +185,7 @@ if __name__ == "__main__":
     results = {}
 
     results['simple_map'] = simple_hitmap(input_df=run_df, ref_board_id=args.ref_board_id1, interest_board_id=args.interest_board_id, pixel=[args.row, args.col])
-    results['track_based_map'] = track_based_hitmap(input_df=run_df, ref_board_id=args.ref_board_id1, ref_board_id=args.ref_board_id2, ref_board_id=args.ref_board_id3,
-                                                    interest_board_id=args.interest_board_id, pixel=[args.row, args.col])
+    results['track_based_map'] = track_based_hitmap(input_df=run_df, ref_board_id1=args.ref_board_id1, ref_board_id2=args.ref_board_id2, ref_board_id3=args.ref_board_id3, interest_board_id=args.interest_board_id, pixel=[args.row, args.col])
 
     fname = args.file.split('.')[0]
     with open(f'{args.runinfo}_{fname}_hitmap.pickle', 'wb') as output:
