@@ -69,7 +69,7 @@ parser.add_argument(
 parser.add_argument(
     '--autoTOTcuts',
     action = 'store_true',
-    help = 'If set, select 80% of data around TOT median value of each board',
+    help = 'If set, select 80 percent of data around TOT median value of each board',
     dest = 'autoTOTcuts',
 )
 
