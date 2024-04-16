@@ -149,7 +149,7 @@ PixSta = {
 
 ## --------------- Compare Chip Configs -----------------------
 ## --------------------------------------
-def compare_chip_configs(config_file1: Path, config_file2: Path):
+def compare_chip_configs(config_file1: Path, config_file2: Path, dump_i2c:bool = False):
     with open(config_file1, 'rb') as f:
         loaded_obj1 = pickle.load(f)
     with open(config_file2, 'rb') as f:
@@ -219,6 +219,10 @@ def compare_chip_configs(config_file1: Path, config_file2: Path):
                 reg_info = f" (Pix{space}{register} - Pixel R{row} C{col}{broadcast} contains {contains})"
             if chip1[address_space_name][idx] != chip2[address_space_name][idx]:
                 print(f"The register at address {idx} of {address_space_name}{reg_info} is different between config file 1 and config file 2: {chip1[address_space_name][idx]:#010b} vs {chip2[address_space_name][idx]:#010b}")
+
+            if dump_i2c:
+                print(f"The register at address {idx} of {address_space_name}{reg_info} is: {chip1[address_space_name][idx]:#010b}")
+
 
     print("Done comparing!")
 
@@ -1048,21 +1052,12 @@ def return_broadcast_dataframe(
     ):
 
     event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-    event_selections = None
-
-    trig_selection = (event_board_counts[board_id_want_broadcast] == 1)
-    dut_selection = (event_board_counts[reference_board_id] == 1)
-    event_selections = trig_selection & dut_selection
-
+    event_selections = (event_board_counts[board_id_want_broadcast] == 1) & (event_board_counts[reference_board_id] == 1)
     dut_single_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
     dut_single_df = dut_single_df.loc[(dut_single_df['board'] == reference_board_id) | (dut_single_df['board'] == board_id_want_broadcast)]
     dut_single_df.reset_index(inplace=True, drop=True)
 
-    event_selections = None
-
-    dut_selection = (event_board_counts[reference_board_id] >= 2)
-    event_selections = trig_selection & dut_selection
-
+    event_selections = (event_board_counts[board_id_want_broadcast] == 1) & (event_board_counts[reference_board_id] >= 2)
     dut_multiple_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
     dut_multiple_df = dut_multiple_df.loc[(dut_multiple_df['board'] == reference_board_id) | (dut_multiple_df['board'] == board_id_want_broadcast)]
     dut_multiple_df.reset_index(inplace=True, drop=True)
@@ -1112,7 +1107,47 @@ def save_TDC_summary_table(
 
         del sum_group, table_mean, table_std
 
+## --------------------------------------
+def return_TOA_correlation_param(
+        input_df: pd.DataFrame,
+        board_id1: int,
+        board_id2: int,
+    ):
+
+    x = input_df['toa'][board_id1]
+    y = input_df['toa'][board_id2]
+
+    params = np.polyfit(x, y, 1)
+    distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
+
+    return params, distance
+
+## --------------------------------------
+def return_TWC_param(
+        corr_toas: dict,
+        input_df: pd.DataFrame,
+        board_list: list[int],
+    ):
+
+    results = {}
+
+    del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
+    del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
+    del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, 1)
+    results[0] = (input_df[f'tot_b{board_list[0]}'].values*coeff_b0[0] - del_toa_b0 + coeff_b0[1])/(np.sqrt(coeff_b0[0]**2 + 1))
+
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, 1)
+    results[1] = (input_df[f'tot_b{board_list[1]}'].values*coeff_b1[0] - del_toa_b1 + coeff_b1[1])/(np.sqrt(coeff_b1[0]**2 + 1))
+
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, 1)
+    results[2] = (input_df[f'tot_b{board_list[2]}'].values*coeff_b2[0] - del_toa_b2 + coeff_b2[1])/(np.sqrt(coeff_b2[0]**2 + 1))
+
+    return results
+
 ## --------------- Extract results -----------------------
+
 
 ## --------------- Plotting -----------------------
 ## --------------------------------------
@@ -1637,7 +1672,7 @@ def plot_difference_of_pixels(
     fig, ax = plt.subplots(dpi=100, figsize=(11, 11))
 
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=22)
     ax.set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax.tick_params(axis='x', which='both', length=5, labelsize=17)
     ax.tick_params(axis='y', which='both', length=5, labelsize=17)
@@ -1694,7 +1729,7 @@ def plot_TOA_correlation(
     )
     h.fill(x, y)
     params = np.polyfit(x, y, 1)
-    trig_ref_distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
+    distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
 
     fig, ax = plt.subplots(figsize=(10, 10))
     hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
@@ -1708,9 +1743,87 @@ def plot_TOA_correlation(
     # plot the trend line
     ax.plot(x_range, trendpoly(x_range), 'r-', label='linear fit')
     if draw_boundary:
-        ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(trig_ref_distance), y2=trendpoly(x_range)+boundary_cut*np.std(trig_ref_distance),
+        ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(distance), y2=trendpoly(x_range)+boundary_cut*np.std(distance),
                         facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
     ax.legend()
+
+## --------------------------------------
+def plot_TWC(
+        input_df: pd.DataFrame,
+        board_list: list[int],
+        poly_order: int = 2,
+        corr_toas: dict | None = None,
+        boundary_cut: float = 0,
+        distance: dict | None = None,
+    ):
+
+    if corr_toas is not None:
+        del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
+        del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
+        del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+    else:
+        del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
+        del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
+        del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
+
+    h_twc1 = hist.Hist(
+        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[0]}', label=f'tot_b{board_list[0]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[0]}', label=f'delta_toa{board_list[0]}')
+    )
+    h_twc2 = hist.Hist(
+        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[1]}', label=f'tot_b{board_list[1]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[1]}', label=f'delta_toa{board_list[1]}')
+    )
+    h_twc3 = hist.Hist(
+        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[2]}', label=f'tot_b{board_list[2]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[2]}', label=f'delta_toa{board_list[2]}')
+    )
+
+    h_twc1.fill(input_df[f'tot_b{board_list[0]}'], del_toa_b0)
+    h_twc2.fill(input_df[f'tot_b{board_list[1]}'], del_toa_b1)
+    h_twc3.fill(input_df[f'tot_b{board_list[2]}'], del_toa_b2)
+
+    b1_xrange = np.linspace(input_df[f'tot_b{board_list[0]}'].min(), input_df[f'tot_b{board_list[0]}'].max(), 100)
+    b2_xrange = np.linspace(input_df[f'tot_b{board_list[1]}'].min(), input_df[f'tot_b{board_list[1]}'].max(), 100)
+    b3_xrange = np.linspace(input_df[f'tot_b{board_list[2]}'].min(), input_df[f'tot_b{board_list[2]}'].max(), 100)
+
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+    poly_func_b0 = np.poly1d(coeff_b0)
+
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+    poly_func_b1 = np.poly1d(coeff_b1)
+
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+    poly_func_b2 = np.poly1d(coeff_b2)
+
+    fig, axes = plt.subplots(1, 3, figsize=(38, 10))
+    hep.hist2dplot(h_twc1, ax=axes[0], norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=20)
+    axes[0].plot(b1_xrange, poly_func_b0(b1_xrange), 'r-', lw=3, label='linear fit')
+    axes[0].set_xlabel('TOT1')
+    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1', fontsize=15)
+    hep.hist2dplot(h_twc2, ax=axes[1], norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=20)
+    axes[1].plot(b2_xrange, poly_func_b1(b2_xrange), 'r-', lw=3, label='linear fit')
+    axes[1].set_xlabel('TOT2')
+    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2', fontsize=15)
+    hep.hist2dplot(h_twc3, ax=axes[2], norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=axes[2], text="Phase-2 Preliminary", fontsize=20)
+    axes[2].plot(b3_xrange, poly_func_b2(b3_xrange), 'r-', lw=3, label='linear fit')
+    axes[2].set_xlabel('TOT3')
+    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3', fontsize=15)
+
+    if distance is not None:
+        axes[0].fill_between(b1_xrange, y1=poly_func_b0(b1_xrange)-boundary_cut*np.std(distance[0]), y2=poly_func_b0(b1_xrange)+boundary_cut*np.std(distance[0]),
+                        facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+        axes[1].fill_between(b2_xrange, y1=poly_func_b1(b2_xrange)-boundary_cut*np.std(distance[1]), y2=poly_func_b1(b2_xrange)+boundary_cut*np.std(distance[1]),
+                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+        axes[2].fill_between(b3_xrange, y1=poly_func_b2(b3_xrange)-boundary_cut*np.std(distance[2]), y2=poly_func_b2(b3_xrange)+boundary_cut*np.std(distance[2]),
+                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+
+        axes[0].legend(loc='best')
+        axes[1].legend(loc='best')
+        axes[2].legend(loc='best')
 
 ## --------------------------------------
 def plot_resolution_with_pulls(
@@ -1836,6 +1949,7 @@ def plot_resolution_table(
         fig_title: list[str],
         fig_tag: str = '',
         slides_friendly: bool = False,
+        show_number: bool = False,
     ):
 
     from matplotlib import colormaps
@@ -1878,14 +1992,15 @@ def plot_resolution_table(
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             cbar.set_label('Time Resolution (ps)', fontsize=20)
 
-            for i in range(16):
-                for j in range(16):
-                    value = tables[idx][0].iloc[i, j]
-                    error = tables[idx][1].iloc[i, j]
-                    if value == -1: continue
-                    text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
-                    text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
-                    plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+            if show_number:
+                for i in range(16):
+                    for j in range(16):
+                        value = tables[idx][0].iloc[i, j]
+                        error = tables[idx][1].iloc[i, j]
+                        if value == -1: continue
+                        text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
+                        text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
+                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
             hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
             ax.set_xlabel('Column (col)', fontsize=20)
@@ -1914,14 +2029,15 @@ def plot_resolution_table(
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             cbar.set_label('Time Resolution', fontsize=20)
 
-            for i in range(16):
-                for j in range(16):
-                    value = tables[idx][0].iloc[i, j]
-                    error = tables[idx][1].iloc[i, j]
-                    if value == -1: continue
-                    text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
-                    text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
-                    plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+            if show_number:
+                for i in range(16):
+                    for j in range(16):
+                        value = tables[idx][0].iloc[i, j]
+                        error = tables[idx][1].iloc[i, j]
+                        if value == -1: continue
+                        text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
+                        text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
+                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
             hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
             ax.set_xlabel('Column (col)', fontsize=20)
@@ -1929,7 +2045,7 @@ def plot_resolution_table(
             ticks = range(0, 16)
             ax.set_xticks(ticks)
             ax.set_yticks(ticks)
-            ax.set_title(f"{fig_title[board_id]}, Resolution map {fig_tag}", loc="right", size=20)
+            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=20)
             ax.tick_params(axis='x', which='both', length=5, labelsize=17)
             ax.tick_params(axis='y', which='both', length=5, labelsize=17)
             ax.invert_xaxis()
@@ -2314,23 +2430,35 @@ def four_board_iterative_timewalk_correction(
 #         return [out.params['sigma'].value, out.params['sigma'].stderr]
 
 ## --------------------------------------
+## --------------------------------------
 def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
         n_components: int = 2,
         plotting: bool = False,
         plotting_each_component: bool = False,
+        plotting_detail: bool = False,
+        title: str = '',
     ):
 
     from sklearn.mixture import GaussianMixture
     from sklearn.metrics import silhouette_score
+    from scipy.spatial import distance
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
+    bins, edges = np.histogram(input_data, bins=30, density=True)
+    centers = 0.5*(edges[1:] + edges[:-1])
     models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
-    clustering_eval_score = silhouette_score(x_range, models.predict(x_range))
+
+    silhouette_eval_score = silhouette_score(centers.reshape(-1, 1), models.predict(centers.reshape(-1, 1)))
+
+    logprob = models.score_samples(centers.reshape(-1, 1))
+    pdf = np.exp(logprob)
+    jensenshannon_score = distance.jensenshannon(bins, pdf)
+    # hellinger_score = hellinger_distance(bins, pdf)
+    # bhattacharyya_score = bhattacharyya_distance(bins, pdf) * (np.max(np.concatenate((bins, pdf)))-np.min(np.concatenate((bins, pdf))))/30.
 
     logprob = models.score_samples(x_range)
     pdf = np.exp(logprob)
-
     peak_height = np.max(pdf)
 
     # Find the half-maximum points.
@@ -2340,12 +2468,7 @@ def fwhm_based_on_gaussian_mixture_model(
     # Calculate the FWHM.
     fwhm = x_range[half_max_indices[-1]] - x_range[half_max_indices[0]]
 
-    ### GMM - sigma
-    # Get the standard deviations (sigma) for each component
-    # sigma_values = np.sqrt(models.covariances_.diagonal())
-
-    # Get the mixing coefficients and Calculate the combined sigma using a weighted sum
-    # combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
+    xval = x_range[np.argmax(pdf)][0]
 
     ### Draw plot
     if plotting_each_component:
@@ -2361,21 +2484,26 @@ def fwhm_based_on_gaussian_mixture_model(
         bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
         # Plot PDF of whole model
-        ax.plot(x_range, pdf, '-k', label='Mixture PDF')
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
+        ax.set_title(f'{title}', loc="right", fontsize=17)
+        if plotting_detail:
+            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
+        else:
+            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
 
         if plotting_each_component:
             # Plot PDF of each component
             ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
-        # Plot
-        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label=f'FWHM:{fwhm[0]:.2f}')
-        ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-        ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
-        ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
+        if plotting_detail:
+            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
+            ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+            ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
+            ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
 
         ax.legend(loc='best', fontsize=14)
 
-    return fwhm, clustering_eval_score
+    return fwhm, [silhouette_eval_score, jensenshannon_score]
 
 ## --------------- Time Walk Correction -----------------------
 

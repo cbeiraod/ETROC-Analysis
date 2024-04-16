@@ -410,6 +410,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '--autoTOTcuts',
+        action = 'store_true',
+        help = 'If set, select 80% of data around TOT median value of each board',
+        dest = 'autoTOTcuts',
+    )
+
+    parser.add_argument(
         '--csv',
         action = 'store_true',
         help = 'If set, save final dataframe in csv format',
@@ -424,13 +431,37 @@ if __name__ == "__main__":
 
     board_ids = [1, 2, 3]
 
+    tot_cuts = {}
+    for idx in board_ids:
+        if args.autoTOTcuts:
+            median_value = df['tot'][idx].mode()[0]  # Calculate the median value
+
+            # Determine the range around the median to cover 80% of the data
+            # You might consider using quartiles or percentiles to define this range
+            # For example, you could use the interquartile range (IQR)
+            q1 = df['tot'][idx].quantile(0.25)
+            q3 = df['tot'][idx].quantile(0.75)
+            iqr = q3 - q1
+
+            coverage = 0
+            multiplier = 0.5  # Initial multiplier
+            while coverage < 0.8:
+                lower_bound = median_value - multiplier * iqr
+                upper_bound = median_value + multiplier * iqr
+                tot_around_peak = df['tot'][idx].between(lower_bound, upper_bound)
+                coverage = df['tot'][idx][tot_around_peak].shape[0]/df['tot'][idx].shape[0]
+                multiplier += 0.01
+            tot_cuts[idx] = [round(lower_bound), round(upper_bound)]
+        else:
+            tot_cuts[idx] = [0, 600]
+
     ## Selecting good hits with TDC cuts
     tdc_cuts = {}
     for idx in board_ids:
         if idx == 1:
-            tdc_cuts[idx] = [0, 1100, args.trigTOALower, args.trigTOAUpper, 0, 600]
+            tdc_cuts[idx] = [0, 1100, args.trigTOALower, args.trigTOAUpper, tot_cuts[idx][0], tot_cuts[idx][1]]
         else:
-            tdc_cuts[idx] = [0, 1100, 0, 1100, 0, 600]
+            tdc_cuts[idx] = [0, 1100, 0, 1100, tot_cuts[idx][0], tot_cuts[idx][1]]
 
     interest_df = tdc_event_selection_pivot(df, tdc_cuts_dict=tdc_cuts)
 

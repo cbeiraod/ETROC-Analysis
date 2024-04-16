@@ -29,6 +29,13 @@ def main():
         required = True,
     )
 
+    parser.add_argument(
+        '--dump_i2c',
+        action = 'store_true',
+        help = 'Dump I2C values',
+        dest = 'dump_i2c',
+    )
+
     args = parser.parse_args()
 
     config1: Path = args.config1
@@ -41,7 +48,7 @@ def main():
         raise RuntimeError("The config2 path does not exist")
     config2 = config2.absolute()
 
-    compare_chip_configs(config1, config2)
+    compare_chip_configs(config1, config2, args.dump_i2c)
 
 if __name__ == "__main__":
     main()
