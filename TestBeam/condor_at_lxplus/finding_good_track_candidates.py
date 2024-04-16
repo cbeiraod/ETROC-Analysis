@@ -131,28 +131,34 @@ def finding_tracks(
 
             if tmp_df.empty:
                 num_failed_files += 1
-                print('file is empty, move on to the next file')
+                print('file is empty. Move on to the next file')
                 continue
 
-            event_board_counts = filtered_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+            if tmp_df['board'].unique().size != 4:
+                num_failed_files += 1
+                print('This file does not have a full data including all four boards. Move on to the next file')
+                continue
+
+            event_board_counts = tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
             event_selection_col = None
 
             if red_2nd_id == -1:
-                trig_selection = (event_board_counts[0] == 1)
-                ref_selection = (event_board_counts[ref_id] == 1)
+                trig_selection = (event_board_counts[0] >= 1)
+                ref_selection = (event_board_counts[ref_id] >= 1)
                 event_selection_col = trig_selection & ref_selection
             else:
-                trig_selection = (event_board_counts[0] == 1)
-                ref_selection = (event_board_counts[ref_id] == 1)
-                ref_2nd_selection = (event_board_counts[red_2nd_id] == 1)
+                trig_selection = (event_board_counts[0] >= 1)
+                ref_selection = (event_board_counts[ref_id] >= 1)
+                ref_2nd_selection = (event_board_counts[red_2nd_id] >= 1)
                 event_selection_col = trig_selection & ref_selection & ref_2nd_selection
 
             selected_event_numbers = event_board_counts[event_selection_col].index
-            tmp_df = filtered_df[filtered_df['evt'].isin(selected_event_numbers)]
+            tmp_df = tmp_df.loc[tmp_df['evt'].isin(selected_event_numbers)]
             tmp_df.reset_index(inplace=True, drop=True)
 
             if idx > 0:
                 tmp_df['evt'] += last_evt
+                tmp_df['evt'] = tmp_df['evt'].astype('uint64')
             last_evt += np.uint64(tmp_df['evt'].nunique())
 
             ## Selecting good hits
@@ -162,7 +168,6 @@ def finding_tracks(
             else:
                 ids_to_loop = set([0, 1, 2, 3])-set(ignore_board_ids)
 
-            print(tmp_df.head())
             for idx in ids_to_loop:
                 # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
                 if idx == 0:
