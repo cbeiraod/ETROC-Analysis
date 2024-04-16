@@ -100,28 +100,28 @@ outdir.mkdir(exist_ok = False)
 if args.autoTOTcuts:
     bash_script = """#!/bin/bash
 
-    ls -ltrh
-    echo ""
-    pwd
+ls -ltrh
+echo ""
+pwd
 
-    # Load python environment from work node
-    source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+# Load python environment from work node
+source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-    echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts"
-    python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts
+echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts"
+python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts
     """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
 else:
     bash_script = """#!/bin/bash
 
-    ls -ltrh
-    echo ""
-    pwd
+ls -ltrh
+echo ""
+pwd
 
-    # Load python environment from work node
-    source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+# Load python environment from work node
+source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-    echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4}"
-    python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4}
+echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4}"
+python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4}
     """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
 
 print('\n========= Run option =========')
