@@ -1,6 +1,32 @@
 import pandas as pd
 import numpy as np
 from collections import defaultdict
+import warnings
+warnings.filterwarnings("ignore")
+
+## --------------------------------------
+def tdc_event_selection_pivot(
+        input_df: pd.DataFrame,
+        tdc_cuts_dict: dict
+    ):
+    # Create boolean masks for each board's filtering criteria
+    masks = {}
+    for board, cuts in tdc_cuts_dict.items():
+        mask = (
+            input_df['cal'][board].between(cuts[0], cuts[1]) &
+            input_df['toa'][board].between(cuts[2], cuts[3]) &
+            input_df['tot'][board].between(cuts[4], cuts[5])
+        )
+        masks[board] = mask
+
+    # Combine the masks using logical AND
+    combined_mask = pd.concat(masks, axis=1).all(axis=1)
+    del masks
+
+    # Apply the combined mask to the DataFrame
+    tdc_filtered_df = input_df[combined_mask].reset_index(drop=True)
+    del combined_mask
+    return tdc_filtered_df
 
 ## --------------------------------------
 def three_board_iterative_timewalk_correction(
@@ -17,7 +43,7 @@ def three_board_iterative_timewalk_correction(
 
     del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
     del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
-    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
+    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
 
     for i in range(iterative_cnt):
         coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
@@ -97,15 +123,24 @@ def four_board_iterative_timewalk_correction(
 def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
         n_components: int = 2,
-        each_component: bool = False,
         plotting: bool = False,
+        plotting_each_component: bool = False,
     ):
 
     from sklearn.mixture import GaussianMixture
+    from sklearn.metrics import silhouette_score
+    from scipy.spatial import distance
     import matplotlib.pyplot as plt
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
+    bins, edges = np.histogram(input_data, bins=30, density=True)
+    centers = 0.5*(edges[1:] + edges[:-1])
     models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
+    silhouette_eval_score = silhouette_score(centers.reshape(-1, 1), models.predict(centers.reshape(-1, 1)))
+
+    logprob = models.score_samples(centers.reshape(-1, 1))
+    pdf = np.exp(logprob)
+    jensenshannon_score = distance.jensenshannon(bins, pdf)
 
     logprob = models.score_samples(x_range)
     pdf = np.exp(logprob)
@@ -119,15 +154,8 @@ def fwhm_based_on_gaussian_mixture_model(
     # Calculate the FWHM.
     fwhm = x_range[half_max_indices[-1]] - x_range[half_max_indices[0]]
 
-    ### GMM - sigma
-    # Get the standard deviations (sigma) for each component
-    sigma_values = np.sqrt(models.covariances_.diagonal())
-
-    # Get the mixing coefficients and Calculate the combined sigma using a weighted sum
-    combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
-
     ### Draw plot
-    if each_component:
+    if plotting_each_component:
         # Compute PDF for each component
         responsibilities = models.predict_proba(x_range)
         pdf_individual = responsibilities * pdf[:, np.newaxis]
@@ -142,7 +170,7 @@ def fwhm_based_on_gaussian_mixture_model(
         # Plot PDF of whole model
         ax.plot(x_range, pdf, '-k', label='Mixture PDF')
 
-        if each_component:
+        if plotting_each_component:
             # Plot PDF of each component
             ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
@@ -152,7 +180,7 @@ def fwhm_based_on_gaussian_mixture_model(
 
         ax.legend(loc='best', fontsize=14)
 
-    return fwhm, combined_sigma
+    return fwhm, [silhouette_eval_score, jensenshannon_score]
 
 ## --------------------------------------
 def return_resolution_three_board_fromFWHM(
@@ -189,25 +217,34 @@ def bootstrap(
         board_to_analyze: list[int],
         iteration: int = 100,
         sampling_fraction: int = 75,
+        minimum_nevt_cut: int = 1000,
     ):
 
     resolution_from_bootstrap = defaultdict(list)
     random_sampling_fraction = sampling_fraction*0.01
 
-    for iloop in range(iteration):
+    counter = 0
+    resample_counter = 0
 
-        tdc_filtered_df = input_df.reset_index()
+    while True:
+
+        if counter > 15000:
+            print("Loop is over maximum. Escaping bootstrap loop")
+            break
+
+        tdc_filtered_df = input_df
 
         n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
         indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
         tdc_filtered_df = tdc_filtered_df.loc[tdc_filtered_df['evt'].isin(indices)]
 
-        if tdc_filtered_df.shape[0] < iteration/(3.*(1-sampling_fraction)):
+        if tdc_filtered_df.shape[0] < minimum_nevt_cut:
+            print(f'Number of events in random sample is {tdc_filtered_df.shape[0]}')
             print('Warning!! Sampling size is too small. Skipping this track')
             break
 
         d = {
-            'evt': tdc_filtered_df['evt'].unique(),
+            # 'evt': tdc_filtered_df['evt'].unique(),
         }
 
         for idx in board_to_analyze:
@@ -219,9 +256,9 @@ def bootstrap(
         del d, tdc_filtered_df
 
         if(len(board_to_analyze)==3):
-            corr_toas = three_board_iterative_timewalk_correction(df_in_time, 5, 3, board_list=board_to_analyze)
+            corr_toas = three_board_iterative_timewalk_correction(df_in_time, 2, 2, board_list=board_to_analyze)
         elif(len(board_to_analyze)==4):
-            corr_toas = four_board_iterative_timewalk_correction(df_in_time, 5, 3)
+            corr_toas = four_board_iterative_timewalk_correction(df_in_time, 2, 2)
         else:
             print("You have less than 3 boards to analyze")
             break
@@ -234,16 +271,37 @@ def bootstrap(
                 name = f"{board_a}{board_b}"
                 diffs[name] = np.asarray(corr_toas[f'toa_b{board_a}'] - corr_toas[f'toa_b{board_b}'])
 
+        keys = list(diffs.keys())
         try:
             fit_params = {}
-            for key in diffs.keys():
-                params = fwhm_based_on_gaussian_mixture_model(diffs[key], n_components=2, each_component=False, plotting=False)
-                fit_params[key] = float(params[0]/2.355)
+            scores = []
+            for ikey in diffs.keys():
+                params, eval_scores = fwhm_based_on_gaussian_mixture_model(diffs[ikey], n_components=3, plotting=False, plotting_each_component=False)
+                fit_params[ikey] = float(params[0]/2.355)
+                scores.append(eval_scores)
 
-            del params, diffs, corr_toas
+            if np.any(np.asarray(scores)[:,0] > 0.6) or np.any(np.asarray(scores)[:,1] > 0.075) :
+                print('Redo the sampling')
+                counter += 1
+                resample_counter += 1
+                continue
+                # indices1 = np.where(np.asarray(scores)[:,0] > 0.2)[0]
+                # indices2 = np.where(np.asarray(scores)[:,1] > 0.075)[0]
+                # indices = np.union1d(indices1, indices2)
+
+            #     new_scores = []
+            #     for idx in indices:
+            #         params, eval_scores = fwhm_based_on_gaussian_mixture_model(diffs[keys[idx]], n_components=3, plotting=False, plotting_each_component=False)
+            #         new_scores.append(eval_scores)
+            #         fit_params[keys[idx]] = float(params[0]/2.355)
+
+            #     if np.any(np.asarray(new_scores)[:,0] > 0.2) or np.any(np.asarray(new_scores)[:,1] > 0.075):
+            #         print('Redo the sampling')
+            #         counter += 1
+            #         continue
 
             if(len(board_to_analyze)==3):
-                resolutions = return_resolution_three_board_fromFWHM(fit_params, var=list(fit_params.keys()), board_list=board_to_analyze)
+                resolutions = return_resolution_three_board_fromFWHM(fit_params, var=keys, board_list=board_to_analyze)
             elif(len(board_to_analyze)==4):
                 resolutions = return_resolution_four_board_fromFWHM(fit_params)
             else:
@@ -251,22 +309,39 @@ def bootstrap(
                 break
 
             if any(np.isnan(val) for key, val in resolutions.items()):
-                print('fit results is not good, skipping this iteration')
+                print('At least one of time resolution values is NaN. Skipping this iteration')
+                counter += 1
+                resample_counter += 1
                 continue
 
             for key in resolutions.keys():
                 resolution_from_bootstrap[key].append(resolutions[key])
 
+            counter += 1
+
         except Exception as inst:
             print(inst)
+            counter += 1
             del diffs, corr_toas
 
+        break_flag = False
+        for key, val in resolution_from_bootstrap.items():
+            if len(val) > iteration:
+                break_flag = True
+                break
+
+        if break_flag:
+            print('Escaping bootstrap loop')
+            break
+
+    print('How many times do resample?', resample_counter)
+
+    ### Empty dictionary case
+    if not resolution_from_bootstrap:
+        return pd.DataFrame()
     else:
-        print('Track is not validate for bootstrapping')
-
-    resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
-    return resolution_from_bootstrap_df
-
+        resolution_from_bootstrap_df = pd.DataFrame(resolution_from_bootstrap)
+        return resolution_from_bootstrap_df
 
 if __name__ == "__main__":
     import argparse
@@ -307,6 +382,41 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '-n',
+        '--minimum_nevt',
+        metavar = 'NUM',
+        type = int,
+        help = 'Minimum number of events for bootstrap',
+        default = 1000,
+        dest = 'minimum_nevt',
+    )
+
+    parser.add_argument(
+        '--trigTOALower',
+        metavar = 'NUM',
+        type = int,
+        help = 'Lower TOA selection boundary for the trigger board',
+        default = 100,
+        dest = 'trigTOALower',
+    )
+
+    parser.add_argument(
+        '--trigTOAUpper',
+        metavar = 'NUM',
+        type = int,
+        help = 'Upper TOA selection boundary for the trigger board',
+        default = 500,
+        dest = 'trigTOAUpper',
+    )
+
+    parser.add_argument(
+        '--autoTOTcuts',
+        action = 'store_true',
+        help = 'If set, select 80% of data around TOT median value of each board',
+        dest = 'autoTOTcuts',
+    )
+
+    parser.add_argument(
         '--csv',
         action = 'store_true',
         help = 'If set, save final dataframe in csv format',
@@ -317,11 +427,50 @@ if __name__ == "__main__":
 
     output_name = args.file.split('.')[0]
     df = pd.read_pickle(args.file)
-    board_ids = df.columns.get_level_values('board').unique().tolist()
+    df = df.reset_index(names='evt')
 
-    resolution_df = bootstrap(input_df=df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling)
+    board_ids = [1, 2, 3]
 
-    if not args.do_csv:
-        resolution_df.to_pickle(f'{output_name}_resolution.pkl')
+    tot_cuts = {}
+    for idx in board_ids:
+        if args.autoTOTcuts:
+            median_value = df['tot'][idx].mode()[0]  # Calculate the median value
+
+            # Determine the range around the median to cover 80% of the data
+            # You might consider using quartiles or percentiles to define this range
+            # For example, you could use the interquartile range (IQR)
+            q1 = df['tot'][idx].quantile(0.25)
+            q3 = df['tot'][idx].quantile(0.75)
+            iqr = q3 - q1
+
+            coverage = 0
+            multiplier = 0.5  # Initial multiplier
+            while coverage < 0.8:
+                lower_bound = median_value - multiplier * iqr
+                upper_bound = median_value + multiplier * iqr
+                tot_around_peak = df['tot'][idx].between(lower_bound, upper_bound)
+                coverage = df['tot'][idx][tot_around_peak].shape[0]/df['tot'][idx].shape[0]
+                multiplier += 0.01
+            tot_cuts[idx] = [round(lower_bound), round(upper_bound)]
+        else:
+            tot_cuts[idx] = [0, 600]
+
+    ## Selecting good hits with TDC cuts
+    tdc_cuts = {}
+    for idx in board_ids:
+        if idx == 1:
+            tdc_cuts[idx] = [0, 1100, args.trigTOALower, args.trigTOAUpper, tot_cuts[idx][0], tot_cuts[idx][1]]
+        else:
+            tdc_cuts[idx] = [0, 1100, 0, 1100, tot_cuts[idx][0], tot_cuts[idx][1]]
+
+    interest_df = tdc_event_selection_pivot(df, tdc_cuts_dict=tdc_cuts)
+
+    resolution_df = bootstrap(input_df=interest_df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt)
+
+    if not resolution_df.empty:
+        if not args.do_csv:
+            resolution_df.to_pickle(f'{output_name}_resolution.pkl')
+        else:
+            resolution_df.to_csv(f'{output_name}_resolution.csv', index=False)
     else:
-        resolution_df.to_csv(f'{output_name}_resolution.csv', index=False)
+        print(f'With {args.sampling}% sampling, number of events in sample is not enough to do bootstrap')

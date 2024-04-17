@@ -149,7 +149,7 @@ PixSta = {
 
 ## --------------- Compare Chip Configs -----------------------
 ## --------------------------------------
-def compare_chip_configs(config_file1: Path, config_file2: Path):
+def compare_chip_configs(config_file1: Path, config_file2: Path, dump_i2c:bool = False):
     with open(config_file1, 'rb') as f:
         loaded_obj1 = pickle.load(f)
     with open(config_file2, 'rb') as f:
@@ -220,6 +220,10 @@ def compare_chip_configs(config_file1: Path, config_file2: Path):
             if chip1[address_space_name][idx] != chip2[address_space_name][idx]:
                 print(f"The register at address {idx} of {address_space_name}{reg_info} is different between config file 1 and config file 2: {chip1[address_space_name][idx]:#010b} vs {chip2[address_space_name][idx]:#010b}")
 
+            if dump_i2c:
+                print(f"The register at address {idx} of {address_space_name}{reg_info} is: {chip1[address_space_name][idx]:#010b}")
+
+
     print("Done comparing!")
 
 
@@ -233,6 +237,7 @@ class DecodeBinary:
         self.channel_header_pattern  = 0x3c5c0 >> 2
         self.firmware_filler_pattern = 0x5555
         self.firmware_filler_pattern_new = 0x556
+        self.check_link_filler_pattern = 0x559
         self.previous_event          = -1
         self.event_counter           = 0
         self.board_ids               = board_id
@@ -520,6 +525,11 @@ class DecodeBinary:
 
                     # New firmware filler
                     elif (word >> 20) == self.firmware_filler_pattern_new:
+                        if self.nem_file is not None and not self.skip_filler:
+                            self.write_to_nem(f"Filler: 0b{word & 0xfffff:020b}\n")
+
+                    # Check link filler
+                    elif (word >> 20) == self.check_link_filler_pattern:
                         if self.nem_file is not None and not self.skip_filler:
                             self.write_to_nem(f"Filler: 0b{word & 0xfffff:020b}\n")
 
@@ -1037,82 +1047,25 @@ def broadcast_dataframe(
 ## --------------------------------------
 def return_broadcast_dataframe(
         input_df: pd.DataFrame,
-        trig_board_id = int,
-        ref_board_id = int,
-        dut_board_id = int,
-        second_ref_board_id: int = -1,
-        trig_dut: bool = False,
-        ref_dut: bool = False,
+        reference_board_id: int,
+        board_id_want_broadcast: int,
     ):
 
     event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+    event_selections = (event_board_counts[board_id_want_broadcast] == 1) & (event_board_counts[reference_board_id] == 1)
+    dut_single_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
+    dut_single_df = dut_single_df.loc[(dut_single_df['board'] == reference_board_id) | (dut_single_df['board'] == board_id_want_broadcast)]
+    dut_single_df.reset_index(inplace=True, drop=True)
 
-    if second_ref_board_id == -1:
-        print(f'3-board analysis')
+    event_selections = (event_board_counts[board_id_want_broadcast] == 1) & (event_board_counts[reference_board_id] >= 2)
+    dut_multiple_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
+    dut_multiple_df = dut_multiple_df.loc[(dut_multiple_df['board'] == reference_board_id) | (dut_multiple_df['board'] == board_id_want_broadcast)]
+    dut_multiple_df.reset_index(inplace=True, drop=True)
 
-        event_selections = None
+    broadcasted_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=reference_board_id, board_id_want_broadcast=board_id_want_broadcast).reset_index(drop=True)
+    broadcasted_df = broadcasted_df.astype('uint64')
 
-        trig_selection = (event_board_counts[trig_board_id] == 1)
-        ref_selection = (event_board_counts[ref_board_id] == 1)
-        dut_selection = (event_board_counts[dut_board_id] == 1)
-        event_selections = trig_selection & ref_selection & dut_selection
-
-        dut_single_df = input_df[input_df['evt'].isin(event_board_counts[event_selections].index)]
-        dut_single_df.reset_index(inplace=True, drop=True)
-
-        event_selections = None
-
-        dut_selection = (event_board_counts[dut_board_id] >= 2)
-        event_selections = trig_selection & ref_selection & dut_selection
-
-        dut_multiple_df = input_df[input_df['evt'].isin(event_board_counts[event_selections].index)]
-        dut_multiple_df.reset_index(inplace=True, drop=True)
-
-        if trig_dut:
-            tmp_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=dut_board_id, board_id_want_broadcast=trig_board_id).reset_index(drop=True)
-            dut_df = pd.concat([dut_single_df.loc[(dut_single_df['board'] == trig_board_id) | (dut_single_df['board'] == dut_board_id)].reset_index(drop=True), tmp_df])
-            return dut_df
-        elif ref_dut:
-            tmp_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=dut_board_id, board_id_want_broadcast=ref_board_id).reset_index(drop=True)
-            dut_df = pd.concat([dut_single_df.loc[(dut_single_df['board'] == ref_board_id) | (dut_single_df['board'] == dut_board_id)].reset_index(drop=True), tmp_df])
-            return dut_df
-        else:
-            print("You need to set either 'trig_dut = True' OR 'ref_dut = True' in the argument")
-            return None
-
-    else:
-        print('4-board analysis')
-
-        event_selections = None
-
-        trig_selection = (event_board_counts[trig_board_id] == 1)
-        ref_selection = (event_board_counts[ref_board_id] == 1)
-        ref_dut_selection = (event_board_counts[second_ref_board_id] == 1)
-        dut_selection = (event_board_counts[dut_board_id] == 1)
-        event_selections = trig_selection & ref_selection & ref_dut_selection & dut_selection
-
-        dut_single_df = input_df[input_df['evt'].isin(event_board_counts[event_selections].index)]
-        dut_single_df.reset_index(inplace=True, drop=True)
-
-        event_selections = None
-
-        dut_selection = (event_board_counts[dut_board_id] >= 2)
-        event_selections = trig_selection & ref_selection & ref_dut_selection & dut_selection
-
-        dut_multiple_df = input_df[input_df['evt'].isin(event_board_counts[event_selections].index)]
-        dut_multiple_df.reset_index(inplace=True, drop=True)
-
-        if trig_dut:
-            tmp_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=dut_board_id, board_id_want_broadcast=trig_board_id).reset_index(drop=True)
-            dut_df = pd.concat([dut_single_df.loc[(dut_single_df['board'] == trig_board_id) | (dut_single_df['board'] == dut_board_id)].reset_index(drop=True), tmp_df])
-            return dut_df
-        elif ref_dut:
-            tmp_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=dut_board_id, board_id_want_broadcast=ref_board_id).reset_index(drop=True)
-            dut_df = pd.concat([dut_single_df.loc[(dut_single_df['board'] == ref_board_id) | (dut_single_df['board'] == dut_board_id)].reset_index(drop=True), tmp_df])
-            return dut_df
-        else:
-            print("You need to set either 'trig_dut = True' OR 'ref_dut = True' in the argument")
-            return None
+    return dut_single_df, broadcasted_df
 
 
 ## --------------- Modify DataFrame -----------------------
@@ -1154,7 +1107,47 @@ def save_TDC_summary_table(
 
         del sum_group, table_mean, table_std
 
+## --------------------------------------
+def return_TOA_correlation_param(
+        input_df: pd.DataFrame,
+        board_id1: int,
+        board_id2: int,
+    ):
+
+    x = input_df['toa'][board_id1]
+    y = input_df['toa'][board_id2]
+
+    params = np.polyfit(x, y, 1)
+    distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
+
+    return params, distance
+
+## --------------------------------------
+def return_TWC_param(
+        corr_toas: dict,
+        input_df: pd.DataFrame,
+        board_list: list[int],
+    ):
+
+    results = {}
+
+    del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
+    del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
+    del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, 1)
+    results[0] = (input_df[f'tot_b{board_list[0]}'].values*coeff_b0[0] - del_toa_b0 + coeff_b0[1])/(np.sqrt(coeff_b0[0]**2 + 1))
+
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, 1)
+    results[1] = (input_df[f'tot_b{board_list[1]}'].values*coeff_b1[0] - del_toa_b1 + coeff_b1[1])/(np.sqrt(coeff_b1[0]**2 + 1))
+
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, 1)
+    results[2] = (input_df[f'tot_b{board_list[2]}'].values*coeff_b2[0] - del_toa_b2 + coeff_b2[1])/(np.sqrt(coeff_b2[0]**2 + 1))
+
+    return results
+
 ## --------------- Extract results -----------------------
+
 
 ## --------------- Plotting -----------------------
 ## --------------------------------------
@@ -1221,7 +1214,7 @@ def plot_number_of_fired_board(
     fig = plt.figure(dpi=50, figsize=(14,12))
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
-    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
     ax.set_title(f"{fig_tag}", loc="right", size=25)
     h.plot1d(ax=ax, lw=2)
     ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
@@ -1265,7 +1258,7 @@ def plot_number_of_hits_per_event(
             continue
 
         ax = fig.add_subplot(plot_info)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
         hists[i].plot1d(ax=ax, lw=2)
         ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
         ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
@@ -1305,7 +1298,7 @@ def plot_2d_nHits_nBoard(
             continue
 
         ax = fig.add_subplot(plot_info)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
         hep.hist2dplot(hists[i], ax=ax, norm=colors.LogNorm())
         ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
 
@@ -1376,7 +1369,7 @@ def plot_occupany_map(
                 text = str("{:.0f}".format(value))
                 plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=17)
 
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         ax.set_xlabel('Column (col)', fontsize=20)
         ax.set_ylabel('Row (row)', fontsize=20)
         ticks = range(0, 16)
@@ -1435,8 +1428,8 @@ def plot_TDC_summary_table(
         im1 = axes[0].imshow(table_mean, cmap=cmap, vmin=0)
         im2 = axes[1].imshow(table_std, cmap=cmap, vmin=0)
 
-        hep.cms.text(loc=0, ax=axes[0], text="Preliminary", fontsize=25)
-        hep.cms.text(loc=0, ax=axes[1], text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=25)
 
         axes[0].set_title(f'{var.upper()} Mean', loc="right")
         axes[1].set_title(f'{var.upper()} Std', loc="right")
@@ -1489,7 +1482,7 @@ def plot_1d_TDC_histograms(
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
         ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
         if do_logy:
             ax.set_yscale('log')
@@ -1503,7 +1496,7 @@ def plot_1d_TDC_histograms(
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
         ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
         if do_logy:
             ax.set_yscale('log')
@@ -1517,7 +1510,7 @@ def plot_1d_TDC_histograms(
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
         ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
         if do_logy:
             ax.set_yscale('log')
@@ -1531,7 +1524,7 @@ def plot_1d_TDC_histograms(
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
         ax.set_title(f"{fig_title}, EA{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         input_hist[chip_name].project("EA")[:].plot1d(ax=ax, lw=2)
         if do_logy:
             ax.set_yscale('log')
@@ -1545,7 +1538,7 @@ def plot_1d_TDC_histograms(
         gs = fig.add_gridspec(1,1)
         ax = fig.add_subplot(gs[0,0])
         ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
         input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
         if do_logy:
             #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
@@ -1563,7 +1556,7 @@ def plot_1d_TDC_histograms(
             gs = fig.add_gridspec(1,1)
             ax = fig.add_subplot(gs[0,0])
             ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=25)
-            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
             event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
             if do_logy:
                 ax.set_yscale('log')
@@ -1579,7 +1572,7 @@ def plot_1d_TDC_histograms(
 
         for i, plot_info in enumerate(gs):
             ax = fig.add_subplot(plot_info)
-            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=20)
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
             if i == 0:
                 ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=15)
                 input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
@@ -1641,8 +1634,8 @@ def plot_correlation_of_pixels(
     tick_labels = np.char.mod('%d', np.arange(0, 16))
     fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
-    hep.hist2dplot(h_row, ax=ax[0])
-    hep.cms.text(loc=0, ax=ax[0], text="Preliminary", fontsize=25)
+    hep.hist2dplot(h_row, ax=ax[0], norm=matplotlib.colors.LogNorm())
+    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=25)
     ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
@@ -1652,8 +1645,8 @@ def plot_correlation_of_pixels(
     ax[0].yaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
     ax[0].tick_params(axis='both', which='major', length=0)
 
-    hep.hist2dplot(h_col, ax=ax[1])
-    hep.cms.text(loc=0, ax=ax[1], text="Preliminary", fontsize=25)
+    hep.hist2dplot(h_col, ax=ax[1], norm=matplotlib.colors.LogNorm())
+    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=25)
     ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
@@ -1663,6 +1656,33 @@ def plot_correlation_of_pixels(
     ax[1].yaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
     ax[1].tick_params(axis='both', which='major', length=0)
 
+    plt.tight_layout()
+
+## --------------------------------------
+def plot_difference_of_pixels(
+        input_df: pd.DataFrame,
+        board_ids: np.array,
+        fig_title: str,
+        fit_tag: str = '',
+    ):
+    diff_row = input_df.loc[input_df['board'] == board_ids[0]]['row'].values.astype(np.int64) - input_df.loc[input_df['board'] == board_ids[1]]['row'].values.astype(np.int64)
+    diff_col = input_df.loc[input_df['board'] == board_ids[0]]['col'].values.astype(np.int64) - input_df.loc[input_df['board'] == board_ids[1]]['col'].values.astype(np.int64)
+
+    h = hist.Hist(
+        hist.axis.Regular(32, -16, 16, name='delta_row', label=r"$\Delta$Row"),
+        hist.axis.Regular(32, -16, 16, name='delta_col', label=r"$\Delta$Col"),
+    )
+
+    h.fill(diff_row, diff_col)
+
+    fig, ax = plt.subplots(dpi=100, figsize=(11, 11))
+
+    hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=22)
+    ax.set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
+    ax.tick_params(axis='x', which='both', length=5, labelsize=17)
+    ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+    plt.minorticks_off()
     plt.tight_layout()
 
 ## --------------------------------------
@@ -1685,7 +1705,7 @@ def plot_distance(
 
     fig, ax = plt.subplots(dpi=100, figsize=(15, 8))
     hep.histplot(h_dis, ax=ax)
-    hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
     ax.set_title(f"{fig_title} {fig_tag}", loc="right", size=15)
 
     if do_logy:
@@ -1697,12 +1717,128 @@ def plot_distance(
     return h_dis
 
 ## --------------------------------------
+def plot_TOA_correlation(
+        input_df: pd.DataFrame,
+        board_id1: int,
+        board_id2: int,
+        boundary_cut: float,
+        board_names: list[str],
+        draw_boundary: bool = False,
+    ):
+
+    x = input_df['toa'][board_id1]
+    y = input_df['toa'][board_id2]
+
+    h = hist.Hist(
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'{board_names[board_id1]}'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'{board_names[board_id2]}'),
+    )
+    h.fill(x, y)
+    params = np.polyfit(x, y, 1)
+    distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    ax.set_title(f"TOA correlation", loc="right", size=20)
+    hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
+
+    # calculate the trendline
+    trendpoly = np.poly1d(params)
+    x_range = np.linspace(x.min(), x.max(), 500)
+
+    # plot the trend line
+    ax.plot(x_range, trendpoly(x_range), 'r-', label='linear fit')
+    if draw_boundary:
+        ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(distance), y2=trendpoly(x_range)+boundary_cut*np.std(distance),
+                        facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+    ax.legend()
+
+## --------------------------------------
+def plot_TWC(
+        input_df: pd.DataFrame,
+        board_list: list[int],
+        poly_order: int = 2,
+        corr_toas: dict | None = None,
+        boundary_cut: float = 0,
+        distance: dict | None = None,
+    ):
+
+    if corr_toas is not None:
+        del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
+        del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
+        del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+    else:
+        del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
+        del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
+        del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
+
+    h_twc1 = hist.Hist(
+        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[0]}', label=f'tot_b{board_list[0]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[0]}', label=f'delta_toa{board_list[0]}')
+    )
+    h_twc2 = hist.Hist(
+        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[1]}', label=f'tot_b{board_list[1]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[1]}', label=f'delta_toa{board_list[1]}')
+    )
+    h_twc3 = hist.Hist(
+        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[2]}', label=f'tot_b{board_list[2]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[2]}', label=f'delta_toa{board_list[2]}')
+    )
+
+    h_twc1.fill(input_df[f'tot_b{board_list[0]}'], del_toa_b0)
+    h_twc2.fill(input_df[f'tot_b{board_list[1]}'], del_toa_b1)
+    h_twc3.fill(input_df[f'tot_b{board_list[2]}'], del_toa_b2)
+
+    b1_xrange = np.linspace(input_df[f'tot_b{board_list[0]}'].min(), input_df[f'tot_b{board_list[0]}'].max(), 100)
+    b2_xrange = np.linspace(input_df[f'tot_b{board_list[1]}'].min(), input_df[f'tot_b{board_list[1]}'].max(), 100)
+    b3_xrange = np.linspace(input_df[f'tot_b{board_list[2]}'].min(), input_df[f'tot_b{board_list[2]}'].max(), 100)
+
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+    poly_func_b0 = np.poly1d(coeff_b0)
+
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+    poly_func_b1 = np.poly1d(coeff_b1)
+
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+    poly_func_b2 = np.poly1d(coeff_b2)
+
+    fig, axes = plt.subplots(1, 3, figsize=(38, 10))
+    hep.hist2dplot(h_twc1, ax=axes[0], norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=20)
+    axes[0].plot(b1_xrange, poly_func_b0(b1_xrange), 'r-', lw=3, label='linear fit')
+    axes[0].set_xlabel('TOT1')
+    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1', fontsize=15)
+    hep.hist2dplot(h_twc2, ax=axes[1], norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=20)
+    axes[1].plot(b2_xrange, poly_func_b1(b2_xrange), 'r-', lw=3, label='linear fit')
+    axes[1].set_xlabel('TOT2')
+    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2', fontsize=15)
+    hep.hist2dplot(h_twc3, ax=axes[2], norm=colors.LogNorm())
+    hep.cms.text(loc=0, ax=axes[2], text="Phase-2 Preliminary", fontsize=20)
+    axes[2].plot(b3_xrange, poly_func_b2(b3_xrange), 'r-', lw=3, label='linear fit')
+    axes[2].set_xlabel('TOT3')
+    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3', fontsize=15)
+
+    if distance is not None:
+        axes[0].fill_between(b1_xrange, y1=poly_func_b0(b1_xrange)-boundary_cut*np.std(distance[0]), y2=poly_func_b0(b1_xrange)+boundary_cut*np.std(distance[0]),
+                        facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+        axes[1].fill_between(b2_xrange, y1=poly_func_b1(b2_xrange)-boundary_cut*np.std(distance[1]), y2=poly_func_b1(b2_xrange)+boundary_cut*np.std(distance[1]),
+                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+        axes[2].fill_between(b3_xrange, y1=poly_func_b2(b3_xrange)-boundary_cut*np.std(distance[2]), y2=poly_func_b2(b3_xrange)+boundary_cut*np.std(distance[2]),
+                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+
+        axes[0].legend(loc='best')
+        axes[1].legend(loc='best')
+        axes[2].legend(loc='best')
+
+## --------------------------------------
 def plot_resolution_with_pulls(
         input_df: pd.DataFrame,
         board_ids: list[int],
         fig_title: list[str],
         fig_tag: str = '',
         hist_bins: int = 15,
+        draw_arithmetic_mean: bool = False,
     ):
     import matplotlib.gridspec as gridspec
     from lmfit.models import GaussianModel
@@ -1713,15 +1849,20 @@ def plot_resolution_with_pulls(
     hists = {}
     fit_params = {}
     pulls_dict = {}
+    means = {}
 
     for key in board_ids:
         hist_x_min = int(input_df[f'res{key}'].min())-5
         hist_x_max = int(input_df[f'res{key}'].max())+5
         hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_x_min, hist_x_max, name="time_resolution", label=r'Time Resolution [ps]'))
         hists[key].fill(input_df[f'res{key}'].values)
+        means[key] = np.mean(input_df[f'res{key}'].values)
         centers = hists[key].axes[0].centers
-        pars = mod.guess(hists[key].values(), x=centers)
-        out = mod.fit(hists[key].values(), pars, x=centers, weights=1/np.sqrt(hists[key].values()))
+        fit_range = centers[np.argmax(hists[key].values())-5:np.argmax(hists[key].values())+5]
+        fit_vals = hists[key].values()[np.argmax(hists[key].values())-5:np.argmax(hists[key].values())+5]
+
+        pars = mod.guess(fit_vals, x=fit_range)
+        out = mod.fit(fit_vals, pars, x=fit_range, weights=1/np.sqrt(fit_vals))
         fit_params[key] = out
 
         ### Calculate pull
@@ -1749,12 +1890,16 @@ def plot_resolution_with_pulls(
             continue
 
         centers = hists[i].axes[0].centers
-        hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=20)
+        hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
         main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=11)
 
         main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
                         ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
                         ms=6, capsize=1, capthick=2, alpha=0.8)
+
+        if draw_arithmetic_mean:
+            main_ax.vlines(means[i], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
+
         main_ax.set_ylabel('Counts', fontsize=20)
         main_ax.set_ylim(-5, None)
         main_ax.tick_params(axis='x', labelsize=20)
@@ -1810,6 +1955,7 @@ def plot_resolution_table(
         fig_title: list[str],
         fig_tag: str = '',
         slides_friendly: bool = False,
+        show_number: bool = False,
     ):
 
     from matplotlib import colormaps
@@ -1846,23 +1992,23 @@ def plot_resolution_table(
             if idx not in tables:
                 ax.set_axis_off()
                 continue
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30)#, vmax=85)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=25, vmax=75)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cbar.set_label('Time Resolution', fontsize=20)
+            cbar.set_label('Time Resolution (ps)', fontsize=20)
 
-            for i in range(16):
-                for j in range(16):
-                    value = tables[idx][0].iloc[i, j]
-                    error = tables[idx][1].iloc[i, j]
-                    if value == -1: continue
-                    text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
-                    text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
-                    plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+            if show_number:
+                for i in range(16):
+                    for j in range(16):
+                        value = tables[idx][0].iloc[i, j]
+                        error = tables[idx][1].iloc[i, j]
+                        if value == -1: continue
+                        text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
+                        text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
+                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
-
-            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
             ax.set_xlabel('Column (col)', fontsize=20)
             ax.set_ylabel('Row (row)', fontsize=20)
             ticks = range(0, 16)
@@ -1883,20 +2029,21 @@ def plot_resolution_table(
             # Create a heatmap to visualize the count of hits
             fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
             ax.cla()
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=30)#, vmax=85)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=25, vmax=75)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             cbar.set_label('Time Resolution', fontsize=20)
 
-            for i in range(16):
-                for j in range(16):
-                    value = tables[idx][0].iloc[i, j]
-                    error = tables[idx][1].iloc[i, j]
-                    if value == -1: continue
-                    text_color = 'black' if value > (res_table.values.max() + res_table.values.min()) / 2 else 'white'
-                    text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
-                    plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+            if show_number:
+                for i in range(16):
+                    for j in range(16):
+                        value = tables[idx][0].iloc[i, j]
+                        error = tables[idx][1].iloc[i, j]
+                        if value == -1: continue
+                        text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
+                        text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
+                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
             hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
             ax.set_xlabel('Column (col)', fontsize=20)
@@ -1904,7 +2051,7 @@ def plot_resolution_table(
             ticks = range(0, 16)
             ax.set_xticks(ticks)
             ax.set_yticks(ticks)
-            ax.set_title(f"{fig_title[board_id]}, Resolution map {fig_tag}", loc="right", size=20)
+            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=20)
             ax.tick_params(axis='x', which='both', length=5, labelsize=17)
             ax.tick_params(axis='y', which='both', length=5, labelsize=17)
             ax.invert_xaxis()
@@ -2072,7 +2219,7 @@ def three_board_iterative_timewalk_correction(
 
     del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
     del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
-    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
+    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
 
     for i in range(iterative_cnt):
         coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
@@ -2289,21 +2436,35 @@ def four_board_iterative_timewalk_correction(
 #         return [out.params['sigma'].value, out.params['sigma'].stderr]
 
 ## --------------------------------------
+## --------------------------------------
 def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
         n_components: int = 2,
-        each_component: bool = False,
         plotting: bool = False,
+        plotting_each_component: bool = False,
+        plotting_detail: bool = False,
+        title: str = '',
     ):
 
     from sklearn.mixture import GaussianMixture
+    from sklearn.metrics import silhouette_score
+    from scipy.spatial import distance
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
+    bins, edges = np.histogram(input_data, bins=30, density=True)
+    centers = 0.5*(edges[1:] + edges[:-1])
     models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
+
+    silhouette_eval_score = silhouette_score(centers.reshape(-1, 1), models.predict(centers.reshape(-1, 1)))
+
+    logprob = models.score_samples(centers.reshape(-1, 1))
+    pdf = np.exp(logprob)
+    jensenshannon_score = distance.jensenshannon(bins, pdf)
+    # hellinger_score = hellinger_distance(bins, pdf)
+    # bhattacharyya_score = bhattacharyya_distance(bins, pdf) * (np.max(np.concatenate((bins, pdf)))-np.min(np.concatenate((bins, pdf))))/30.
 
     logprob = models.score_samples(x_range)
     pdf = np.exp(logprob)
-
     peak_height = np.max(pdf)
 
     # Find the half-maximum points.
@@ -2313,15 +2474,10 @@ def fwhm_based_on_gaussian_mixture_model(
     # Calculate the FWHM.
     fwhm = x_range[half_max_indices[-1]] - x_range[half_max_indices[0]]
 
-    ### GMM - sigma
-    # Get the standard deviations (sigma) for each component
-    sigma_values = np.sqrt(models.covariances_.diagonal())
-
-    # Get the mixing coefficients and Calculate the combined sigma using a weighted sum
-    combined_sigma = np.sqrt(np.sum(models.weights_ * sigma_values**2))
+    xval = x_range[np.argmax(pdf)][0]
 
     ### Draw plot
-    if each_component:
+    if plotting_each_component:
         # Compute PDF for each component
         responsibilities = models.predict_proba(x_range)
         pdf_individual = responsibilities * pdf[:, np.newaxis]
@@ -2334,19 +2490,26 @@ def fwhm_based_on_gaussian_mixture_model(
         bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
         # Plot PDF of whole model
-        ax.plot(x_range, pdf, '-k', label='Mixture PDF')
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
+        ax.set_title(f'{title}', loc="right", fontsize=17)
+        if plotting_detail:
+            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
+        else:
+            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
 
-        if each_component:
+        if plotting_each_component:
             # Plot PDF of each component
             ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
-        # Plot
-        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label='FWHM')
-        ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+        if plotting_detail:
+            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
+            ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+            ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
+            ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
 
         ax.legend(loc='best', fontsize=14)
 
-    return fwhm, combined_sigma
+    return fwhm, [silhouette_eval_score, jensenshannon_score]
 
 ## --------------- Time Walk Correction -----------------------
 
@@ -2394,6 +2557,55 @@ def return_resolution_four_board(
         2: np.sqrt((1/6)*(2*fit_params['02'][0]**2+2*fit_params['12'][0]**2+2*fit_params['23'][0]**2-fit_params['01'][0]**2-fit_params['03'][0]**2-fit_params['13'][0]**2))*1e3,
         3: np.sqrt((1/6)*(2*fit_params['03'][0]**2+2*fit_params['13'][0]**2+2*fit_params['23'][0]**2-fit_params['01'][0]**2-fit_params['02'][0]**2-fit_params['12'][0]**2))*1e3,
     }
+
+    return results
+
+## --------------------------------------
+def return_resolution_four_board_fromFWHM(
+        fit_params: dict,
+    ):
+
+    results = {
+        0: np.sqrt((1/6)*(2*fit_params['01']**2+2*fit_params['02']**2+2*fit_params['03']**2-fit_params['12']**2-fit_params['13']**2-fit_params['23']**2)),
+        1: np.sqrt((1/6)*(2*fit_params['01']**2+2*fit_params['12']**2+2*fit_params['13']**2-fit_params['02']**2-fit_params['03']**2-fit_params['23']**2)),
+        2: np.sqrt((1/6)*(2*fit_params['02']**2+2*fit_params['12']**2+2*fit_params['23']**2-fit_params['01']**2-fit_params['03']**2-fit_params['13']**2)),
+        3: np.sqrt((1/6)*(2*fit_params['03']**2+2*fit_params['13']**2+2*fit_params['23']**2-fit_params['01']**2-fit_params['02']**2-fit_params['12']**2)),
+    }
+
+    return results
+
+## --------------------------------------
+def return_board_resolution(
+        input_df: pd.DataFrame,
+        board_ids: list[int],
+        key_names: list[str],
+        hist_bins: int = 15,
+    ):
+
+    from collections import defaultdict
+    from lmfit.models import GaussianModel
+    mod = GaussianModel(nan_policy='omit')
+
+    results = defaultdict(float)
+
+    for key in range(len(board_ids)):
+        hist_x_min = int(input_df[f'res{board_ids[key]}'].min())-5
+        hist_x_max = int(input_df[f'res{board_ids[key]}'].max())+5
+        h_temp = hist.Hist(hist.axis.Regular(hist_bins, hist_x_min, hist_x_max, name="time_resolution", label=r'Time Resolution [ps]'))
+        h_temp.fill(input_df[f'res{board_ids[key]}'].values)
+        mean = np.mean(input_df[f'res{board_ids[key]}'].values)
+        std = np.std(input_df[f'res{board_ids[key]}'].values)
+        centers = h_temp.axes[0].centers
+        fit_range = centers[np.argmax(h_temp.values())-5:np.argmax(h_temp.values())+5]
+        fit_vals = h_temp.values()[np.argmax(h_temp.values())-5:np.argmax(h_temp.values())+5]
+
+        pars = mod.guess(fit_vals, x=fit_range)
+        out = mod.fit(fit_vals, pars, x=fit_range, weights=1/np.sqrt(fit_vals))
+
+        results[f'{key_names[key]}_mean'] = mean
+        results[f'{key_names[key]}_std'] = std
+        results[f'{key_names[key]}_res'] = out.params['center'].value
+        results[f'{key_names[key]}_err'] = abs(out.params['sigma'].value)
 
     return results
 
