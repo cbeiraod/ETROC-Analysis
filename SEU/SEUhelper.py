@@ -966,7 +966,7 @@ def makeOverallSummarySlides(
 
             for chip_name in chip_names:
                 if (baseline_directory/f"{chip_name}_Baseline.pdf").exists():
-                    shutil.copy(baseline_directory/f"{chip_name}_Baseline.pdf", fig_dir/f"{chip_name.replace("_", "-")}-Baseline.pdf")
+                    shutil.copy(baseline_directory/f"{chip_name}_Baseline.pdf", fig_dir/"{}-Baseline.pdf".format(chip_name.replace("_", "-")))
 
                     latexfile.write(r"\subsection{" + chip_name.replace("_", " ") + r"}" + '\n')
 
