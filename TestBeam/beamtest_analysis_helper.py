@@ -652,7 +652,7 @@ class DecodeBinary:
                     # Check link filler
                     elif (word >> 20) == self.check_link_filler_pattern:
                         if self.nem_file is not None and not self.skip_filler:
-                            self.write_to_nem(f"LK Filler: 0b{word & 0xfffff:020b}\n")
+                            self.write_to_nem(f"40Hz Filler: 0b{word & 0xfffff:020b}\n")
 
                     # Reset anyway!
                     self.reset_params()
