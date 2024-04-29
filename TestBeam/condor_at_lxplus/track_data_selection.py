@@ -272,6 +272,10 @@ if __name__ == "__main__":
         print('Empty input file!')
         exit(0)
 
+    if run_df['board'].unique().size != 4:
+        print('Dataframe does not have all 4 boards information')
+        exit(0)
+
     track_df = pd.read_csv(args.track)
     track_pivots = defaultdict(pd.DataFrame)
 
