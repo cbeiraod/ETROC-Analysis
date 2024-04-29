@@ -19,6 +19,8 @@ import matplotlib.ticker as ticker
 import mplhep as hep
 plt.style.use(hep.style.CMS)
 
+from crc import Calculator, Crc8, Configuration
+
 matplotlib.rcParams["axes.formatter.useoffset"] = False
 matplotlib.rcParams["axes.formatter.use_mathtext"] = False
 
@@ -278,6 +280,16 @@ class DecodeBinary:
             'cal': [],
         }
 
+        self.crc_data_template = {
+            'evt': [],
+            'bcid': [],
+            'l1a_counter': [],
+            'board': [],
+            'CRC': [],
+            'CRC_calc': [],
+            'CRC_mismatch': [],
+        }
+
         self.event_data_template = {
             'evt': [],
             'bcid': [],
@@ -285,10 +297,28 @@ class DecodeBinary:
             'fpga_evt_number': [],
             'hamming_count': [],
             'overflow_count': [],
+            'CRC': [],
+            'CRC_calc': [],
+            'CRC_mismatch': [],
         }
 
         self.data_to_load = copy.deepcopy(self.data_template)
+        self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
         self.event_data_to_load = copy.deepcopy(self.event_data_template)
+
+        #self.CRCcalculator = Calculator(Crc8.AUTOSAR, optimized=True)
+
+        config = Configuration(
+            width=8,
+            polynomial=0x2F, # Normal representation
+            #polynomial=0x97, # Reversed reciprocal representation (the library uses normal representation, so do not use this)
+            init_value=0x00,
+            final_xor_value=0x00,
+            reverse_input=False,
+            reverse_output=False,
+        )
+
+        self.CRCcalculator = Calculator(config, optimized=True)
 
     def reset_params(self):
         self.in_event                = False
@@ -302,9 +332,12 @@ class DecodeBinary:
         self.current_channel         = -1
         self.in_40bit                = False
         self.data                    = {}
+        self.crc_data                = {}
         self.event_data              = {}
         self.version                 = None
         self.event_type              = None
+        self.CRCdata_40bit           = []
+        self.CRCdata                 = []  # Datao mentions the initial value for the event CRC is the CRC output value of the previous event... so it is hard to implement a CRC check for events if this is true
 
     def open_next_file(self):
         if self.save_nem is not None:
@@ -359,8 +392,17 @@ class DecodeBinary:
             self.bcid = (word & 0xfff)
             self.l1acounter = ((word >> 14) & 0xff)
             self.data[self.current_channel] = copy.deepcopy(self.data_template)
+            self.crc_data[self.current_channel] = copy.deepcopy(self.crc_data_template)
             self.in_40bit = True
             Type = (word >> 12) & 0x3
+
+            self.CRCdata_40bit = [
+                (word >> 32) & 0xff,
+                (word >> 24) & 0xff,
+                (word >> 16) & 0xff,
+                (word >> 8) & 0xff,
+                (word ) & 0xff,
+                ]
 
             if self.nem_file is not None:
                 self.write_to_nem(f"H {self.current_channel} {self.l1acounter} 0b{Type:02b} {self.bcid}\n")
@@ -384,6 +426,14 @@ class DecodeBinary:
             self.data[self.current_channel]['tot'].append(TOT)
             self.data[self.current_channel]['cal'].append(CAL)
 
+            self.CRCdata_40bit += [
+                (word >> 32) & 0xff,
+                (word >> 24) & 0xff,
+                (word >> 16) & 0xff,
+                (word >> 8) & 0xff,
+                (word ) & 0xff,
+                ]
+
             if self.nem_file is not None:
                 self.write_to_nem(f"D {self.current_channel} 0b{EA:02b} {ROW} {COL} {TOA} {TOT} {CAL}\n")
 
@@ -394,8 +444,37 @@ class DecodeBinary:
             CRC    = (word) & 0xff
             self.in_40bit = False
 
+            self.CRCdata_40bit += [
+                (word >> 32) & 0xff,
+                (word >> 24) & 0xff,
+                (word >> 16) & 0xff,
+                (word >> 8) & 0xff,
+                #(word ) & 0xff,
+                ]
+            data = bytes(self.CRCdata_40bit)
+            check = self.CRCcalculator.checksum(data)
+
+            #print("Raw data:")
+            #print_string = ""
+            #for dat in self.CRCdata_40bit:
+            #    print_string += f"{dat:08b} "
+            #print(print_string)
+            #print(f"CRC: {CRC:08b}")
+            #print(f"CRC Check: {check:08b}")
+
+            self.crc_data[self.current_channel]['bcid'].append(self.bcid)
+            self.crc_data[self.current_channel]['l1a_counter'].append(self.l1acounter)
+            self.crc_data[self.current_channel]['evt'].append(self.event_counter)
+            self.crc_data[self.current_channel]['board'].append(self.current_channel)
+            self.crc_data[self.current_channel]['CRC'].append(CRC)
+            self.crc_data[self.current_channel]['CRC_calc'].append(check)
+            self.crc_data[self.current_channel]['CRC_mismatch'].append(bool(CRC != check))
+
             if self.nem_file is not None:
-                self.write_to_nem(f"T {self.current_channel} {status} {hits} 0b{CRC:08b}\n")
+                mismatch = ""
+                if CRC != check:
+                    mismatch = " CRC Mismatch"
+                self.write_to_nem(f"T {self.current_channel} {status} {hits} 0b{CRC:08b}{mismatch}\n")
 
             if len(self.data[self.current_channel]['evt']) != hits:
                 print('Number of hits does not match!')
@@ -414,6 +493,7 @@ class DecodeBinary:
             self.open_next_file()
 
         df = pd.DataFrame(self.data_template, dtype=np.uint64)
+        crc_df = pd.DataFrame(self.crc_data_template, dtype=np.uint64)
         event_df = pd.DataFrame(self.event_data_template, dtype=np.uint64)
         decoding = False
         for ifile in self.files_to_process:
@@ -435,6 +515,12 @@ class DecodeBinary:
                         self.enabled_channels = word & 0b1111
                         self.in_event = True
                         # print('Event header')
+                        self.CRCdata = [
+                            (word >> 24) & 0xff,
+                            (word >> 16) & 0xff,
+                            (word >> 8) & 0xff,
+                            (word ) & 0xff,
+                        ]
                         continue
 
                     # Event Header Line Two Found
@@ -450,6 +536,12 @@ class DecodeBinary:
                         if(self.event_number==1 or self.event_number==0):
                             self.valid_data = True
                         self.event_data = copy.deepcopy(self.event_data_template)
+                        self.CRCdata += [
+                            (word >> 24) & 0xff,
+                            (word >> 16) & 0xff,
+                            (word >> 8) & 0xff,
+                            (word ) & 0xff,
+                        ]
                         # print('Event Header Line Two Found')
                         # print(self.event_number)
                         if self.nem_file is not None:
@@ -473,8 +565,20 @@ class DecodeBinary:
                         for key in self.data_to_load:
                             for board in self.data:
                                 self.data_to_load[key] += self.data[board][key]
+                        for key in self.crc_data_to_load:
+                            for board in self.crc_data:
+                                self.crc_data_to_load[key] += self.crc_data[board][key]
                         # print(self.event_number)
                         # print(self.data)
+
+                        self.CRCdata += [
+                            (word >> 24) & 0xff,
+                            (word >> 16) & 0xff,
+                            (word >> 8) & 0xff,
+                        ]
+
+                        data = bytes(self.CRCdata)
+                        check = self.CRCcalculator.checksum(data)
 
                         crc            = (word) & 0xff
                         overflow_count = (word >> 11) & 0x7
@@ -486,6 +590,9 @@ class DecodeBinary:
                         self.event_data['fpga_evt_number'].append(self.event_number)
                         self.event_data['hamming_count'].append(hamming_count)
                         self.event_data['overflow_count'].append(overflow_count)
+                        self.event_data['CRC'].append(crc)
+                        self.event_data['CRC_calc'].append(check)
+                        self.event_data['CRC_mismatch'].append(bool(crc != check))
                         for key in self.event_data_to_load:
                             self.event_data_to_load[key] += self.event_data[key]
                         self.event_counter += 1
@@ -494,16 +601,30 @@ class DecodeBinary:
                             df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
                             self.data_to_load = copy.deepcopy(self.data_template)
 
+                            crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load, dtype=np.uint64)], ignore_index=True)
+                            self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
+
                             event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
                             self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
                         if self.nem_file is not None:
-                            self.write_to_nem(f"ET {self.event_number} {overflow_count} {hamming_count} 0b{crc:08b}\n")
+                            mismatch = ""
+                            if crc != check:
+                                mismatch = " CRC Mismatch"
+                            self.write_to_nem(f"ET {self.event_number} {overflow_count} {hamming_count} 0b{crc:08b}{mismatch}\n")
 
                     # Event Data Word
                     elif(self.in_event):
                         # print(self.current_word)
                         # print(format(word, '032b'))
+
+                        self.CRCdata += [
+                            (word >> 24) & 0xff,
+                            (word >> 16) & 0xff,
+                            (word >> 8) & 0xff,
+                            (word ) & 0xff,
+                        ]
+
                         if self.position_40bit == 4:
                             self.word_40 = self.word_40 | word
                             self.decode_40bit(self.word_40)
@@ -540,8 +661,16 @@ class DecodeBinary:
                     df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
                     self.data_to_load = copy.deepcopy(self.data_template)
 
+                if len(self.crc_data_to_load['evt']) > 0:
+                    crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load, dtype=np.uint64)], ignore_index=True)
+                    self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
+
+                if len(self.event_data_to_load['evt']) > 0:
+                    event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
+                    self.event_data_to_load = copy.deepcopy(self.event_data_template)
+
         self.close_file()
-        return df, event_df
+        return df, event_df, crc_df
 
 ## --------------- Decoding Class -----------------------
 
