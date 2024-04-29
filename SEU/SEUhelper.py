@@ -879,8 +879,8 @@ def makeOverallSummarySlides(
         latexfile.write(r"\frametitle{Summary}" + '\n')
         latexfile.write(r"\begin{itemize}" + '\n')
         latexfile.write(r"\item The campaign started at " + time_start.isoformat(sep = ' ') + r" and ended at " + time_end.isoformat(sep = ' ') + '\n')
-        latexfile.write(r"\item A total of " + len(run_info) + r" runs were taken" + '\n')
-        latexfile.write(r"\item " + len(extra_run_info) + r" additional runs were taken" + '\n')
+        latexfile.write(r"\item A total of " + str(len(run_info)) + r" runs were taken" + '\n')
+        latexfile.write(r"\item " + str(len(extra_run_info)) + r" additional runs were taken" + '\n')
         latexfile.write(r"\item The following chips were used:" + '\n')
         latexfile.write(r"\begin{itemize}" + '\n')
         for chip_name in chip_names:
@@ -960,7 +960,7 @@ def makeOverallSummarySlides(
             latexfile.write(r"\frametitle{Baseline Monitoring}" + '\n')
             latexfile.write(r"\begin{itemize}" + '\n')
             latexfile.write(r"\item Baselines and noise widths of the individual pixels were taken over time" + '\n')
-            latexfile.write(r"\item Only " + len(scan_list) + r" pixels were enabled for data taking, so only those had baselines taken over time" + '\n')
+            latexfile.write(r"\item Only " + str(len(scan_list)) + r" pixels were enabled for data taking, so only those had baselines taken over time" + '\n')
             latexfile.write(r"\end{itemize}" + '\n')
             latexfile.write(r"\end{frame}" + '\n')
 
