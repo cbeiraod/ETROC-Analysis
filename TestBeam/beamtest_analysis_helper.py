@@ -1304,9 +1304,28 @@ def return_event_hist(
         input_df: pd.DataFrame,
 ):
 
-    h = hist.Hist(hist.axis.Regular(8, 0, 8, name="HA", label="Hamming Count"))
+    h = hist.Hist(hist.axis.Regular(8, 0, 7, name="HA", label="Hamming Count"),
+                  hist.axis.Regular(2, 0, 1, name="CRC_mismatch", label="CRC Mismatch"))
 
-    h.fill(input_df["hamming_count"].values)
+    h.fill(input_df["hamming_count"].values, input_df["CRC_mismatch"].values)
+
+    return h
+
+## --------------------------------------
+def return_crc_hist(
+        input_df: pd.DataFrame,
+        chipNames: list[str],
+        chipLabels: list[int],
+):
+    h = {chipNames[board_idx]: hist.Hist(
+            hist.axis.Regular(4, 0, 3, name="CRC_mismatch", label="CRC Mismatch"),
+        )
+    for board_idx in range(len(chipLabels))}
+
+
+    for board_idx in range(len(chipLabels)):
+        tmp_df = input_df.loc[input_df['board'] == chipLabels[board_idx]]
+        h[chipNames[board_idx]].fill(tmp_df['CRC_mismatch'].values)
 
     return h
 
@@ -1736,6 +1755,55 @@ def plot_1d_TDC_histograms(
             plt.savefig(fig_path/f'{chip_figname}_combined_TDC_{tag}.pdf')
             plt.clf()
             plt.close(fig)
+
+## --------------------------------------
+def plot_1d_event_CRC_histogram(
+        input_hist: hist.Hist,
+        fig_path: Path = Path('./'),
+        save: bool = False,
+        tag: str = '',
+        fig_tag: str = '',
+        do_logy: bool = False,
+    ):
+    fig = plt.figure(dpi=50, figsize=(20,10))
+    gs = fig.add_gridspec(1,1)
+    ax = fig.add_subplot(gs[0,0])
+    ax.set_title(f"Event CRC Check{fig_tag}", loc="right", size=25)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    input_hist.project("CRC_mismatch")[:].plot1d(ax=ax, lw=2)
+    if do_logy:
+        ax.set_yscale('log')
+    plt.tight_layout()
+    if(save):
+        plt.savefig(fig_path/f'Event_CRCCheck_{tag}.pdf')
+        plt.clf()
+        plt.close(fig)
+
+## --------------------------------------
+def plot_1d_CRC_histogram(
+        input_hist: hist.Hist,
+        chip_name: str,
+        chip_figname: str,
+        fig_title: str,
+        fig_path: Path = Path('./'),
+        save: bool = False,
+        tag: str = '',
+        fig_tag: str = '',
+        do_logy: bool = False,
+    ):
+    fig = plt.figure(dpi=50, figsize=(20,10))
+    gs = fig.add_gridspec(1,1)
+    ax = fig.add_subplot(gs[0,0])
+    ax.set_title(f"{fig_title}, CRC Check{fig_tag}", loc="right", size=25)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    input_hist[chip_name].project("CRC_mismatch")[:].plot1d(ax=ax, lw=2)
+    if do_logy:
+        ax.set_yscale('log')
+    plt.tight_layout()
+    if(save):
+        plt.savefig(fig_path/f'{chip_figname}_CRCCheck_{tag}.pdf')
+        plt.clf()
+        plt.close(fig)
 
 ## --------------------------------------
 def plot_correlation_of_pixels(
