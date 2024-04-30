@@ -39,7 +39,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '-n',
     '--minimum_nevt',
     metavar = 'NUM',
     type = int,
@@ -71,6 +70,13 @@ parser.add_argument(
     action = 'store_true',
     help = 'If set, select 80 percent of data around TOT median value of each board',
     dest = 'autoTOTcuts',
+)
+
+parser.add_argument(
+    '--noTrig',
+    action = 'store_true',
+    help = 'If set, trigger will not be considered for the analysis',
+    dest = 'noTrig',
 )
 
 parser.add_argument(
@@ -107,9 +113,23 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts"
-python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts
+echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts"
+python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts
     """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
+elif (args.autoTOTcuts) & (args.noTrig):
+    bash_script = """#!/bin/bash
+
+ls -ltrh
+echo ""
+pwd
+
+# Load python environment from work node
+source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+
+echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts --noTrig"
+python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts --noTrig
+    """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
+
 else:
     bash_script = """#!/bin/bash
 
@@ -120,8 +140,8 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4}"
-python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} -n {2} --trigTOALower {3} --trigTOAUpper {4}
+echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4}"
+python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4}
     """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
 
 print('\n========= Run option =========')
@@ -131,6 +151,8 @@ print(f"TOA cut for a 'NEW' trigger is {args.trigTOALower}-{args.trigTOAUpper}")
 print(f'Number of events larger than {args.minimum_nevt} will be considered')
 if args.autoTOTcuts:
     print(f'Automatic TOT cuts will be applied')
+if args.noTrig:
+    print('Trigger board will not be considered')
 print('========= Run option =========\n')
 
 with open('run_bootstrap.sh','w') as bashfile:

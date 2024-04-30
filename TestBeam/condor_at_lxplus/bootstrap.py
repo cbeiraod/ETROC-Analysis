@@ -243,17 +243,14 @@ def bootstrap(
             print('Warning!! Sampling size is too small. Skipping this track')
             break
 
-        d = {
-            # 'evt': tdc_filtered_df['evt'].unique(),
-        }
+        df_in_time = pd.DataFrame()
 
         for idx in board_to_analyze:
             bins = 3.125/tdc_filtered_df['cal'][idx].mean()
-            d[f'toa_b{str(idx)}'] = (12.5 - tdc_filtered_df['toa'][idx] * bins)*1e3
-            d[f'tot_b{str(idx)}'] = ((2*tdc_filtered_df['tot'][idx] - np.floor(tdc_filtered_df['tot'][idx]/32)) * bins)*1e3
+            df_in_time[f'toa_b{str(idx)}'] = (12.5 - tdc_filtered_df['toa'][idx] * bins)*1e3
+            df_in_time[f'tot_b{str(idx)}'] = ((2*tdc_filtered_df['tot'][idx] - np.floor(tdc_filtered_df['tot'][idx]/32)) * bins)*1e3
 
-        df_in_time = pd.DataFrame(data=d)
-        del d, tdc_filtered_df
+        del tdc_filtered_df
 
         if(len(board_to_analyze)==3):
             corr_toas = three_board_iterative_timewalk_correction(df_in_time, 2, 2, board_list=board_to_analyze)
@@ -411,15 +408,15 @@ if __name__ == "__main__":
     parser.add_argument(
         '--autoTOTcuts',
         action = 'store_true',
-        help = 'If set, select 80% of data around TOT median value of each board',
+        help = 'If set, select 80 percent of data around TOT median value of each board',
         dest = 'autoTOTcuts',
     )
 
     parser.add_argument(
-        '--csv',
+        '--noTrig',
         action = 'store_true',
-        help = 'If set, save final dataframe in csv format',
-        dest = 'do_csv',
+        help = 'If set, trigger will not be considered for the analysis',
+        dest = 'noTrig',
     )
 
     args = parser.parse_args()
@@ -428,7 +425,10 @@ if __name__ == "__main__":
     df = pd.read_pickle(args.file)
     df = df.reset_index(names='evt')
 
-    board_ids = [1, 2, 3]
+    if args.noTrig:
+        board_ids = [1, 2, 3]
+    else:
+        board_ids = df.columns.get_level_values('board').unique()
 
     tot_cuts = {}
     for idx in board_ids:

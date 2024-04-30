@@ -82,13 +82,51 @@ def tdc_event_selection(
         return tdc_filtered_df
 
 ## --------------------------------------
+def data_3board_selection_by_track(
+        input_df: pd.DataFrame,
+        pix_dict: dict,
+        trig_id: int,
+        ref_id: int,
+        board_to_analyze: list[int],
+        tot_cuts: list[int],
+    ):
+
+    track_tmp_df = pixel_filter(input_df, pix_dict, filter_by_area=False)
+
+    ## Selecting good hits with TDC cuts
+    tdc_cuts = {}
+    for idx in board_to_analyze:
+        # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
+        if idx == trig_id:
+            tdc_cuts[idx] = [track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]-3, track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]+3,
+                    0, 1100, tot_cuts[0], tot_cuts[1]]
+        elif idx == ref_id:
+            tdc_cuts[idx] = [track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]-3, track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]+3,
+                    0, 1100, 0, 600]
+        else:
+            tdc_cuts[idx] = [track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]-3, track_tmp_df.loc[track_tmp_df['board'] == idx]['cal'].mode()[0]+3,
+                    0, 1100, 0, 600]
+
+    track_tmp_df = tdc_event_selection(track_tmp_df, tdc_cuts_dict=tdc_cuts)
+
+    event_board_counts = track_tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+    event_selection_col = (event_board_counts[board_to_analyze[0]] == 1) & (event_board_counts[board_to_analyze[1]] == 1) & (event_board_counts[board_to_analyze[2]] == 1)
+
+    isolated_df = track_tmp_df.loc[track_tmp_df['evt'].isin(event_board_counts[event_selection_col].index)]
+
+    pivot_table = isolated_df.pivot(index=["evt"], columns=["board"], values=["row", "col", "toa", "tot", "cal"])
+    pivot_table = pivot_table.reset_index(drop=True)
+
+    ## Pivot Table to make tracks
+    return pivot_table
+
+
+## --------------------------------------
 def data_4board_selection_by_track(
         input_df: pd.DataFrame,
         pix_dict: dict,
         trig_id: int,
-        dut_id: int,
         ref_id: int,
-        ref_2nd_id: int,
         board_to_analyze: list[int],
         tot_cuts: list[int],
     ):
@@ -234,6 +272,10 @@ if __name__ == "__main__":
         print('Empty input file!')
         exit(0)
 
+    if run_df['board'].unique().size != 4:
+        print('Dataframe does not have all 4 boards information')
+        exit(0)
+
     track_df = pd.read_csv(args.track)
     track_pivots = defaultdict(pd.DataFrame)
 
@@ -245,12 +287,21 @@ if __name__ == "__main__":
             for idx in board_to_analyze:
                 pix_dict[idx] = [track_df.iloc[itrack][f'row_{idx}'], track_df.iloc[itrack][f'col_{idx}']]
 
-            table = data_4board_selection_by_track(input_df=run_df, pix_dict=pix_dict, trig_id=trig_id, dut_id=dut_id, ref_id=ref_id, ref_2nd_id=args.ignoreID,
+            table = data_4board_selection_by_track(input_df=run_df, pix_dict=pix_dict, trig_id=trig_id, ref_id=ref_id,
                                                    board_to_analyze=board_to_analyze, tot_cuts=tot_cuts)
             track_pivots[itrack] = table
     else:
-        print('Under developing')
-        exit(0)
+        board_to_analyze = list(set(board_ids) - set(ignore_boards))
+        reduced_run_df = run_df.loc[~(run_df['board']==args.ignoreID)]
+
+        for itrack in tqdm(range(track_df.shape[0])):
+            pix_dict = {}
+            for idx in board_to_analyze:
+                pix_dict[idx] = [track_df.iloc[itrack][f'row_{idx}'], track_df.iloc[itrack][f'col_{idx}']]
+
+            table = data_3board_selection_by_track(input_df=reduced_run_df, pix_dict=pix_dict, trig_id=trig_id, ref_id=ref_id,
+                                                board_to_analyze=board_to_analyze, tot_cuts=tot_cuts)
+            track_pivots[itrack] = table
 
     fname = args.inputfile.split('.')[0]
     ### Save python dictionary in pickle format
