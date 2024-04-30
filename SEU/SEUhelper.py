@@ -921,8 +921,9 @@ def makeOverallSummarySlides(
                 latexfile.write(r"\begin{frame}" + '\n')
                 latexfile.write(r"\frametitle{VRef Monitoring}" + '\n')
 
-                latexfile.write(r"\centering" + '\n')
+                latexfile.write(r"\begin{center}" + '\n')
                 latexfile.write(r"\includegraphics[width=\linewidth,height=0.5\linewidth,keepaspectratio]{VRef}" + '\n')
+                latexfile.write(r"\end{center}" + '\n')
 
                 if len(ps_see_times) != 0:
                     latexfile.write(r"\begin{itemize}" + '\n')
@@ -936,8 +937,9 @@ def makeOverallSummarySlides(
                 latexfile.write(r"\begin{frame}" + '\n')
                 latexfile.write(r"\frametitle{WS Power Monitoring}" + '\n')
 
-                latexfile.write(r"\centering" + '\n')
+                latexfile.write(r"\begin{center}" + '\n')
                 latexfile.write(r"\includegraphics[width=\linewidth,height=0.55\linewidth,keepaspectratio]{WaveformSampler}" + '\n')
+                latexfile.write(r"\end{center}" + '\n')
 
                 latexfile.write(r"\end{frame}" + '\n')
 
@@ -950,8 +952,9 @@ def makeOverallSummarySlides(
                     latexfile.write(r"\begin{frame}" + '\n')
                     latexfile.write(r"\frametitle{" + chip_name.replace("_", " ") + r" Power Monitoring}" + '\n')
 
-                    latexfile.write(r"\centering" + '\n')
+                    latexfile.write(r"\begin{center}" + '\n')
                     latexfile.write(r"\includegraphics[width=\linewidth,height=0.55\linewidth,keepaspectratio]{" + board_safe + r"-power}" + '\n')
+                    latexfile.write(r"\end{center}" + '\n')
 
                     latexfile.write(r"\end{frame}" + '\n')
 
@@ -975,8 +978,9 @@ def makeOverallSummarySlides(
 
                     latexfile.write(r"\begin{frame}" + '\n')
                     latexfile.write(r"\frametitle{" + chip_name.replace("_", " ") + r" Baseline Monitoring}" + '\n')
-                    latexfile.write(r"\centering" + '\n')
+                    latexfile.write(r"\begin{center}" + '\n')
                     latexfile.write(r"\includegraphics[width=\linewidth,height=0.55\linewidth,keepaspectratio]{" + chip_name.replace("_", "-") + r"-Baseline}" + '\n')
+                    latexfile.write(r"\end{center}" + '\n')
                     latexfile.write(r"\end{frame}" + '\n')
 
         if config_compare_dir.exists() and config_compare_dir.is_dir():
