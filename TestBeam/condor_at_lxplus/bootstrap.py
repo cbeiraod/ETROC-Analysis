@@ -235,7 +235,7 @@ def bootstrap(
 
         tdc_filtered_df = input_df
 
-        if args.do_reproducible:
+        if do_reproducible:
             np.random.seed(counter)
 
         n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
@@ -315,7 +315,7 @@ def bootstrap(
                 resample_counter += 1
                 continue
 
-            if args.do_reproducible:
+            if do_reproducible:
                 resolution_from_bootstrap['RandomSeed'].append(counter)
 
             for key in resolutions.keys():
