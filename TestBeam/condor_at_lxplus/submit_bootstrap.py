@@ -90,6 +90,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--reproducible',
+    action = 'store_true',
+    help = 'If set, random seed will be set by counter and save random seed in the final output',
+    dest = 'reproducible',
+)
+
+parser.add_argument(
     '--dryrun',
     action = 'store_true',
     help = 'If set, condor submission will not happen',
@@ -124,8 +131,8 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}"
-python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}
+echo "python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}{% if reproducible %} --reproducible{% endif %}"
+python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}{% if reproducible %} --reproducible{% endif %}
 """
 
 # Prepare the data for the template
@@ -138,7 +145,8 @@ options = {
     'trigTOALower': args.trigTOALower,
     'trigTOAUpper': args.trigTOAUpper,
     'autoTOTcuts': args.autoTOTcuts,
-    'noTrig': args.noTrig
+    'noTrig': args.noTrig,
+    'reproducible': args.reproducible,
 }
 
 # Render the template with the data
@@ -153,6 +161,8 @@ if args.autoTOTcuts:
     print(f'Automatic TOT cuts will be applied')
 if args.noTrig:
     print('Trigger board will not be considered')
+if args.reproducible:
+    print('Random seed will be set by counter. The final output will have seed information together')
 print('========= Run option =========\n')
 
 with open('run_bootstrap.sh','w') as bashfile:
