@@ -218,6 +218,7 @@ def bootstrap(
         iteration: int = 100,
         sampling_fraction: int = 75,
         minimum_nevt_cut: int = 1000,
+        do_reproducible: bool = False,
     ):
 
     resolution_from_bootstrap = defaultdict(list)
@@ -233,6 +234,9 @@ def bootstrap(
             break
 
         tdc_filtered_df = input_df
+
+        if args.do_reproducible:
+            np.random.seed(counter)
 
         n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
         indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
@@ -310,6 +314,9 @@ def bootstrap(
                 counter += 1
                 resample_counter += 1
                 continue
+
+            if args.do_reproducible:
+                resolution_from_bootstrap['RandomSeed'].append(counter)
 
             for key in resolutions.keys():
                 resolution_from_bootstrap[key].append(resolutions[key])
@@ -428,6 +435,13 @@ if __name__ == "__main__":
         dest = 'noTrig',
     )
 
+    parser.add_argument(
+        '--reproducible',
+        action = 'store_true',
+        help = 'If set, random seed will be set by counter and save random seed in the final output',
+        dest = 'reproducible',
+    )
+
     args = parser.parse_args()
 
     output_name = args.file.split('.')[0]
@@ -476,7 +490,8 @@ if __name__ == "__main__":
     interest_df = tdc_event_selection_pivot(df, tdc_cuts_dict=tdc_cuts)
     print('Size of dataframe after cut:', interest_df.shape[0])
 
-    resolution_df = bootstrap(input_df=interest_df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt)
+    resolution_df = bootstrap(input_df=interest_df, board_to_analyze=board_ids, iteration=args.iteration,
+                              sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt, do_reproducible=args.reproducible)
 
     if not resolution_df.empty:
         resolution_df.to_pickle(f'{output_name}_resolution.pkl')
