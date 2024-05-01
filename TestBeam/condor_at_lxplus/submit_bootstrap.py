@@ -39,6 +39,15 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--board_id_for_TOA_cut',
+    metavar = 'NUM',
+    type = int,
+    help = 'TOA range cut will be applied to a given board ID',
+    default = 1,
+    dest = 'board_id_for_TOA_cut',
+)
+
+parser.add_argument(
     '--minimum_nevt',
     metavar = 'NUM',
     type = int,
@@ -103,46 +112,79 @@ with open(listfile, 'a') as listfile:
 outdir = current_dir / f'resolution_{args.dirname}'
 outdir.mkdir(exist_ok = False)
 
-if args.autoTOTcuts:
-    bash_script = """#!/bin/bash
 
-ls -ltrh
-echo ""
-pwd
+# Define the base bash command
+base_command = "python bootstrap.py -f ${1}.pkl -i {iteration} -s {sampling} --board_id_for_TOA_cut {board_id_for_TOA_cut} --minimum_nevt {minimum_nevt} --trigTOALower {trigTOALower} --trigTOAUpper {trigTOAUpper}"
 
-# Load python environment from work node
-source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+# Define additional options and their corresponding flags
+options = {
+    'autoTOTcuts': '--autoTOTcuts',
+    'noTrig': '--noTrig'
+}
 
-echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts"
-python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts
-    """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
-elif (args.autoTOTcuts) & (args.noTrig):
-    bash_script = """#!/bin/bash
+# Generate the bash script based on selected options
+bash_script = "#!/bin/bash\n\n"
+bash_script += "ls -ltrh\n"
+bash_script += "echo \"\"\n"
+bash_script += "pwd\n\n"
+bash_script += "# Load python environment from work node\n"
+bash_script += "source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh\n\n"
+bash_script += "echo \"" + base_command.format(**vars(args))
 
-ls -ltrh
-echo ""
-pwd
+for option, flag in options.items():
+    if getattr(args, option):
+        bash_script += f" {flag}"
 
-# Load python environment from work node
-source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+bash_script += "\"\n"
+bash_script += base_command.format(**vars(args))
 
-echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts --noTrig"
-python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts --noTrig
-    """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
+for option, flag in options.items():
+    if getattr(args, option):
+        bash_script += f" {flag}"
 
-else:
-    bash_script = """#!/bin/bash
+# Print or save the generated bash script
+print(bash_script)
 
-ls -ltrh
-echo ""
-pwd
+# if args.autoTOTcuts:
+#     bash_script = """#!/bin/bash
 
-# Load python environment from work node
-source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+# ls -ltrh
+# echo ""
+# pwd
 
-echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4}"
-python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4}
-    """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
+# # Load python environment from work node
+# source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+
+# echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts"
+# python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts
+#     """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
+# elif (args.autoTOTcuts) & (args.noTrig):
+#     bash_script = """#!/bin/bash
+
+# ls -ltrh
+# echo ""
+# pwd
+
+# # Load python environment from work node
+# source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+
+# echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts --noTrig"
+# python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts --noTrig
+#     """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
+
+# else:
+#     bash_script = """#!/bin/bash
+
+# ls -ltrh
+# echo ""
+# pwd
+
+# # Load python environment from work node
+# source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+
+# echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4}"
+# python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4}
+#     """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
 
 print('\n========= Run option =========')
 print(f'Bootstrap iteration: {args.iteration}')
