@@ -233,12 +233,10 @@ def bootstrap(
             break
 
         tdc_filtered_df = input_df
-        ## By using pandas sample function, random is reproducible
-        tdc_filtered_df.sample(frac=random_sampling_fraction, replace=True, random_state=counter).reset_index(drop=True)
 
-        # n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
-        # indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
-        # tdc_filtered_df = tdc_filtered_df.loc[tdc_filtered_df['evt'].isin(indices)]
+        n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
+        indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
+        tdc_filtered_df = tdc_filtered_df.loc[tdc_filtered_df['evt'].isin(indices)]
 
         if tdc_filtered_df.shape[0] < minimum_nevt_cut:
             print(f'Number of events in random sample is {tdc_filtered_df.shape[0]}')
@@ -313,7 +311,6 @@ def bootstrap(
                 resample_counter += 1
                 continue
 
-            resolution_from_bootstrap['RandomState'].append(counter)
             for key in resolutions.keys():
                 resolution_from_bootstrap[key].append(resolutions[key])
 
@@ -435,13 +432,13 @@ if __name__ == "__main__":
 
     output_name = args.file.split('.')[0]
     df = pd.read_pickle(args.file)
-    df = df.reset_index(names='evt')
 
     if args.noTrig:
         board_ids = [1, 2, 3]
     else:
         board_ids = df.columns.get_level_values('board').unique()
 
+    df = df.reset_index(names='evt')
     tot_cuts = {}
     for idx in board_ids:
         if args.autoTOTcuts:
@@ -482,9 +479,6 @@ if __name__ == "__main__":
     resolution_df = bootstrap(input_df=interest_df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt)
 
     if not resolution_df.empty:
-        if not args.do_csv:
-            resolution_df.to_pickle(f'{output_name}_resolution.pkl')
-        else:
-            resolution_df.to_csv(f'{output_name}_resolution.csv', index=False)
+        resolution_df.to_pickle(f'{output_name}_resolution.pkl')
     else:
         print(f'With {args.sampling}% sampling, number of events in sample is not enough to do bootstrap')
