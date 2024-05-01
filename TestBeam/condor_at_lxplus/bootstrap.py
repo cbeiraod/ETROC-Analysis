@@ -379,6 +379,15 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '--board_id_for_TOA_cut',
+        metavar = 'NUM',
+        type = int,
+        help = 'TOA range cut will be applied to a given board ID',
+        default = 1,
+        dest = 'board_id_for_TOA_cut',
+    )
+
+    parser.add_argument(
         '--minimum_nevt',
         metavar = 'NUM',
         type = int,
@@ -459,7 +468,7 @@ if __name__ == "__main__":
     ## Selecting good hits with TDC cuts
     tdc_cuts = {}
     for idx in board_ids:
-        if idx == 1:
+        if idx == args.board_id_for_TOA_cut:
             tdc_cuts[idx] = [0, 1100, args.trigTOALower, args.trigTOAUpper, tot_cuts[idx][0], tot_cuts[idx][1]]
         else:
             tdc_cuts[idx] = [0, 1100, 0, 1100, tot_cuts[idx][0], tot_cuts[idx][1]]
