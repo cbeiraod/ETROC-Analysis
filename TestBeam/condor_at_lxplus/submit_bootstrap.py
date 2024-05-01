@@ -1,7 +1,8 @@
-import shutil, os
+import os
 from pathlib import Path
 import argparse
 from glob import glob
+from jinja2 import Template
 
 parser = argparse.ArgumentParser(
             prog='PlaceHolder',
@@ -113,34 +114,35 @@ outdir = current_dir / f'resolution_{args.dirname}'
 outdir.mkdir(exist_ok = False)
 
 
-# Define the base bash command
-base_command = "python bootstrap.py -f ${1}.pkl -i {iteration} -s {sampling} --board_id_for_TOA_cut {board_id_for_TOA_cut} --minimum_nevt {minimum_nevt} --trigTOALower {trigTOALower} --trigTOAUpper {trigTOAUpper}"
+# Define the bash script template
+bash_template = """
+#!/bin/bash
 
-# Define additional options and their corresponding flags
-options = {
-    'autoTOTcuts': '--autoTOTcuts',
-    'noTrig': '--noTrig'
+ls -ltrh
+echo ""
+pwd
+
+# Load python environment from work node
+source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+
+echo "python bootstrap.py -f ${{1}}.pkl -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}"
+python bootstrap.py -f ${{1}}.pkl -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}
+"""
+
+# Prepare the data for the template
+data = {
+    'iteration': args.iteration,
+    'sampling': args.sampling,
+    'board_id_for_TOA_cut': args.board_id_for_TOA_cut,
+    'minimum_nevt': args.minimum_nevt,
+    'trigTOALower': args.trigTOALower,
+    'trigTOAUpper': args.trigTOAUpper,
+    'autoTOTcuts': args.autoTOTcuts,
+    'noTrig': args.noTrig
 }
 
-# Generate the bash script based on selected options
-bash_script = "#!/bin/bash\n\n"
-bash_script += "ls -ltrh\n"
-bash_script += "echo \"\"\n"
-bash_script += "pwd\n\n"
-bash_script += "# Load python environment from work node\n"
-bash_script += "source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh\n\n"
-bash_script += "echo \"" + base_command.format(**vars(args))
-
-for option, flag in options.items():
-    if getattr(args, option):
-        bash_script += f" {flag}"
-
-bash_script += "\"\n"
-bash_script += base_command.format(**vars(args))
-
-for option, flag in options.items():
-    if getattr(args, option):
-        bash_script += f" {flag}"
+# Render the template with the data
+bash_script = Template(bash_template).render(data)
 
 # Print or save the generated bash script
 print(bash_script)
