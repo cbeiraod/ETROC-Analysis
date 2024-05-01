@@ -113,7 +113,6 @@ with open(listfile, 'a') as listfile:
 outdir = current_dir / f'resolution_{args.dirname}'
 outdir.mkdir(exist_ok = False)
 
-
 # Define the bash script template
 bash_template = """
 #!/bin/bash
