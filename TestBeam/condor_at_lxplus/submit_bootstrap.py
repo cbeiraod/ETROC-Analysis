@@ -147,7 +147,7 @@ bash_script = Template(bash_template).render(options)
 print('\n========= Run option =========')
 print(f'Bootstrap iteration: {args.iteration}')
 print(f'{args.sampling}% of random sampling')
-print(f"TOA cut for a 'NEW' trigger is {args.trigTOALower}-{args.trigTOAUpper}")
+print(f"TOA cut for a 'NEW' trigger is {args.trigTOALower}-{args.trigTOAUpper} on board ID={args.board_id_for_TOA_cut}")
 print(f'Number of events larger than {args.minimum_nevt} will be considered')
 if args.autoTOTcuts:
     print(f'Automatic TOT cuts will be applied')
