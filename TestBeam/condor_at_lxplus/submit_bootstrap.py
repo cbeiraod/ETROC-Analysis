@@ -184,9 +184,9 @@ whenToTransferOutput  = ON_EXIT
 arguments             = $(ifile)
 transfer_Input_Files  = bootstrap.py,$(path)
 TransferOutputRemaps = "$(ifile)_resolution.pkl={1}/$(ifile)_resolution.pkl"
-output                = {0}/$(ClusterId).$(ProcId).stdout
-error                 = {0}/$(ClusterId).$(ProcId).stderr
-log                   = {0}/$(ClusterId).$(ProcId).log
+output                = {0}/$(ClusterId).$(ProcId).bootstrap.stdout
+error                 = {0}/$(ClusterId).$(ProcId).bootstrap.stderr
+log                   = {0}/$(ClusterId).$(ProcId).bootstrap.log
 MY.WantOS             = "el9"
 +JobFlavour           = "microcentury"
 Queue ifile,path from input_list_for_bootstrap.txt
