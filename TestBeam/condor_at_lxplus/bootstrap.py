@@ -233,10 +233,12 @@ def bootstrap(
             break
 
         tdc_filtered_df = input_df
+        ## By using pandas sample function, random is reproducible
+        tdc_filtered_df.sample(frac=random_sampling_fraction, replace=True, random_state=counter).reset_index(drop=True)
 
-        n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
-        indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
-        tdc_filtered_df = tdc_filtered_df.loc[tdc_filtered_df['evt'].isin(indices)]
+        # n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
+        # indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
+        # tdc_filtered_df = tdc_filtered_df.loc[tdc_filtered_df['evt'].isin(indices)]
 
         if tdc_filtered_df.shape[0] < minimum_nevt_cut:
             print(f'Number of events in random sample is {tdc_filtered_df.shape[0]}')
@@ -311,6 +313,7 @@ def bootstrap(
                 resample_counter += 1
                 continue
 
+            resolution_from_bootstrap['RandomState'].append(counter)
             for key in resolutions.keys():
                 resolution_from_bootstrap[key].append(resolutions[key])
 
