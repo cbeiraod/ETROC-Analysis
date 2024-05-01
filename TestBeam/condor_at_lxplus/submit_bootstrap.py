@@ -125,12 +125,13 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python bootstrap.py -f ${{1}}.pkl -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}"
-python bootstrap.py -f ${{1}}.pkl -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}
+echo "python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}"
+python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}
 """
 
 # Prepare the data for the template
-data = {
+options = {
+    'filename': '${1}.pkl',
     'iteration': args.iteration,
     'sampling': args.sampling,
     'board_id_for_TOA_cut': args.board_id_for_TOA_cut,
@@ -142,51 +143,7 @@ data = {
 }
 
 # Render the template with the data
-bash_script = Template(bash_template).render(data)
-
-# Print or save the generated bash script
-print(bash_script)
-
-# if args.autoTOTcuts:
-#     bash_script = """#!/bin/bash
-
-# ls -ltrh
-# echo ""
-# pwd
-
-# # Load python environment from work node
-# source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
-
-# echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts"
-# python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts
-#     """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
-# elif (args.autoTOTcuts) & (args.noTrig):
-#     bash_script = """#!/bin/bash
-
-# ls -ltrh
-# echo ""
-# pwd
-
-# # Load python environment from work node
-# source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
-
-# echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts --noTrig"
-# python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts --noTrig
-#     """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
-
-# else:
-#     bash_script = """#!/bin/bash
-
-# ls -ltrh
-# echo ""
-# pwd
-
-# # Load python environment from work node
-# source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
-
-# echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4}"
-# python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4}
-#     """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
+bash_script = Template(bash_template).render(options)
 
 print('\n========= Run option =========')
 print(f'Bootstrap iteration: {args.iteration}')
