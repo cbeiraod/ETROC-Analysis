@@ -444,6 +444,11 @@ class DecodeBinary:
             CRC    = (word) & 0xff
             self.in_40bit = False
 
+            if len(self.data[self.current_channel]['evt']) != hits:
+                print('Number of hits does not match!')
+                self.reset_params()
+                return
+
             self.CRCdata_40bit += [
                 (word >> 32) & 0xff,
                 (word >> 24) & 0xff,
@@ -476,10 +481,6 @@ class DecodeBinary:
                     mismatch = " CRC Mismatch"
                 self.write_to_nem(f"T {self.current_channel} {status} {hits} 0b{CRC:08b}{mismatch}\n")
 
-            if len(self.data[self.current_channel]['evt']) != hits:
-                print('Number of hits does not match!')
-                self.reset_params()
-                return
 
         # Something else
         else:
