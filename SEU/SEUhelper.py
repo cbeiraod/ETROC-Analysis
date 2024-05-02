@@ -270,7 +270,7 @@ def plotWSPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bo
         )
         axis[1].text(times_to_plot[key], .5, key, transform=trans, rotation=90, va='center')
 
-    plt.savefig(fname=save_to/filename+".pdf")
+    plt.savefig(fname=save_to/(filename+".pdf"))
     if show:
         plt.show()
     else:
