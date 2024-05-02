@@ -320,6 +320,25 @@ class DecodeBinary:
 
         self.CRCcalculator = Calculator(config, optimized=True)
 
+        self.event_in_filler_counter = 0  # To count events between fillers
+        self.filler_idx = 0
+        self.filler_prev_event = -1
+
+        self.event_in_filler_40_counter = 0  # To count events between fillers
+        self.filler_40_idx = 0
+        self.filler_40_prev_event = -1
+
+        self.filler_data_template = {
+            'idx': [],
+            'type': [],
+            'events': [],
+            'prev_event': [],
+            'last_event': [],
+            'filler_data': [],
+        }
+
+        self.filler_data = copy.deepcopy(self.filler_data_template)
+
     def reset_params(self):
         self.in_event                = False
         self.eth_words_in_event      = -1
@@ -495,7 +514,8 @@ class DecodeBinary:
 
         df = pd.DataFrame(self.data_template, dtype=np.uint64)
         crc_df = pd.DataFrame(self.crc_data_template, dtype=np.uint64)
-        event_df = pd.DataFrame(self.event_data_template, dtype=np.uint64)
+        event_df = pd.DataFrame(self.event_data_template, dtype=np.uint64)  # TODO: Specify different dtypes for different columns
+        filler_df = pd.DataFrame(self.filler_data_template, dtype=np.uint64)  # TODO: Specify different dtypes for different columns
         decoding = False
         for ifile in self.files_to_process:
             with open(file=ifile, mode='rb') as infile:
@@ -597,6 +617,8 @@ class DecodeBinary:
                         for key in self.event_data_to_load:
                             self.event_data_to_load[key] += self.event_data[key]
                         self.event_counter += 1
+                        self.event_in_filler_counter += 1
+                        self.event_in_filler_40_counter += 1
 
                         if len(self.data_to_load['evt']) >= 10000:
                             df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
@@ -647,13 +669,35 @@ class DecodeBinary:
 
                     # New firmware filler
                     elif (word >> 20) == self.firmware_filler_pattern_new:
+                        self.filler_data['idx'].append(self.filler_idx)
+                        self.filler_data['type'].append("FW")
+                        self.filler_data['events'].append(self.event_in_filler_counter)
+                        self.filler_data['prev_event'].append(self.filler_prev_event)
+                        self.filler_data['last_event'].append(self.event_counter)
+                        self.filler_data['filler_data'].append(f"0b{word & 0xfffff:020b}")
+                        self.filler_idx += 1
+                        self.event_in_filler_counter = 0
+                        self.filler_prev_event = self.event_counter
                         if self.nem_file is not None and not self.skip_filler:
                             self.write_to_nem(f"FW Filler: 0b{word & 0xfffff:020b}\n")
 
                     # Check link filler
                     elif (word >> 20) == self.check_link_filler_pattern:
+                        self.filler_data['idx'].append(self.filler_40_idx)
+                        self.filler_data['type'].append("40")
+                        self.filler_data['events'].append(self.event_in_filler_40_counter)
+                        self.filler_data['prev_event'].append(self.filler_40_prev_event)
+                        self.filler_data['last_event'].append(self.event_counter)
+                        self.filler_data['filler_data'].append(f"0b{word & 0xfffff:020b}")
+                        self.filler_40_idx += 1
+                        self.event_in_filler_40_counter = 0
+                        self.filler_40_prev_event = self.event_counter
                         if self.nem_file is not None and not self.skip_filler:
                             self.write_to_nem(f"40Hz Filler: 0b{word & 0xfffff:020b}\n")
+
+                    if len(self.filler_data['idx']) > 10000:
+                        filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data, dtype=np.uint64)], ignore_index=True)
+                        self.filler_data= copy.deepcopy(self.filler_data_template)
 
                     # Reset anyway!
                     self.reset_params()
@@ -670,8 +714,12 @@ class DecodeBinary:
                     event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
                     self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
+                if len(self.filler_data['idx']) > 0:
+                    filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data, dtype=np.uint64)], ignore_index=True)
+                    self.filler_data= copy.deepcopy(self.filler_data_template)
+
         self.close_file()
-        return df, event_df, crc_df
+        return df, event_df, crc_df, filler_df
 
 ## --------------- Decoding Class -----------------------
 
