@@ -1318,7 +1318,7 @@ def return_crc_hist(
         chipLabels: list[int],
 ):
     h = {chipNames[board_idx]: hist.Hist(
-            hist.axis.Regular(4, 0, 3, name="CRC_mismatch", label="CRC Mismatch"),
+            hist.axis.Regular(2, 0, 1, name="CRC_mismatch", label="CRC Mismatch"),
         )
     for board_idx in range(len(chipLabels))}
 
