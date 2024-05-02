@@ -7,7 +7,7 @@ Let's load python 3.9 enviornment if you're on the server. (e.g. Lxplus)
 
 ```source load_python39.sh```
 
-Find track candidates based on pixel ID, and save them into csv format.
+#### Find track candidates based on pixel ID, and save them into csv format.
 
 ```python finding_good_track_candidates.py -p <path> -o <output file name> -i <iteration> -s <sampling> -m <minimum # of tracks> --refID N1 --dutID N2 --ignoreID N3 --four_board```
 - `-p`: path to directory which includes feather files.
@@ -22,6 +22,8 @@ Find track candidates based on pixel ID, and save them into csv format.
 
 Example:
 ```python finding_good_track_candidates.py -p DESYFeb2024_TrigRefOffset15_DUTOffset10_feathers -o DESYFeb2024_TrigRefOffset15_DUTOffset10_good_track_candidates_4boards -i 10 -s 20 -m 1000 --refID 3 --dutID 2 --ignoreID 1 --four_board```
+
+#### Select data based on each track with offline trigger selection
 
 The user will submit jobs on condor. Before proceed, check how many jobs are on queue with `condor_q` command. If there are too many jobs, `myschedd bump` helps to find the work node that has less jobs.
 
@@ -41,6 +43,8 @@ Example:
 ```python merge_dataSelectionByTrack_results.py -d <input directory> -o <output directory>```
 - `-d`: path to directory with input files (.pickle).
 - `-o`: directory name to save output files.
+
+#### Run bootstrap
 
 ```python submit_bootstrap.py -d <input directory> -i N1 -s N2 --board_id_for_TOA_cut ID --minimum_nevt NUM --trigTOALower LB_NUM --trigTOAUpper UB_NUM --autoTOTcuts --noTrig --reproducible --dryrun```
 - `-d`: path to directory with input files (.pkl).
