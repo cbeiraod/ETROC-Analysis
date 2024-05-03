@@ -47,7 +47,7 @@ if listfile.is_file():
 
 with open(listfile, 'a') as listfile:
     for idir in dir_list:
-        name = idir.split('/')[-1]
+        name = str(idir).split('/')[-1]
         save_string = f"{name}, {idir}"
         listfile.write(save_string + '\n')
 
@@ -55,8 +55,7 @@ outdir = current_dir / f'{args.run_name}_feather'
 outdir.mkdir(exist_ok = False)
 
 # Define the bash script template
-bash_template = """
-#!/bin/bash
+bash_template = """#!/bin/bash
 
 ls -ltrh
 echo ""
@@ -71,7 +70,7 @@ python decoding.py -d {{ input_dir_name }}
 
 # Prepare the data for the template
 options = {
-    'input_dir_name': args.input_dir,
+    'input_dir_name': '${1}',
 }
 
 # Render the template with the data
@@ -104,8 +103,8 @@ MY.WantOS             = "el9"
 Queue idir,path from input_list_for_decoding.txt
 """.format(str(log_dir), str(outdir))
 
-with open(f'condor_bootstrap.jdl','w') as jdlfile:
+with open(f'condor_decoding.jdl','w') as jdlfile:
     jdlfile.write(jdl)
 
 if not args.dryrun:
-    os.system(f'condor_submit condor_bootstrap.jdl')
+    os.system(f'condor_submit condor_decoding.jdl')
