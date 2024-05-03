@@ -339,6 +339,18 @@ class DecodeBinary:
 
         self.filler_data = copy.deepcopy(self.filler_data_template)
 
+    def set_filler_dtype(self):
+        tmp = self.filler_data
+
+        self.filler_data = {
+            'idx': np.array(tmp['idx'], dtype=np.uint64),
+            'type': np.array(tmp['type'], dtype=np.string_),
+            'events': np.array(tmp['events'], dtype=np.uint32),
+            'prev_event': np.array(tmp['prev_event'], dtype=np.uint64),
+            'last_event': np.array(tmp['last_event'], dtype=np.uint64),
+            'filler_data': np.array(tmp['filler_data'], dtype=np.string_),
+        }
+
     def reset_params(self):
         self.in_event                = False
         self.eth_words_in_event      = -1
@@ -515,7 +527,12 @@ class DecodeBinary:
         df = pd.DataFrame(self.data_template, dtype=np.uint64)
         crc_df = pd.DataFrame(self.crc_data_template, dtype=np.uint64)
         event_df = pd.DataFrame(self.event_data_template, dtype=np.uint64)  # TODO: Specify different dtypes for different columns
-        filler_df = pd.DataFrame(self.filler_data_template, dtype=np.uint64)  # TODO: Specify different dtypes for different columns
+
+        self.filler_data = copy.deepcopy(self.filler_data_template)
+        self.set_filler_dtype()
+        filler_df = pd.DataFrame(self.filler_data)
+        self.filler_data = copy.deepcopy(self.filler_data_template)
+
         decoding = False
         for ifile in self.files_to_process:
             with open(file=ifile, mode='rb') as infile:
@@ -696,7 +713,8 @@ class DecodeBinary:
                             self.write_to_nem(f"40Hz Filler: 0b{word & 0xfffff:020b}\n")
 
                     if len(self.filler_data['idx']) > 10000:
-                        filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data, dtype=np.uint64)], ignore_index=True)
+                        self.set_filler_dtype()
+                        filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
                         self.filler_data= copy.deepcopy(self.filler_data_template)
 
                     # Reset anyway!
@@ -715,7 +733,8 @@ class DecodeBinary:
                     self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
                 if len(self.filler_data['idx']) > 0:
-                    filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data, dtype=np.uint64)], ignore_index=True)
+                    self.set_filler_dtype()
+                    filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
                     self.filler_data= copy.deepcopy(self.filler_data_template)
 
         self.close_file()
