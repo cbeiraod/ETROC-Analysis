@@ -568,4 +568,10 @@ if __name__ == "__main__":
         skip_crc_df = True,
     )
     df, _, _, _ = decoder.decode_files()
-    df.to_feather(f'{binary_dir.name}.feather')
+
+    if df.empty:
+        print('No data has been observed after converting')
+        exit(0)
+
+    name = str(binary_dir).split('/')[-1]
+    df.to_feather(f'{name}.feather')
