@@ -104,7 +104,7 @@ output                = {0}/$(ClusterId).$(ProcId).decoding.stdout
 error                 = {0}/$(ClusterId).$(ProcId).decoding.stderr
 log                   = {0}/$(ClusterId).$(ProcId).decoding.log
 MY.WantOS             = "el9"
-+JobFlavour           = "longlunch"
++JobFlavour           = "workday"
 Queue name, path from input_list_for_decoding.txt
 """.format(str(log_dir), str(outdir))
 
