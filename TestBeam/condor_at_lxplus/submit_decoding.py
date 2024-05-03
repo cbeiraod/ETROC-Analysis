@@ -48,7 +48,7 @@ if listfile.is_file():
 with open(listfile, 'a') as listfile:
     for idir in dir_list:
         name = str(idir).split('/')[-1]
-        save_string = f"{name}, {idir}"
+        save_string = f"{name}, {str(idir)}"
         listfile.write(save_string + '\n')
 
 outdir = current_dir / f'{args.run_name}_feather'
@@ -63,6 +63,11 @@ pwd
 
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+
+# Add cernbox python environment
+export PYTHONPATH=/eos/user/j/jongho/.local/lib/python3.9/site-packages:$PYTHONPATH
+
+ls {{ input_dir_name }}
 
 echo "python decoding.py -d {{ input_dir_name }}"
 python decoding.py -d {{ input_dir_name }}
@@ -92,15 +97,15 @@ jdl = """universe              = vanilla
 executable            = run_decode.sh
 should_Transfer_Files = YES
 whenToTransferOutput  = ON_EXIT
-arguments             = $(idir)
-transfer_Input_Files  = decoding.py,$(path)
-TransferOutputRemaps = "$(idir).feather={1}/$(idir).feather"
+arguments             = $(path)
+transfer_Input_Files  = decoding.py
+TransferOutputRemaps = "$(name).feather={1}/$(name).feather"
 output                = {0}/$(ClusterId).$(ProcId).decoding.stdout
 error                 = {0}/$(ClusterId).$(ProcId).decoding.stderr
 log                   = {0}/$(ClusterId).$(ProcId).decoding.log
 MY.WantOS             = "el9"
 +JobFlavour           = "longlunch"
-Queue idir,path from input_list_for_decoding.txt
+Queue name, path from input_list_for_decoding.txt
 """.format(str(log_dir), str(outdir))
 
 with open(f'condor_decoding.jdl','w') as jdlfile:
