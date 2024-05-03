@@ -339,6 +339,21 @@ class DecodeBinary:
 
         self.filler_data = copy.deepcopy(self.filler_data_template)
 
+    def set_event_dtype(self):
+        tmp = self.event_data_to_load
+
+        self.event_data_to_load = {
+            'evt': np.array(tmp['evt'], dtype=np.uint64),
+            'bcid': np.array(tmp['bcid'], dtype=np.uint16),
+            'l1a_counter': np.array(tmp['l1a_counter'], dtype=np.uint8),
+            'fpga_evt_number': np.array(tmp['fpga_evt_number'], dtype=np.uint64),
+            'hamming_count': np.array(tmp['hamming_count'], dtype=np.uint8),
+            'overflow_count': np.array(tmp['overflow_count'], dtype=np.uint8),
+            'CRC': np.array(tmp['CRC'], dtype=np.uint8),
+            'CRC_calc': np.array(tmp['CRC_calc'], dtype=np.uint8),
+            'CRC_mismatch': np.array(tmp['CRC_mismatch'], dtype=np.bool_),
+        }
+
     def set_filler_dtype(self):
         tmp = self.filler_data
 
@@ -524,9 +539,18 @@ class DecodeBinary:
         if self.save_nem is not None:
             self.open_next_file()
 
-        df = pd.DataFrame(self.data_template, dtype=np.uint64)
-        crc_df = pd.DataFrame(self.crc_data_template, dtype=np.uint64)
-        event_df = pd.DataFrame(self.event_data_template, dtype=np.uint64)  # TODO: Specify different dtypes for different columns
+        self.data_to_load = copy.deepcopy(self.data_template)
+        df = pd.DataFrame(self.data_to_load)
+        self.data_to_load = copy.deepcopy(self.data_template)
+
+        self.crc_data = copy.deepcopy(self.crc_data_template)
+        crc_df = pd.DataFrame(self.crc_data_to_load)
+        self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
+
+        self.event_data_to_load = copy.deepcopy(self.event_data_template)
+        self.set_event_dtype()
+        event_df = pd.DataFrame(self.event_data_to_load)
+        self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
         self.filler_data = copy.deepcopy(self.filler_data_template)
         self.set_filler_dtype()
