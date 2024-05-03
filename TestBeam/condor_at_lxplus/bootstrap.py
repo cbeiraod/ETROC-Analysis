@@ -218,6 +218,7 @@ def bootstrap(
         iteration: int = 100,
         sampling_fraction: int = 75,
         minimum_nevt_cut: int = 1000,
+        do_reproducible: bool = False,
     ):
 
     resolution_from_bootstrap = defaultdict(list)
@@ -233,6 +234,9 @@ def bootstrap(
             break
 
         tdc_filtered_df = input_df
+
+        if do_reproducible:
+            np.random.seed(counter)
 
         n = int(random_sampling_fraction*tdc_filtered_df.shape[0])
         indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
@@ -311,6 +315,9 @@ def bootstrap(
                 resample_counter += 1
                 continue
 
+            if do_reproducible:
+                resolution_from_bootstrap['RandomSeed'].append(counter)
+
             for key in resolutions.keys():
                 resolution_from_bootstrap[key].append(resolutions[key])
 
@@ -379,6 +386,15 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '--board_id_for_TOA_cut',
+        metavar = 'NUM',
+        type = int,
+        help = 'TOA range cut will be applied to a given board ID',
+        default = 1,
+        dest = 'board_id_for_TOA_cut',
+    )
+
+    parser.add_argument(
         '--minimum_nevt',
         metavar = 'NUM',
         type = int,
@@ -419,17 +435,24 @@ if __name__ == "__main__":
         dest = 'noTrig',
     )
 
+    parser.add_argument(
+        '--reproducible',
+        action = 'store_true',
+        help = 'If set, random seed will be set by counter and save random seed in the final output',
+        dest = 'reproducible',
+    )
+
     args = parser.parse_args()
 
     output_name = args.file.split('.')[0]
     df = pd.read_pickle(args.file)
-    df = df.reset_index(names='evt')
 
     if args.noTrig:
         board_ids = [1, 2, 3]
     else:
         board_ids = df.columns.get_level_values('board').unique()
 
+    df = df.reset_index(names='evt')
     tot_cuts = {}
     for idx in board_ids:
         if args.autoTOTcuts:
@@ -459,7 +482,7 @@ if __name__ == "__main__":
     ## Selecting good hits with TDC cuts
     tdc_cuts = {}
     for idx in board_ids:
-        if idx == 1:
+        if idx == args.board_id_for_TOA_cut:
             tdc_cuts[idx] = [0, 1100, args.trigTOALower, args.trigTOAUpper, tot_cuts[idx][0], tot_cuts[idx][1]]
         else:
             tdc_cuts[idx] = [0, 1100, 0, 1100, tot_cuts[idx][0], tot_cuts[idx][1]]
@@ -467,12 +490,10 @@ if __name__ == "__main__":
     interest_df = tdc_event_selection_pivot(df, tdc_cuts_dict=tdc_cuts)
     print('Size of dataframe after cut:', interest_df.shape[0])
 
-    resolution_df = bootstrap(input_df=interest_df, board_to_analyze=board_ids, iteration=args.iteration, sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt)
+    resolution_df = bootstrap(input_df=interest_df, board_to_analyze=board_ids, iteration=args.iteration,
+                              sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt, do_reproducible=args.reproducible)
 
     if not resolution_df.empty:
-        if not args.do_csv:
-            resolution_df.to_pickle(f'{output_name}_resolution.pkl')
-        else:
-            resolution_df.to_csv(f'{output_name}_resolution.csv', index=False)
+        resolution_df.to_pickle(f'{output_name}_resolution.pkl')
     else:
         print(f'With {args.sampling}% sampling, number of events in sample is not enough to do bootstrap')

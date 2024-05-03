@@ -800,7 +800,10 @@ def toSingleDataFrame_newEventModel(
     previous_evt = -1
     d = {
         'evt': [],
+        'bcid': [],
+        'l1a_counter': [],
         'board': [],
+        'ea': [],
         'row': [],
         'col': [],
         'toa': [],
@@ -825,17 +828,21 @@ def toSingleDataFrame_newEventModel(
                         previous_evt = tmp_evt
                         pass
                 elif line.split(' ')[0] == 'H':
-                    pass
-                    # bcid = int(line.split(' ')[-1])
+                    bcid = int(line.split(' ')[-1])
+                    l1a_counter = int(line.split(' ')[2])
                 elif line.split(' ')[0] == 'D':
                     id  = int(line.split(' ')[1])
+                    ea  = int(line.split(' ')[2])
                     col = int(line.split(' ')[-4])
                     row = int(line.split(' ')[-5])
                     toa = int(line.split(' ')[-3])
                     tot = int(line.split(' ')[-2])
                     cal = int(line.split(' ')[-1])
                     file_d['evt'].append(evt)
+                    file_d['bcid'].append(bcid)
+                    file_d['l1a_counter'].append(l1a_counter)
                     file_d['board'].append(id)
+                    file_d['ea'].append(ea)
                     file_d['row'].append(row)
                     file_d['col'].append(col)
                     file_d['toa'].append(toa)
@@ -958,7 +965,10 @@ def toSingleDataFramePerDirectory_newEventModel(
 
     d = {
         'evt': [],
+        'bcid': [],
+        'l1a_counter': [],
         'board': [],
+        'ea': [],
         'row': [],
         'col': [],
         'toa': [],
@@ -985,17 +995,21 @@ def toSingleDataFramePerDirectory_newEventModel(
                             evt += 1
                             previous_evt = tmp_evt
                     elif line.split(' ')[0] == 'H':
-                        pass
-                        # bcid = int(line.split(' ')[-1])
+                        bcid = int(line.split(' ')[-1])
+                        l1a_counter = int(line.split(' ')[2])
                     elif line.split(' ')[0] == 'D':
                         id  = int(line.split(' ')[1])
+                        ea  = int(line.split(' ')[2])
                         col = int(line.split(' ')[-4])
                         row = int(line.split(' ')[-5])
                         toa = int(line.split(' ')[-3])
                         tot = int(line.split(' ')[-2])
                         cal = int(line.split(' ')[-1])
                         file_d['evt'].append(evt)
+                        file_d['bcid'].append(bcid)
+                        file_d['l1a_counter'].append(l1a_counter)
                         file_d['board'].append(id)
+                        file_d['ea'].append(ea)
                         file_d['row'].append(row)
                         file_d['col'].append(col)
                         file_d['toa'].append(toa)
