@@ -61,20 +61,20 @@ bash_template = """#!/bin/bash
 ls -ltrh
 echo ""
 
-# See EOS directory exists
-ls -ltrh /
-echo ""
-
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-# Make EOS visible
-cd {{ input_dir_name }}
-cd -
-ls {{ input_dir_name }}
+# Copy input data from EOS to local work node
+xrdcp -r root://eosuser.cern.ch/{{ input_dir_path }} ./
 
-# Add cernbox python environment after EOS is visible
-export PYTHONPATH=/eos/user/j/jongho/.local/lib/python3.9/site-packages:$PYTHONPATH
+# Untar python environment
+tar -xf python_lib.tar
+
+# Check untar output
+ls -ltrh
+
+# Set custom python environment
+export PYTHONPATH=${PWD}/local/lib/python3.9/site-packages:$PYTHONPATH
 echo "${PYTHONPATH}"
 echo ""
 
@@ -85,6 +85,7 @@ python decoding.py -d {{ input_dir_name }}
 # Prepare the data for the template
 options = {
     'input_dir_name': '${1}',
+    'input_dir_path': '${2}'
 }
 
 # Render the template with the data
@@ -106,17 +107,14 @@ jdl = """universe              = vanilla
 executable            = run_decode.sh
 should_Transfer_Files = YES
 whenToTransferOutput  = ON_EXIT
-arguments             = $(path)
-transfer_Input_Files  = decoding.py
+arguments             = $(name) $(path)
+transfer_Input_Files  = decoding.py, python_lib.tar
 TransferOutputRemaps = "$(name).feather={1}/$(name).feather"
 output                = {0}/$(ClusterId).$(ProcId).decoding.stdout
 error                 = {0}/$(ClusterId).$(ProcId).decoding.stderr
 log                   = {0}/$(ClusterId).$(ProcId).decoding.log
 MY.WantOS             = "el9"
 +JobFlavour           = "workday"
-on_exit_remove        = (ExitBySignal == False) && (ExitCode != 1)
-max_retries           = 3
-requirements          = Machine =!= LastRemoteHost
 Queue name, path from input_list_for_decoding.txt
 """.format(str(log_dir), str(outdir))
 
