@@ -272,8 +272,8 @@ if __name__ == "__main__":
         print('Empty input file!')
         exit(0)
 
-    if run_df['board'].unique().size != 4:
-        print('Dataframe does not have all 4 boards information')
+    if run_df['board'].unique().size < 3:
+        print('Dataframe does not have at least 3 boards information')
         exit(0)
 
     track_df = pd.read_csv(args.track)
