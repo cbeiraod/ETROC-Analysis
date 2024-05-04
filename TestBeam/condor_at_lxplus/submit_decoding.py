@@ -57,17 +57,26 @@ outdir.mkdir(exist_ok = False)
 # Define the bash script template
 bash_template = """#!/bin/bash
 
+# Check current directory to make sure that input files are transferred
 ls -ltrh
 echo ""
-pwd
+
+# See EOS directory exists
+ls -ltrh /
+echo ""
 
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-# Add cernbox python environment
-export PYTHONPATH=/eos/user/j/jongho/.local/lib/python3.9/site-packages:$PYTHONPATH
-
+# Make EOS visible
+cd {{ input_dir_name }}
+cd -
 ls {{ input_dir_name }}
+
+# Add cernbox python environment after EOS is visible
+export PYTHONPATH=/eos/user/j/jongho/.local/lib/python3.9/site-packages:$PYTHONPATH
+echo "${PYTHONPATH}"
+echo ""
 
 echo "python decoding.py -d {{ input_dir_name }}"
 python decoding.py -d {{ input_dir_name }}
@@ -105,6 +114,9 @@ error                 = {0}/$(ClusterId).$(ProcId).decoding.stderr
 log                   = {0}/$(ClusterId).$(ProcId).decoding.log
 MY.WantOS             = "el9"
 +JobFlavour           = "workday"
+on_exit_remove        = (ExitBySignal == False) && (ExitCode != 1)
+max_retries           = 3
+requirements          = Machine =!= LastRemoteHost
 Queue name, path from input_list_for_decoding.txt
 """.format(str(log_dir), str(outdir))
 
