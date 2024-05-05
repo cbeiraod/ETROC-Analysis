@@ -98,10 +98,10 @@ log_dir = current_dir / 'condor_logs'
 log_dir.mkdir(exist_ok=True)
 
 if log_dir.exists():
-    os.system('rm condor_logs/*log')
-    os.system('rm condor_logs/*stdout')
-    os.system('rm condor_logs/*stderr')
-    os.system('ls condor_logs | wc -l')
+    os.system('rm condor_logs/*decoding*log')
+    os.system('rm condor_logs/*decoding*stdout')
+    os.system('rm condor_logs/*decoding*stderr')
+    os.system('ls condor_logs/*decoding*log | wc -l')
 
 jdl = """universe              = vanilla
 executable            = run_decode.sh
