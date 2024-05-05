@@ -92,13 +92,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '--clear_condor_logs',
-    action = 'store_true',
-    help = 'If set, clear condor logs directory',
-    dest = 'clear_condor_logs',
-)
-
-parser.add_argument(
     '--dryrun',
     action = 'store_true',
     help = 'If set, condor submission will not happen',
@@ -214,11 +207,11 @@ with open('run_track_data_selection.sh','w') as bashfile:
 log_dir = current_dir / 'condor_logs'
 log_dir.mkdir(exist_ok=True)
 
-if args.clear_condor_logs:
-    os.system('rm condor_logs/*log')
-    os.system('rm condor_logs/*stdout')
-    os.system('rm condor_logs/*stderr')
-    os.system('ls condor_logs | wc -l')
+if log_dir.exists():
+    os.system('rm condor_logs/*trackSelection*log')
+    os.system('rm condor_logs/*trackSelection*stdout')
+    os.system('rm condor_logs/*trackSelection*stderr')
+    os.system('ls condor_logs/*trackSelection*log | wc -l')
 
 out_dir = current_dir / 'dataSelection_outputs'
 out_dir.mkdir(exist_ok=True)
