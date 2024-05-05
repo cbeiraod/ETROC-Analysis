@@ -121,8 +121,7 @@ outdir = current_dir / f'resolution_{args.dirname}'
 outdir.mkdir(exist_ok = False)
 
 # Define the bash script template
-bash_template = """
-#!/bin/bash
+bash_template = """#!/bin/bash
 
 ls -ltrh
 echo ""
@@ -172,10 +171,10 @@ log_dir = current_dir / 'condor_logs'
 log_dir.mkdir(exist_ok=True)
 
 if log_dir.exists():
-    os.system('rm condor_logs/*log')
-    os.system('rm condor_logs/*stdout')
-    os.system('rm condor_logs/*stderr')
-    os.system('ls condor_logs | wc -l')
+    os.system('rm condor_logs/*bootstrap*log')
+    os.system('rm condor_logs/*bootstrap*stdout')
+    os.system('rm condor_logs/*bootstrap*stderr')
+    os.system('ls condor_logs/*bootstrap*log | wc -l')
 
 jdl = """universe              = vanilla
 executable            = run_bootstrap.sh
