@@ -93,6 +93,10 @@ def data_3board_selection_by_track(
 
     track_tmp_df = pixel_filter(input_df, pix_dict, filter_by_area=False)
 
+    if sorted(track_tmp_df['board'].unique().tolist()) != board_to_analyze:
+        print('dataframe is not sufficient after pixel selection. Exit the function')
+        return pd.DataFrame()
+
     ## Selecting good hits with TDC cuts
     tdc_cuts = {}
     for idx in board_to_analyze:
@@ -108,6 +112,10 @@ def data_3board_selection_by_track(
                     0, 1100, 0, 600]
 
     track_tmp_df = tdc_event_selection(track_tmp_df, tdc_cuts_dict=tdc_cuts)
+
+    if sorted(track_tmp_df['board'].unique().tolist()) != board_to_analyze:
+        print('dataframe is not sufficient after TDC cut. Exit the function')
+        return pd.DataFrame()
 
     event_board_counts = track_tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
     event_selection_col = (event_board_counts[board_to_analyze[0]] == 1) & (event_board_counts[board_to_analyze[1]] == 1) & (event_board_counts[board_to_analyze[2]] == 1)
@@ -133,6 +141,10 @@ def data_4board_selection_by_track(
 
     track_tmp_df = pixel_filter(input_df, pix_dict, filter_by_area=False)
 
+    if sorted(track_tmp_df['board'].unique().tolist()) != board_to_analyze:
+        print('dataframe is not sufficient after pixel selection. Exit the function')
+        return pd.DataFrame()
+
     ## Selecting good hits with TDC cuts
     tdc_cuts = {}
     for idx in board_to_analyze:
@@ -148,6 +160,10 @@ def data_4board_selection_by_track(
                     0, 1100, 0, 600]
 
     track_tmp_df = tdc_event_selection(track_tmp_df, tdc_cuts_dict=tdc_cuts)
+
+    if sorted(track_tmp_df['board'].unique().tolist()) != board_to_analyze:
+        print('dataframe is not sufficient after TDC cut. Exit the function')
+        return pd.DataFrame()
 
     event_board_counts = track_tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
     event_selection_col = (event_board_counts[0] == 1) & (event_board_counts[1] == 1) & (event_board_counts[2] == 1) & (event_board_counts[3] == 1)
@@ -272,7 +288,7 @@ if __name__ == "__main__":
         print('Empty input file!')
         exit(0)
 
-    if run_df['board'].unique().size < 3:
+    if run_df['board'].nunique() < 3:
         print('Dataframe does not have at least 3 boards information')
         exit(0)
 
