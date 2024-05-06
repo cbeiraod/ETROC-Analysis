@@ -2253,6 +2253,7 @@ def plot_resolution_table(
         chipLabels: list[int],
         fig_title: list[str],
         fig_tag: str = '',
+        missing_pixel_info: dict | None = None,
         slides_friendly: bool = False,
         show_number: bool = False,
     ):
@@ -2332,7 +2333,7 @@ def plot_resolution_table(
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cbar.set_label('Time Resolution', fontsize=20)
+            cbar.set_label('Time Resolution (ps)', fontsize=20)
 
             if show_number:
                 for i in range(16):
@@ -2344,7 +2345,12 @@ def plot_resolution_table(
                         text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
                         plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
-            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+            if missing_pixel_info is not None:
+                for jdx in range(len(missing_pixel_info[idx]['res'])):
+                    text = str(rf"{float(missing_pixel_info[idx]['res'][jdx]):.1f}""\n"fr"$\pm$ {float(missing_pixel_info[idx]['err'][jdx]):.1f}")
+                    plt.text(int(missing_pixel_info[idx]['col'][jdx]), int(missing_pixel_info[idx]['row'][jdx]), text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
             ax.set_xlabel('Column (col)', fontsize=20)
             ax.set_ylabel('Row (row)', fontsize=20)
             ticks = range(0, 16)
