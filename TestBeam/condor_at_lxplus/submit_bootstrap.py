@@ -1,7 +1,8 @@
-import shutil, os
+import os
 from pathlib import Path
 import argparse
 from glob import glob
+from jinja2 import Template
 
 parser = argparse.ArgumentParser(
             prog='PlaceHolder',
@@ -36,6 +37,15 @@ parser.add_argument(
     help = 'Random sampling fraction',
     default = 75,
     dest = 'sampling',
+)
+
+parser.add_argument(
+    '--board_id_for_TOA_cut',
+    metavar = 'NUM',
+    type = int,
+    help = 'TOA range cut will be applied to a given board ID',
+    default = 1,
+    dest = 'board_id_for_TOA_cut',
 )
 
 parser.add_argument(
@@ -80,6 +90,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--reproducible',
+    action = 'store_true',
+    help = 'If set, random seed will be set by counter and save random seed in the final output',
+    dest = 'reproducible',
+)
+
+parser.add_argument(
     '--dryrun',
     action = 'store_true',
     help = 'If set, condor submission will not happen',
@@ -103,8 +120,8 @@ with open(listfile, 'a') as listfile:
 outdir = current_dir / f'resolution_{args.dirname}'
 outdir.mkdir(exist_ok = False)
 
-if args.autoTOTcuts:
-    bash_script = """#!/bin/bash
+# Define the bash script template
+bash_template = """#!/bin/bash
 
 ls -ltrh
 echo ""
@@ -113,46 +130,38 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts"
-python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts
-    """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
-elif (args.autoTOTcuts) & (args.noTrig):
-    bash_script = """#!/bin/bash
+echo "python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}{% if reproducible %} --reproducible{% endif %}"
+python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}{% if autoTOTcuts %} --autoTOTcuts{% endif %}{% if noTrig %} --noTrig{% endif %}{% if reproducible %} --reproducible{% endif %}
+"""
 
-ls -ltrh
-echo ""
-pwd
+# Prepare the data for the template
+options = {
+    'filename': '${1}.pkl',
+    'iteration': args.iteration,
+    'sampling': args.sampling,
+    'board_id_for_TOA_cut': args.board_id_for_TOA_cut,
+    'minimum_nevt': args.minimum_nevt,
+    'trigTOALower': args.trigTOALower,
+    'trigTOAUpper': args.trigTOAUpper,
+    'autoTOTcuts': args.autoTOTcuts,
+    'noTrig': args.noTrig,
+    'reproducible': args.reproducible,
+}
 
-# Load python environment from work node
-source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
-
-echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts --noTrig"
-python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4} --autoTOTcuts --noTrig
-    """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
-
-else:
-    bash_script = """#!/bin/bash
-
-ls -ltrh
-echo ""
-pwd
-
-# Load python environment from work node
-source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
-
-echo "python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4}"
-python bootstrap.py -f ${{1}}.pkl -i {0} -s {1} --minimum_nevt {2} --trigTOALower {3} --trigTOAUpper {4}
-    """.format(args.iteration, args.sampling, args.minimum_nevt, args.trigTOALower, args.trigTOAUpper)
+# Render the template with the data
+bash_script = Template(bash_template).render(options)
 
 print('\n========= Run option =========')
 print(f'Bootstrap iteration: {args.iteration}')
 print(f'{args.sampling}% of random sampling')
-print(f"TOA cut for a 'NEW' trigger is {args.trigTOALower}-{args.trigTOAUpper}")
+print(f"TOA cut for a 'NEW' trigger is {args.trigTOALower}-{args.trigTOAUpper} on board ID={args.board_id_for_TOA_cut}")
 print(f'Number of events larger than {args.minimum_nevt} will be considered')
 if args.autoTOTcuts:
     print(f'Automatic TOT cuts will be applied')
 if args.noTrig:
     print('Trigger board will not be considered')
+if args.reproducible:
+    print('Random seed will be set by counter. The final output will have seed information together')
 print('========= Run option =========\n')
 
 with open('run_bootstrap.sh','w') as bashfile:
@@ -162,10 +171,10 @@ log_dir = current_dir / 'condor_logs'
 log_dir.mkdir(exist_ok=True)
 
 if log_dir.exists():
-    os.system('rm condor_logs/*log')
-    os.system('rm condor_logs/*stdout')
-    os.system('rm condor_logs/*stderr')
-    os.system('ls condor_logs | wc -l')
+    os.system('rm condor_logs/*bootstrap*log')
+    os.system('rm condor_logs/*bootstrap*stdout')
+    os.system('rm condor_logs/*bootstrap*stderr')
+    os.system('ls condor_logs/*bootstrap*log | wc -l')
 
 jdl = """universe              = vanilla
 executable            = run_bootstrap.sh
@@ -174,9 +183,9 @@ whenToTransferOutput  = ON_EXIT
 arguments             = $(ifile)
 transfer_Input_Files  = bootstrap.py,$(path)
 TransferOutputRemaps = "$(ifile)_resolution.pkl={1}/$(ifile)_resolution.pkl"
-output                = {0}/$(ClusterId).$(ProcId).stdout
-error                 = {0}/$(ClusterId).$(ProcId).stderr
-log                   = {0}/$(ClusterId).$(ProcId).log
+output                = {0}/$(ClusterId).$(ProcId).bootstrap.stdout
+error                 = {0}/$(ClusterId).$(ProcId).bootstrap.stderr
+log                   = {0}/$(ClusterId).$(ProcId).bootstrap.log
 MY.WantOS             = "el9"
 +JobFlavour           = "microcentury"
 Queue ifile,path from input_list_for_bootstrap.txt

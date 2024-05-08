@@ -2,6 +2,7 @@ import os, re
 from pathlib import Path
 import argparse
 from glob import glob
+from jinja2 import Template
 
 parser = argparse.ArgumentParser(
             prog='PlaceHolder',
@@ -84,6 +85,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--load_from_eos',
+    action = 'store_true',
+    help = 'If set, bash script and condor jdl will include EOS command',
+    dest = 'load_from_eos',
+)
+
+parser.add_argument(
     '--dryrun',
     action = 'store_true',
     help = 'If set, condor submission will not happen',
@@ -105,11 +113,13 @@ with open(listfile, 'a') as listfile:
         for ifile in files:
             pattern = r'Run_(\d+)'
             fname = ifile.split('/')[-1]
+            loop_name = fname.split('.')[0]
             matches = re.findall(pattern, ifile)
-            save_string = f"run{matches[0]}, {fname}, {ifile}"
+            save_string = f"run{matches[0]}, {fname}, {loop_name}, {ifile}"
             listfile.write(save_string + '\n')
 
-bash_script = """#!/bin/bash
+if args.load_from_eos:
+    bash_template = """#!/bin/bash
 
 ls -ltrh
 echo ""
@@ -118,9 +128,78 @@ pwd
 # Load python environment from work node
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
-echo "python track_data_selection.py -f ${{1}} -r ${{2}} -t {0} --trigID {1} --refID {2} --dutID {3} --ignoreID {4} --trigTOTLower {5} --trigTOTUpper {6}"
-python track_data_selection.py -f ${{1}} -r ${{2}} -t {0} --trigID {1} --refID {2} --dutID {3} --ignoreID {4} --trigTOTLower {5} --trigTOTUpper {6}
-""".format(args.track, args.trigID, args.refID, args.dutID, args.ignoreID, args.trigTOTLower, args.trigTOTUpper)
+# Copy input data from EOS to local work node
+xrdcp -r root://eosuser.cern.ch/{{ path }} ./
+
+echo "Will process input file from {{ runname }} {{ filename }}"
+
+echo "python track_data_selection.py -f {{ filename }} -r {{ runname }} -t {{ track }} --trigID {{ trigID }} --refID {{ refID }} --dutID {{ dutID }} --ignoreID {{ ignoreID }} --trigTOTLower {{ trigTOTLower }} --trigTOTUpper {{ trigTOTUpper }}"
+python track_data_selection.py -f {{ filename }} -r {{ runname }} -t {{ track }} --trigID {{ trigID }} --refID {{ refID }} --dutID {{ dutID }} --ignoreID {{ ignoreID }} --trigTOTLower {{ trigTOTLower }} --trigTOTUpper {{ trigTOTUpper }}
+
+ls -ltrh
+echo ""
+
+# Delete input file so condor will not return
+rm {{ filename }}
+
+ls -ltrh
+echo ""
+"""
+
+    # Prepare the data for the template
+    options = {
+        'filename': '${1}',
+        'runname': '${2}',
+        'path': '${3}',
+        'track': args.track,
+        'trigID': args.trigID,
+        'refID': args.refID,
+        'dutID': args.dutID,
+        'ignoreID': args.ignoreID,
+        'trigTOTLower': args.trigTOTLower,
+        'trigTOTUpper': args.trigTOTUpper,
+    }
+
+else:
+    bash_template = """#!/bin/bash
+
+ls -ltrh
+echo ""
+pwd
+
+# Load python environment from work node
+source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
+
+echo "Will process input file from {{ runname }} {{ filename }}"
+
+echo "python track_data_selection.py -f {{ filename }} -r {{ runname }} -t {{ track }} --trigID {{ trigID }} --refID {{ refID }} --dutID {{ dutID }} --ignoreID {{ ignoreID }} --trigTOTLower {{ trigTOTLower }} --trigTOTUpper {{ trigTOTUpper }}"
+python track_data_selection.py -f {{ filename }} -r {{ runname }} -t {{ track }} --trigID {{ trigID }} --refID {{ refID }} --dutID {{ dutID }} --ignoreID {{ ignoreID }} --trigTOTLower {{ trigTOTLower }} --trigTOTUpper {{ trigTOTUpper }}
+
+ls -ltrh
+echo ""
+
+# Delete input file so condor will not return
+rm {{ filename }}
+
+ls -ltrh
+echo ""
+"""
+
+    # Prepare the data for the template
+    options = {
+        'filename': '${1}',
+        'runname': '${2}',
+        'track': args.track,
+        'trigID': args.trigID,
+        'refID': args.refID,
+        'dutID': args.dutID,
+        'ignoreID': args.ignoreID,
+        'trigTOTLower': args.trigTOTLower,
+        'trigTOTUpper': args.trigTOTUpper,
+    }
+
+# Render the template with the data
+bash_script = Template(bash_template).render(options)
 
 with open('run_track_data_selection.sh','w') as bashfile:
     bashfile.write(bash_script)
@@ -129,24 +208,46 @@ log_dir = current_dir / 'condor_logs'
 log_dir.mkdir(exist_ok=True)
 
 if log_dir.exists():
-    os.system('rm condor_logs/*log')
-    os.system('rm condor_logs/*stdout')
-    os.system('rm condor_logs/*stderr')
-    os.system('ls condor_logs | wc -l')
+    os.system('rm condor_logs/*trackSelection*log')
+    os.system('rm condor_logs/*trackSelection*stdout')
+    os.system('rm condor_logs/*trackSelection*stderr')
+    os.system('ls condor_logs/*trackSelection*log | wc -l')
 
-jdl = """universe              = vanilla
+out_dir = current_dir / 'dataSelection_outputs'
+out_dir.mkdir(exist_ok=True)
+
+if args.load_from_eos:
+    jdl = """universe              = vanilla
+executable            = run_track_data_selection.sh
+should_Transfer_Files = YES
+whenToTransferOutput  = ON_EXIT
+arguments             = $(fname) $(run) $(path)
+transfer_Input_Files  = track_data_selection.py,{1}
+TransferOutputRemaps = "$(run)_$(loop).pickle={2}/$(run)_$(loop).pickle"
+output                = {0}/$(ClusterId).$(ProcId).trackSelection.stdout
+error                 = {0}/$(ClusterId).$(ProcId).trackSelection.stderr
+log                   = {0}/$(ClusterId).$(ProcId).trackSelection.log
+MY.WantOS             = "el9"
++JobFlavour           = "microcentury"
+Queue run,fname,loop,path from input_list_for_dataSelection.txt
+""".format(str(log_dir), args.track, str(out_dir))
+
+else:
+    jdl = """universe              = vanilla
 executable            = run_track_data_selection.sh
 should_Transfer_Files = YES
 whenToTransferOutput  = ON_EXIT
 arguments             = $(fname) $(run)
 transfer_Input_Files  = track_data_selection.py,{1},$(path)
-output                = {0}/$(ClusterId).$(ProcId).stdout
-error                 = {0}/$(ClusterId).$(ProcId).stderr
-log                   = {0}/$(ClusterId).$(ProcId).log
+TransferOutputRemaps = "$(run)_$(loop).pickle={2}/$(run)_$(loop).pickle"
+output                = {0}/$(ClusterId).$(ProcId).trackSelection.stdout
+error                 = {0}/$(ClusterId).$(ProcId).trackSelection.stderr
+log                   = {0}/$(ClusterId).$(ProcId).trackSelection.log
 MY.WantOS             = "el9"
 +JobFlavour           = "microcentury"
-Queue run,fname,path from input_list_for_dataSelection.txt
-""".format(str(log_dir), args.track)
+Queue run,fname,loop,path from input_list_for_dataSelection.txt
+""".format(str(log_dir), args.track, str(out_dir))
+
 
 with open(f'condor_track_data_selection.jdl','w') as jdlfile:
     jdlfile.write(jdl)

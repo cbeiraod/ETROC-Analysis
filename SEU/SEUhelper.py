@@ -213,7 +213,7 @@ def plotBoardPower(board: str, channels: dict[str, str], dataframe: pandas.DataF
     else:
         plt.clf()
 
-def plotWSPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}):
+def plotWSPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}, filename = "WaveformSampler"):
     figure, axis = plt.subplots(
                     nrows = 2,
                     ncols = 1,
@@ -270,7 +270,7 @@ def plotWSPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bo
         )
         axis[1].text(times_to_plot[key], .5, key, transform=trans, rotation=90, va='center')
 
-    plt.savefig(fname=save_to/"WaveformSampler.pdf")
+    plt.savefig(fname=save_to/(filename+".pdf"))
     if show:
         plt.show()
     else:
@@ -921,11 +921,13 @@ def makeOverallSummarySlides(
                 latexfile.write(r"\begin{frame}" + '\n')
                 latexfile.write(r"\frametitle{VRef Monitoring}" + '\n')
 
-                latexfile.write(r"\includeSinglePdf[0.8]{VRef}" + '\n')
+                latexfile.write(r"\begin{center}" + '\n')
+                latexfile.write(r"\includegraphics[width=\linewidth,height=0.5\linewidth,keepaspectratio]{VRef}" + '\n')
+                latexfile.write(r"\end{center}" + '\n')
 
                 if len(ps_see_times) != 0:
                     latexfile.write(r"\begin{itemize}" + '\n')
-                    latexfile.write(r"\item The power failure is easilt observed in this plot, where after " + ps_see_times[0].isoformat(sep=" ") + r" the VRef is no longer being correctly supplied" + '\n')
+                    latexfile.write(r"\item The power failure is easily observed in this plot, where after " + ps_see_times[0].isoformat(sep=" ") + r" the VRef is no longer being correctly supplied" + '\n')
                     latexfile.write(r"\end{itemize}" + '\n')
                 latexfile.write(r"\end{frame}" + '\n')
 
@@ -935,20 +937,24 @@ def makeOverallSummarySlides(
                 latexfile.write(r"\begin{frame}" + '\n')
                 latexfile.write(r"\frametitle{WS Power Monitoring}" + '\n')
 
-                latexfile.write(r"\includeSinglePdf[0.8]{WaveformSampler}" + '\n')
+                latexfile.write(r"\begin{center}" + '\n')
+                latexfile.write(r"\includegraphics[width=\linewidth,height=0.55\linewidth,keepaspectratio]{WaveformSampler}" + '\n')
+                latexfile.write(r"\end{center}" + '\n')
 
                 latexfile.write(r"\end{frame}" + '\n')
 
             for chip_name in chip_names:
                 board_safe = chip_name.replace("_", "-")
-                if (power_directory/f"{board_safe}.pdf").exists():
-                    shutil.copy(power_directory/f"{board_safe}.pdf", fig_dir/f"{board_safe}-power.pdf")
+                if (power_directory/f"{chip_name}.pdf").exists():
+                    shutil.copy(power_directory/f"{chip_name}.pdf", fig_dir/f"{board_safe}-power.pdf")
 
                     latexfile.write(r"\subsection{" + chip_name.replace("_", " ") + r" Monitoring}" + '\n')
                     latexfile.write(r"\begin{frame}" + '\n')
                     latexfile.write(r"\frametitle{" + chip_name.replace("_", " ") + r" Power Monitoring}" + '\n')
 
-                    latexfile.write(r"\includeSinglePdf[0.8]{" + board_safe + r"-power}" + '\n')
+                    latexfile.write(r"\begin{center}" + '\n')
+                    latexfile.write(r"\includegraphics[width=\linewidth,height=0.55\linewidth,keepaspectratio]{" + board_safe + r"-power}" + '\n')
+                    latexfile.write(r"\end{center}" + '\n')
 
                     latexfile.write(r"\end{frame}" + '\n')
 
@@ -971,8 +977,10 @@ def makeOverallSummarySlides(
                     latexfile.write(r"\subsection{" + chip_name.replace("_", " ") + r"}" + '\n')
 
                     latexfile.write(r"\begin{frame}" + '\n')
-                    latexfile.write(r"\frametitle{" + chip_name.replace("_", " ") + r"Baseline Monitoring}" + '\n')
-                    latexfile.write(r"\includeSinglePdf[0.8]{" + chip_name.replace("_", "-") + r"-Baseline}" + '\n')
+                    latexfile.write(r"\frametitle{" + chip_name.replace("_", " ") + r" Baseline Monitoring}" + '\n')
+                    latexfile.write(r"\begin{center}" + '\n')
+                    latexfile.write(r"\includegraphics[width=\linewidth,height=0.55\linewidth,keepaspectratio]{" + chip_name.replace("_", "-") + r"-Baseline}" + '\n')
+                    latexfile.write(r"\end{center}" + '\n')
                     latexfile.write(r"\end{frame}" + '\n')
 
         if config_compare_dir.exists() and config_compare_dir.is_dir():
