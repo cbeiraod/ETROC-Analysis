@@ -348,6 +348,35 @@ class DecodeBinary:
 
         self.filler_data = copy.deepcopy(self.filler_data_template)
 
+    def set_dtype(self):
+        tmp = self.data_to_load
+
+        self.data_to_load = {
+            'evt': np.array(tmp['evt'], dtype=np.uint64),
+            'bcid': np.array(tmp['bcid'], dtype=np.uint16),
+            'l1a_counter': np.array(tmp['l1a_counter'], dtype=np.uint8),
+            'ea': np.array(tmp['ea'], dtype=np.uint8),
+            'board': np.array(tmp['board'], dtype=np.uint8),
+            'row': np.array(tmp['row'], dtype=np.uint8),
+            'col': np.array(tmp['col'], dtype=np.uint8),
+            'toa': np.array(tmp['toa'], dtype=np.uint16),
+            'tot': np.array(tmp['tot'], dtype=np.uint16),
+            'cal': np.array(tmp['cal'], dtype=np.uint16),
+        }
+
+    def set_crc_dtype(self):
+        tmp = self.crc_data_to_load
+
+        self.crc_data_to_load = {
+            'evt': np.array(tmp['evt'], dtype=np.uint64),
+            'bcid': np.array(tmp['bcid'], dtype=np.uint16),
+            'l1a_counter': np.array(tmp['l1a_counter'], dtype=np.uint8),
+            'board': np.array(tmp['board'], dtype=np.uint8),
+            'CRC': np.array(tmp['CRC'], dtype=np.uint8),
+            'CRC_calc': np.array(tmp['CRC_calc'], dtype=np.uint8),
+            'CRC_mismatch': np.array(tmp['CRC_mismatch'], dtype=np.bool_),
+        }
+
     def set_event_dtype(self):
         tmp = self.event_data_to_load
 
@@ -550,10 +579,12 @@ class DecodeBinary:
             self.open_next_file()
 
         self.data_to_load = copy.deepcopy(self.data_template)
+        self.set_dtype()
         df = pd.DataFrame(self.data_to_load)
         self.data_to_load = copy.deepcopy(self.data_template)
 
         self.crc_data = copy.deepcopy(self.crc_data_template)
+        self.set_crc_dtype()
         crc_df = pd.DataFrame(self.crc_data_to_load)
         self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
 
@@ -674,15 +705,18 @@ class DecodeBinary:
                         self.event_in_filler_40_counter += 1
 
                         if len(self.data_to_load['evt']) >= 10000:
-                            df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
+                            self.set_dtype()
+                            df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
                             self.data_to_load = copy.deepcopy(self.data_template)
 
                             if not self.skip_crc_df:
-                                crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load, dtype=np.uint64)], ignore_index=True)
+                                self.set_crc_dtype()
+                                crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load)], ignore_index=True)
                                 self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
 
                             if not self.skip_event_df:
-                                event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
+                                self.set_event_dtype()
+                                event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load)], ignore_index=True)
                                 self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
                         if self.nem_file is not None:
@@ -762,17 +796,20 @@ class DecodeBinary:
                     self.reset_params()
 
                 if len(self.data_to_load['evt']) > 0:
-                    df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
+                    self.set_dtype()
+                    df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
                     self.data_to_load = copy.deepcopy(self.data_template)
 
                 if len(self.crc_data_to_load['evt']) > 0:
                     if not self.skip_crc_df:
-                        crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load, dtype=np.uint64)], ignore_index=True)
+                        self.set_crc_dtype()
+                        crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load)], ignore_index=True)
                         self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
 
                 if len(self.event_data_to_load['evt']) > 0:
                     if not self.skip_event_df:
-                        event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
+                        self.set_event_dtype()
+                        event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load)], ignore_index=True)
                         self.event_data_to_load = copy.deepcopy(self.event_data_template)
 
                 if len(self.filler_data['idx']) > 0:
