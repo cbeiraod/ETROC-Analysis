@@ -8,6 +8,7 @@ from pathlib import Path
 import os
 from tqdm import tqdm
 import pickle
+import json
 
 import matplotlib
 # from mpl_toolkits.mplot3d import Axes3D
@@ -232,6 +233,9 @@ def compare_chip_configs(config_file1: Path, config_file2: Path, dump_i2c:bool =
 ## --------------- Decoding Class -----------------------
 ## --------------------------------------
 class DecodeBinary:
+    def copy_dict_by_json(self, d):
+            return json.loads(json.dumps(d))
+
     def __init__(self, firmware_key,
                  board_id: list[int],
                  file_list: list[Path],
@@ -311,9 +315,9 @@ class DecodeBinary:
             'CRC_mismatch': [],
         }
 
-        self.data_to_load = copy.deepcopy(self.data_template)
-        self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
-        self.event_data_to_load = copy.deepcopy(self.event_data_template)
+        self.data_to_load = self.copy_dict_by_json(self.data_template)
+        self.crc_data_to_load = self.copy_dict_by_json(self.crc_data_template)
+        self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
         #self.CRCcalculator = Calculator(Crc8.AUTOSAR, optimized=True)
 
@@ -346,7 +350,7 @@ class DecodeBinary:
             'filler_data': [],
         }
 
-        self.filler_data = copy.deepcopy(self.filler_data_template)
+        self.filler_data = self.copy_dict_by_json(self.filler_data_template)
 
     def set_dtype(self):
         tmp = self.data_to_load
@@ -475,8 +479,8 @@ class DecodeBinary:
                     return
             self.bcid = (word & 0xfff)
             self.l1acounter = ((word >> 14) & 0xff)
-            self.data[self.current_channel] = copy.deepcopy(self.data_template)
-            self.crc_data[self.current_channel] = copy.deepcopy(self.crc_data_template)
+            self.data[self.current_channel] = self.copy_dict_by_json(self.data_template)
+            self.crc_data[self.current_channel] = self.copy_dict_by_json(self.crc_data_template)
             self.in_40bit = True
             Type = (word >> 12) & 0x3
 
@@ -578,25 +582,25 @@ class DecodeBinary:
         if self.save_nem is not None:
             self.open_next_file()
 
-        self.data_to_load = copy.deepcopy(self.data_template)
+        self.data_to_load = self.copy_dict_by_json(self.data_template)
         self.set_dtype()
         df = pd.DataFrame(self.data_to_load)
-        self.data_to_load = copy.deepcopy(self.data_template)
+        self.data_to_load = self.copy_dict_by_json(self.data_template)
 
-        self.crc_data = copy.deepcopy(self.crc_data_template)
+        self.crc_data = self.copy_dict_by_json(self.crc_data_template)
         self.set_crc_dtype()
         crc_df = pd.DataFrame(self.crc_data_to_load)
-        self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
+        self.crc_data_to_load = self.copy_dict_by_json(self.crc_data_template)
 
-        self.event_data_to_load = copy.deepcopy(self.event_data_template)
+        self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
         self.set_event_dtype()
         event_df = pd.DataFrame(self.event_data_to_load)
-        self.event_data_to_load = copy.deepcopy(self.event_data_template)
+        self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
-        self.filler_data = copy.deepcopy(self.filler_data_template)
+        self.filler_data = self.copy_dict_by_json(self.filler_data_template)
         self.set_filler_dtype()
         filler_df = pd.DataFrame(self.filler_data)
-        self.filler_data = copy.deepcopy(self.filler_data_template)
+        self.filler_data = self.copy_dict_by_json(self.filler_data_template)
 
         decoding = False
         for ifile in self.files_to_process:
@@ -638,7 +642,7 @@ class DecodeBinary:
                         # Set valid_data to true once we see fresh data
                         if(self.event_number==1 or self.event_number==0):
                             self.valid_data = True
-                        self.event_data = copy.deepcopy(self.event_data_template)
+                        self.event_data = self.copy_dict_by_json(self.event_data_template)
                         self.CRCdata += [
                             (word >> 24) & 0xff,
                             (word >> 16) & 0xff,
@@ -707,17 +711,17 @@ class DecodeBinary:
                         if len(self.data_to_load['evt']) >= 10000:
                             self.set_dtype()
                             df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
-                            self.data_to_load = copy.deepcopy(self.data_template)
+                            self.data_to_load = self.copy_dict_by_json(self.data_template)
 
                             if not self.skip_crc_df:
                                 self.set_crc_dtype()
                                 crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load)], ignore_index=True)
-                                self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
+                                self.crc_data_to_load = self.copy_dict_by_json(self.crc_data_template)
 
                             if not self.skip_event_df:
                                 self.set_event_dtype()
                                 event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load)], ignore_index=True)
-                                self.event_data_to_load = copy.deepcopy(self.event_data_template)
+                                self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
                         if self.nem_file is not None:
                             mismatch = ""
@@ -790,7 +794,7 @@ class DecodeBinary:
                         if not self.skip_filler:
                             self.set_filler_dtype()
                             filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
-                            self.filler_data= copy.deepcopy(self.filler_data_template)
+                            self.filler_data= self.copy_dict_by_json(self.filler_data_template)
 
                     # Reset anyway!
                     self.reset_params()
@@ -798,25 +802,25 @@ class DecodeBinary:
                 if len(self.data_to_load['evt']) > 0:
                     self.set_dtype()
                     df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
-                    self.data_to_load = copy.deepcopy(self.data_template)
+                    self.data_to_load = self.copy_dict_by_json(self.data_template)
 
                 if len(self.crc_data_to_load['evt']) > 0:
                     if not self.skip_crc_df:
                         self.set_crc_dtype()
                         crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load)], ignore_index=True)
-                        self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
+                        self.crc_data_to_load = self.copy_dict_by_json(self.crc_data_template)
 
                 if len(self.event_data_to_load['evt']) > 0:
                     if not self.skip_event_df:
                         self.set_event_dtype()
                         event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load)], ignore_index=True)
-                        self.event_data_to_load = copy.deepcopy(self.event_data_template)
+                        self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
                 if len(self.filler_data['idx']) > 0:
                     if not self.skip_filler:
                         self.set_filler_dtype()
                         filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
-                        self.filler_data= copy.deepcopy(self.filler_data_template)
+                        self.filler_data= self.copy_dict_by_json(self.filler_data_template)
 
         self.close_file()
         return df, event_df, crc_df, filler_df
@@ -2314,6 +2318,7 @@ def plot_resolution_table(
         chipLabels: list[int],
         fig_title: list[str],
         fig_tag: str = '',
+        missing_pixel_info: dict | None = None,
         slides_friendly: bool = False,
         show_number: bool = False,
     ):
@@ -2364,7 +2369,7 @@ def plot_resolution_table(
                         value = tables[idx][0].iloc[i, j]
                         error = tables[idx][1].iloc[i, j]
                         if value == -1: continue
-                        text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
+                        text_color = 'black'
                         text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
                         plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
@@ -2393,7 +2398,7 @@ def plot_resolution_table(
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cbar.set_label('Time Resolution', fontsize=20)
+            cbar.set_label('Time Resolution (ps)', fontsize=20)
 
             if show_number:
                 for i in range(16):
@@ -2401,11 +2406,16 @@ def plot_resolution_table(
                         value = tables[idx][0].iloc[i, j]
                         error = tables[idx][1].iloc[i, j]
                         if value == -1: continue
-                        text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
+                        text_color = 'black'
                         text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
                         plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
-            hep.cms.text(loc=0, ax=ax, text="Preliminary", fontsize=25)
+            if missing_pixel_info is not None:
+                for jdx in range(len(missing_pixel_info[idx]['res'])):
+                    text = str(rf"{float(missing_pixel_info[idx]['res'][jdx]):.1f}""\n"fr"$\pm$ {float(missing_pixel_info[idx]['err'][jdx]):.1f}")
+                    plt.text(int(missing_pixel_info[idx]['col'][jdx]), int(missing_pixel_info[idx]['row'][jdx]), text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
             ax.set_xlabel('Column (col)', fontsize=20)
             ax.set_ylabel('Row (row)', fontsize=20)
             ticks = range(0, 16)

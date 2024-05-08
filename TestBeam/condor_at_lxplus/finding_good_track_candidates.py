@@ -114,6 +114,7 @@ def finding_tracks(
         dut_id: int = 1,
         ref_id: int = 3,
         red_2nd_id: int = -1,
+        four_board_track: bool = False,
     ):
 
     final_list = []
@@ -134,9 +135,14 @@ def finding_tracks(
                 print('file is empty. Move on to the next file')
                 continue
 
-            if tmp_df['board'].unique().size != 4:
+            if (four_board_track) and (tmp_df['board'].unique().size != 4):
                 num_failed_files += 1
                 print('This file does not have a full data including all four boards. Move on to the next file')
+                continue
+
+            if (~four_board_track) and (tmp_df['board'].unique().size < 3):
+                num_failed_files += 1
+                print('This file does not have data including at least three boards. Move on to the next file')
                 continue
 
             event_board_counts = tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
@@ -348,8 +354,6 @@ if __name__ == "__main__":
     input_files = list(Path(f'{args.path}').glob('*/*feather'))
     columns_to_read = ['evt', 'board', 'row', 'col', 'toa', 'tot', 'cal']
 
-
-
     if not args.four_board:
 
         list_of_ignore_boards = [args.ignoreID]
@@ -372,7 +376,7 @@ if __name__ == "__main__":
 
         finding_tracks(input_files=input_files, columns_to_read=columns_to_read, ignore_board_ids=list_of_ignore_boards,
                     outfile_name=args.outfilename, iteration=args.iteration, sampling_fraction=args.sampling, minimum_number_of_tracks=args.track,
-                    dut_id=args.dutID, ref_id=args.refID, group_for_pivot=columns_want_to_group, drop_for_pivot=columns_want_to_drop)
+                    dut_id=args.dutID, ref_id=args.refID, group_for_pivot=columns_want_to_group, drop_for_pivot=columns_want_to_drop, four_board_track=False)
     else:
 
         columns_want_to_drop = [f'toa_{i}' for i in [0,1,2,3]]
@@ -394,4 +398,5 @@ if __name__ == "__main__":
 
         finding_tracks(input_files=input_files, columns_to_read=columns_to_read, ignore_board_ids=None,
                     outfile_name=args.outfilename, iteration=args.iteration, sampling_fraction=args.sampling, minimum_number_of_tracks=args.track,
-                    dut_id=args.dutID, ref_id=args.refID, group_for_pivot=columns_want_to_group, drop_for_pivot=columns_want_to_drop, red_2nd_id=args.ignoreID)
+                    dut_id=args.dutID, ref_id=args.refID, group_for_pivot=columns_want_to_group,
+                    drop_for_pivot=columns_want_to_drop, red_2nd_id=args.ignoreID, four_board_track=True)
