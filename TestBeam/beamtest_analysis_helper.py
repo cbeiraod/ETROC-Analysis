@@ -8,6 +8,7 @@ from pathlib import Path
 import os
 from tqdm import tqdm
 import pickle
+import json
 
 import matplotlib
 # from mpl_toolkits.mplot3d import Axes3D
@@ -232,6 +233,9 @@ def compare_chip_configs(config_file1: Path, config_file2: Path, dump_i2c:bool =
 ## --------------- Decoding Class -----------------------
 ## --------------------------------------
 class DecodeBinary:
+    def copy_dict_by_json(self, d):
+            return json.loads(json.dumps(d))
+
     def __init__(self, firmware_key,
                  board_id: list[int],
                  file_list: list[Path],
@@ -311,9 +315,9 @@ class DecodeBinary:
             'CRC_mismatch': [],
         }
 
-        self.data_to_load = copy.deepcopy(self.data_template)
-        self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
-        self.event_data_to_load = copy.deepcopy(self.event_data_template)
+        self.data_to_load = self.copy_dict_by_json(self.data_template)
+        self.crc_data_to_load = self.copy_dict_by_json(self.crc_data_template)
+        self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
         #self.CRCcalculator = Calculator(Crc8.AUTOSAR, optimized=True)
 
@@ -346,7 +350,7 @@ class DecodeBinary:
             'filler_data': [],
         }
 
-        self.filler_data = copy.deepcopy(self.filler_data_template)
+        self.filler_data = self.copy_dict_by_json(self.filler_data_template)
 
     def set_filler_dtype(self):
         tmp = self.filler_data
@@ -431,8 +435,8 @@ class DecodeBinary:
                     return
             self.bcid = (word & 0xfff)
             self.l1acounter = ((word >> 14) & 0xff)
-            self.data[self.current_channel] = copy.deepcopy(self.data_template)
-            self.crc_data[self.current_channel] = copy.deepcopy(self.crc_data_template)
+            self.data[self.current_channel] = self.copy_dict_by_json(self.data_template)
+            self.crc_data[self.current_channel] = self.copy_dict_by_json(self.crc_data_template)
             self.in_40bit = True
             Type = (word >> 12) & 0x3
 
@@ -538,10 +542,10 @@ class DecodeBinary:
         crc_df = pd.DataFrame(self.crc_data_template, dtype=np.uint64)
         event_df = pd.DataFrame(self.event_data_template, dtype=np.uint64)  # TODO: Specify different dtypes for different columns
 
-        self.filler_data = copy.deepcopy(self.filler_data_template)
+        self.filler_data = self.copy_dict_by_json(self.filler_data_template)
         self.set_filler_dtype()
         filler_df = pd.DataFrame(self.filler_data)
-        self.filler_data = copy.deepcopy(self.filler_data_template)
+        self.filler_data = self.copy_dict_by_json(self.filler_data_template)
 
         decoding = False
         for ifile in self.files_to_process:
@@ -583,7 +587,7 @@ class DecodeBinary:
                         # Set valid_data to true once we see fresh data
                         if(self.event_number==1 or self.event_number==0):
                             self.valid_data = True
-                        self.event_data = copy.deepcopy(self.event_data_template)
+                        self.event_data = self.copy_dict_by_json(self.event_data_template)
                         self.CRCdata += [
                             (word >> 24) & 0xff,
                             (word >> 16) & 0xff,
@@ -651,15 +655,15 @@ class DecodeBinary:
 
                         if len(self.data_to_load['evt']) >= 10000:
                             df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
-                            self.data_to_load = copy.deepcopy(self.data_template)
+                            self.data_to_load = self.copy_dict_by_json(self.data_template)
 
                             if not self.skip_crc_df:
                                 crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load, dtype=np.uint64)], ignore_index=True)
-                                self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
+                                self.crc_data_to_load = self.copy_dict_by_json(self.crc_data_template)
 
                             if not self.skip_event_df:
                                 event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
-                                self.event_data_to_load = copy.deepcopy(self.event_data_template)
+                                self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
                         if self.nem_file is not None:
                             mismatch = ""
@@ -732,30 +736,30 @@ class DecodeBinary:
                         if not self.skip_filler:
                             self.set_filler_dtype()
                             filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
-                            self.filler_data= copy.deepcopy(self.filler_data_template)
+                            self.filler_data= self.copy_dict_by_json(self.filler_data_template)
 
                     # Reset anyway!
                     self.reset_params()
 
                 if len(self.data_to_load['evt']) > 0:
                     df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
-                    self.data_to_load = copy.deepcopy(self.data_template)
+                    self.data_to_load = self.copy_dict_by_json(self.data_template)
 
                 if len(self.crc_data_to_load['evt']) > 0:
                     if not self.skip_crc_df:
                         crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load, dtype=np.uint64)], ignore_index=True)
-                        self.crc_data_to_load = copy.deepcopy(self.crc_data_template)
+                        self.crc_data_to_load = self.copy_dict_by_json(self.crc_data_template)
 
                 if len(self.event_data_to_load['evt']) > 0:
                     if not self.skip_event_df:
                         event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
-                        self.event_data_to_load = copy.deepcopy(self.event_data_template)
+                        self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
                 if len(self.filler_data['idx']) > 0:
                     if not self.skip_filler:
                         self.set_filler_dtype()
                         filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
-                        self.filler_data= copy.deepcopy(self.filler_data_template)
+                        self.filler_data= self.copy_dict_by_json(self.filler_data_template)
 
         self.close_file()
         return df, event_df, crc_df, filler_df
