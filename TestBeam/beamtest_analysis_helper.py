@@ -2304,7 +2304,7 @@ def plot_resolution_table(
                         value = tables[idx][0].iloc[i, j]
                         error = tables[idx][1].iloc[i, j]
                         if value == -1: continue
-                        text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
+                        text_color = 'black'
                         text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
                         plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
@@ -2341,7 +2341,7 @@ def plot_resolution_table(
                         value = tables[idx][0].iloc[i, j]
                         error = tables[idx][1].iloc[i, j]
                         if value == -1: continue
-                        text_color = 'black' if value > 0.5*(res_table.values.max() + res_table.values.min()) else 'white'
+                        text_color = 'black'
                         text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
                         plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
 
