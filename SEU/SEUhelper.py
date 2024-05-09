@@ -821,6 +821,107 @@ def save_bitmap_table(bitmap: dict[str, list[int]], save_path: Path, base_name: 
         shutil.move(peristat_file, save_path/f"{base_name}_PeriStat.tex")
         shutil.move(periconf_file, save_path/f"{base_name}_PeriConf.tex")
 
+def save_bitmap_bitflips(changed_registers: dict[str, dict[int, tuple[int]]], save_path: Path, base_name: str):
+    periconf_count = 0
+    peristat_count = 0
+    pixconf_count = 0
+    pixstat_count = 0
+    pixconf_alt_count = 0
+    pixstat_alt_count = 0
+
+    for reg in changed_registers["ETROC2"]:
+        reg_name = None
+        broadcast = ""
+        if reg < 0x0020:
+            reg_name = f'PeriCfg{reg}'
+        elif reg < 0x0022:
+            reg_name = f'Magic Number ({reg:#06x})'
+        elif reg < 0x0100:
+            reg_name = f'Unnamed Blk1 ({reg:#06x})'
+        elif reg < 0x0110:
+            reg_name = f'PeriStat{reg - 0x0100}'
+        elif reg < 0x0120:
+            reg_name = f'Unnamed Blk2 ({reg:#06x})'
+        elif reg < 0x0124:
+            reg_name = f'SEU Counter {reg - 0x0120}'
+        elif reg < 0x8000:
+            reg_name = f'Unnamed Blk3 ({reg:#06x})'
+        else:
+            space = "Cfg"
+            if (reg & 0x4000) != 0:
+                space = "Stat"
+            if (reg & 0x2000) != 0:
+                broadcast = " broadcast"
+            register = reg & 0x1f
+            row = (reg >> 5) & 0xf
+            col = (reg >> 9) & 0xf
+            reg_name = f'Pix{space}{register}'
+
+            if broadcast != "":
+                continue
+            if space == "Stat" and register > 7:
+                continue
+
+        if 'SEU Counter' in reg_name:
+            continue
+
+        if 'Unnamed' in reg_name:
+            continue
+
+        reg_diff = changed_registers["ETROC2"][reg][0] ^ changed_registers["ETROC2"][reg][1]
+
+        bit_flips = 0
+        for bit_index in range(8):
+            bit_val = (reg_diff >> bit_index) & 0b1
+            if bit_val != 0:
+                bit_flips += 1
+
+        if 'PeriCfg' in reg_name:
+            periconf_count += bit_flips
+        elif 'PeriStat' in reg_name:
+            peristat_count += bit_flips
+        elif 'PixCfg' in reg_name:
+            pixconf_count += bit_flips
+            if row < 14:
+                pixconf_alt_count += bit_flips
+        elif 'PixStat' in reg_name:
+            pixstat_count += bit_flips
+            if row < 14:
+                pixstat_alt_count += bit_flips
+
+
+    summary_file = save_path/f"{base_name}-bitflips.txt"
+    with open(summary_file, "w") as summaryfile:
+        summaryfile.write(f"PeriConfig:\n")
+        summaryfile.write(f"{periconf_count}\n")
+        summaryfile.write(f"PeriStat:\n")
+        summaryfile.write(f"{peristat_count}\n")
+        summaryfile.write(f"PixConfig:\n")
+        summaryfile.write(f"{pixconf_count}\n")
+        summaryfile.write(f"PixStat:\n")
+        summaryfile.write(f"{pixstat_count}\n")
+        summaryfile.write(f"PixConfig (excluding top two rows):\n")
+        summaryfile.write(f"{pixconf_alt_count}\n")
+        summaryfile.write(f"PixStat (excluding top two rows):\n")
+        summaryfile.write(f"{pixstat_alt_count}\n")
+
+
+    summary_file = save_path/f"{base_name}-bitflips.csv"
+    with open(summary_file, "w") as summaryfile:
+        summaryfile.write(f"PeriConfig,")
+        summaryfile.write(f"PeriStat,")
+        summaryfile.write(f"PixConfig,")
+        summaryfile.write(f"PixStat,")
+        summaryfile.write(f"PixConfig-alt,")
+        summaryfile.write(f"PixStat-alt\n")
+
+        summaryfile.write(f"{periconf_count},")
+        summaryfile.write(f"{peristat_count},")
+        summaryfile.write(f"{pixconf_count},")
+        summaryfile.write(f"{pixstat_count},")
+        summaryfile.write(f"{pixconf_alt_count},")
+        summaryfile.write(f"{pixstat_alt_count}\n")
+
 
 ### Work in Progress (Also missing equivalent functions for single runs)
 def makeSlideHeaderAndTitle(latexfile: io.TextIOWrapper, slide_title: str, slide_short_title: str, slide_subtitle: str, do_toc: bool):
