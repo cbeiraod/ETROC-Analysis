@@ -2125,6 +2125,7 @@ def plot_TWC(
         corr_toas: dict | None = None,
         boundary_cut: float = 0,
         distance: dict | None = None,
+        print_func: bool = False,
     ):
 
     if corr_toas is not None:
@@ -2165,6 +2166,11 @@ def plot_TWC(
 
     coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
     poly_func_b2 = np.poly1d(coeff_b2)
+
+    if print_func:
+        print(poly_func_b0)
+        print(poly_func_b1)
+        print(poly_func_b2)
 
     fig, axes = plt.subplots(1, 3, figsize=(38, 10))
     hep.hist2dplot(h_twc1, ax=axes[0], norm=colors.LogNorm())
