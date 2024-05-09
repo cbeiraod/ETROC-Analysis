@@ -422,6 +422,15 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '--board_id_rfsel0',
+        metavar = 'NUM',
+        type = int,
+        help = 'board ID that set to RfSel = 0',
+        default = -1,
+        dest = 'board_id_rfsel0',
+    )
+
+    parser.add_argument(
         '--autoTOTcuts',
         action = 'store_true',
         help = 'If set, select 80 percent of data around TOT median value of each board',
@@ -456,28 +465,19 @@ if __name__ == "__main__":
     tot_cuts = {}
     for idx in board_ids:
         if args.autoTOTcuts:
-            #median_value = df['tot'][idx].mode()[0]  # Calculate the median value
-
-            ## Determine the range around the median to cover 80% of the data
-            ## You might consider using quartiles or percentiles to define this range
-            ## For example, you could use the interquartile range (IQR)
-            #q1 = df['tot'][idx].quantile(0.25)
-            #q3 = df['tot'][idx].quantile(0.75)
-            #iqr = q3 - q1
-
-            #coverage = 0
-            #multiplier = 0.5  # Initial multiplier
-            #while coverage < 0.8:
-            #    lower_bound = median_value - multiplier * iqr
-            #    upper_bound = median_value + multiplier * iqr
-            #    tot_around_peak = df['tot'][idx].between(lower_bound, upper_bound)
-            #    coverage = df['tot'][idx][tot_around_peak].shape[0]/df['tot'][idx].shape[0]
-            #    multiplier += 0.01
             lower_bound = df['tot'][idx].quantile(0.01)
             upper_bound = df['tot'][idx].quantile(0.99)
             tot_cuts[idx] = [round(lower_bound), round(upper_bound)]
+
+            if idx == args.board_id_rfsel0:
+                condition = df['tot'][idx] < 470
+                lower_bound = df['tot'][idx][condition].quantile(0.07)
+                upper_bound = df['tot'][idx][condition].quantile(0.98)
+
         else:
             tot_cuts[idx] = [0, 600]
+
+    print(f'TOT cuts: {tot_cuts}')
 
     ## Selecting good hits with TDC cuts
     tdc_cuts = {}
@@ -488,7 +488,7 @@ if __name__ == "__main__":
             tdc_cuts[idx] = [0, 1100, 0, 1100, tot_cuts[idx][0], tot_cuts[idx][1]]
 
     interest_df = tdc_event_selection_pivot(df, tdc_cuts_dict=tdc_cuts)
-    print('Size of dataframe after cut:', interest_df.shape[0])
+    print('Size of dataframe after TDC cut:', interest_df.shape[0])
 
     resolution_df = bootstrap(input_df=interest_df, board_to_analyze=board_ids, iteration=args.iteration,
                               sampling_fraction=args.sampling, minimum_nevt_cut=args.minimum_nevt, do_reproducible=args.reproducible)
