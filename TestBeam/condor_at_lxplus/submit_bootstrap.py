@@ -84,6 +84,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--board_id_rfsel1',
+    metavar = 'NUM',
+    type = int,
+    help = 'board ID that set to RfSel = 1',
+    dest = 'board_id_rfsel1',
+)
+
+parser.add_argument(
     '--autoTOTcuts',
     action = 'store_true',
     help = 'If set, select 80 percent of data around TOT median value of each board',
@@ -129,7 +137,7 @@ outdir = current_dir / f'resolution_{args.dirname}'
 outdir.mkdir(exist_ok = False)
 
 #### Make python command
-python_command = "python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} \
+bash_command = "python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} \
 --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} \
 --trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}"
 
@@ -141,15 +149,16 @@ conditional_args = {
 
 for arg, value in conditional_args.items():
     if value:
-        python_command += f" --{arg}"  # Add the argument if value is True
+        bash_command += f" --{arg}"  # Add the argument if value is True
 
 conditional_input_args = {
     'board_id_rfsel0': args.board_id_rfsel0,
+    'board_id_rfsel1': args.board_id_rfsel1,
 }
 
 for arg, value in conditional_input_args.items():
     if value:
-        python_command += f" --{arg} {value}"  # Add the argument if value is True
+        bash_command += f" --{arg} {value}"  # Add the argument if value is True
 
 # Define the bash script template
 bash_template = """#!/bin/bash
@@ -163,7 +172,7 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_104a/x86_64-el9-gcc13-opt/setup.sh
 
 echo "{0}"
 {0}
-""".format(python_command)
+""".format(bash_command)
 
 # Prepare the data for the template
 options = {
