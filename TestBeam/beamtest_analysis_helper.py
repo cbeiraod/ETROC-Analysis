@@ -860,7 +860,7 @@ def toSingleDataFrame(
         files = files[1:]
 
     for ifile in files:
-        file_d = copy.deepcopy(d)
+        file_d = json.loads(json.dumps(d))
         with open(ifile, 'r') as infile:
             for line in infile:
                 if line.split(' ')[2] == 'HEADER':
@@ -926,7 +926,7 @@ def toSingleDataFrame_newEventModel(
         files = files[1:]
 
     for ifile in files:
-        file_d = copy.deepcopy(d)
+        file_d = json.loads(json.dumps(d))
         with open(ifile, 'r') as infile:
             for line in infile:
                 if line.split(' ')[0] == 'EH':
@@ -1012,7 +1012,7 @@ def toSingleDataFramePerDirectory(
         files = glob(f"{dir}/{name_pattern}")
 
         for ifile in files:
-            file_d = copy.deepcopy(d)
+            file_d = json.loads(json.dumps(d))
             with open(ifile, 'r') as infile:
                 for line in infile.readlines():
                     if line.split(' ')[2] == 'HEADER':
@@ -1090,7 +1090,7 @@ def toSingleDataFramePerDirectory_newEventModel(
         files = glob(f"{dir}/{name_pattern}")
 
         for ifile in files:
-            file_d = copy.deepcopy(d)
+            file_d = json.loads(json.dumps(d))
 
             if os.stat(ifile).st_size == 0:
                 continue
