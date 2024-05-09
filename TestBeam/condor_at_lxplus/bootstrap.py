@@ -473,6 +473,7 @@ if __name__ == "__main__":
                 condition = df['tot'][idx] < 470
                 lower_bound = df['tot'][idx][condition].quantile(0.07)
                 upper_bound = df['tot'][idx][condition].quantile(0.98)
+                tot_cuts[idx] = [round(lower_bound), round(upper_bound)]
 
         else:
             tot_cuts[idx] = [0, 600]
