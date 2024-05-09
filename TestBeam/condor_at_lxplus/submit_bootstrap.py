@@ -147,7 +147,7 @@ conditional_input_args = {
     'board_id_rfsel0': args.board_id_rfsel0,
 }
 
-for arg, value in conditional_args.items():
+for arg, value in conditional_input_args.items():
     if value:
         python_command += f" --{arg} {value}"  # Add the argument if value is True
 
