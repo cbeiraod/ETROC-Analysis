@@ -352,6 +352,50 @@ class DecodeBinary:
 
         self.filler_data = self.copy_dict_by_json(self.filler_data_template)
 
+    def set_dtype(self):
+        tmp = self.data_to_load
+
+        self.data_to_load = {
+            'evt': np.array(tmp['evt'], dtype=np.uint64),
+            'bcid': np.array(tmp['bcid'], dtype=np.uint16),
+            'l1a_counter': np.array(tmp['l1a_counter'], dtype=np.uint8),
+            'ea': np.array(tmp['ea'], dtype=np.uint8),
+            'board': np.array(tmp['board'], dtype=np.uint8),
+            'row': np.array(tmp['row'], dtype=np.uint8),
+            'col': np.array(tmp['col'], dtype=np.uint8),
+            'toa': np.array(tmp['toa'], dtype=np.uint16),
+            'tot': np.array(tmp['tot'], dtype=np.uint16),
+            'cal': np.array(tmp['cal'], dtype=np.uint16),
+        }
+
+    def set_crc_dtype(self):
+        tmp = self.crc_data_to_load
+
+        self.crc_data_to_load = {
+            'evt': np.array(tmp['evt'], dtype=np.uint64),
+            'bcid': np.array(tmp['bcid'], dtype=np.uint16),
+            'l1a_counter': np.array(tmp['l1a_counter'], dtype=np.uint8),
+            'board': np.array(tmp['board'], dtype=np.uint8),
+            'CRC': np.array(tmp['CRC'], dtype=np.uint8),
+            'CRC_calc': np.array(tmp['CRC_calc'], dtype=np.uint8),
+            'CRC_mismatch': np.array(tmp['CRC_mismatch'], dtype=np.bool_),
+        }
+
+    def set_event_dtype(self):
+        tmp = self.event_data_to_load
+
+        self.event_data_to_load = {
+            'evt': np.array(tmp['evt'], dtype=np.uint64),
+            'bcid': np.array(tmp['bcid'], dtype=np.uint16),
+            'l1a_counter': np.array(tmp['l1a_counter'], dtype=np.uint8),
+            'fpga_evt_number': np.array(tmp['fpga_evt_number'], dtype=np.uint64),
+            'hamming_count': np.array(tmp['hamming_count'], dtype=np.uint8),
+            'overflow_count': np.array(tmp['overflow_count'], dtype=np.uint8),
+            'CRC': np.array(tmp['CRC'], dtype=np.uint8),
+            'CRC_calc': np.array(tmp['CRC_calc'], dtype=np.uint8),
+            'CRC_mismatch': np.array(tmp['CRC_mismatch'], dtype=np.bool_),
+        }
+
     def set_filler_dtype(self):
         tmp = self.filler_data
 
@@ -500,18 +544,23 @@ class DecodeBinary:
                 (word >> 8) & 0xff,
                 #(word ) & 0xff,
                 ]
-            data = bytes(self.CRCdata_40bit)
-            check = self.CRCcalculator.checksum(data)
 
-            #print("Raw data:")
-            #print_string = ""
-            #for dat in self.CRCdata_40bit:
-            #    print_string += f"{dat:08b} "
-            #print(print_string)
-            #print(f"CRC: {CRC:08b}")
-            #print(f"CRC Check: {check:08b}")
-
+            mismatch = ""
             if not self.skip_crc_df:
+                data = bytes(self.CRCdata_40bit)
+                check = self.CRCcalculator.checksum(data)
+
+                #print("Raw data:")
+                #print_string = ""
+                #for dat in self.CRCdata_40bit:
+                #    print_string += f"{dat:08b} "
+                #print(print_string)
+                #print(f"CRC: {CRC:08b}")
+                #print(f"CRC Check: {check:08b}")
+
+                if CRC != check:
+                    mismatch = " CRC Mismatch"
+
                 self.crc_data[self.current_channel]['bcid'].append(self.bcid)
                 self.crc_data[self.current_channel]['l1a_counter'].append(self.l1acounter)
                 self.crc_data[self.current_channel]['evt'].append(self.event_counter)
@@ -521,9 +570,6 @@ class DecodeBinary:
                 self.crc_data[self.current_channel]['CRC_mismatch'].append(bool(CRC != check))
 
             if self.nem_file is not None:
-                mismatch = ""
-                if CRC != check:
-                    mismatch = " CRC Mismatch"
                 self.write_to_nem(f"T {self.current_channel} {status} {hits} 0b{CRC:08b}{mismatch}\n")
 
 
@@ -538,9 +584,20 @@ class DecodeBinary:
         if self.save_nem is not None:
             self.open_next_file()
 
-        df = pd.DataFrame(self.data_template, dtype=np.uint64)
-        crc_df = pd.DataFrame(self.crc_data_template, dtype=np.uint64)
-        event_df = pd.DataFrame(self.event_data_template, dtype=np.uint64)  # TODO: Specify different dtypes for different columns
+        self.data_to_load = self.copy_dict_by_json(self.data_template)
+        self.set_dtype()
+        df = pd.DataFrame(self.data_to_load)
+        self.data_to_load = self.copy_dict_by_json(self.data_template)
+
+        self.crc_data = self.copy_dict_by_json(self.crc_data_template)
+        self.set_crc_dtype()
+        crc_df = pd.DataFrame(self.crc_data_to_load)
+        self.crc_data_to_load = self.copy_dict_by_json(self.crc_data_template)
+
+        self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
+        self.set_event_dtype()
+        event_df = pd.DataFrame(self.event_data_to_load)
+        self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
         self.filler_data = self.copy_dict_by_json(self.filler_data_template)
         self.set_filler_dtype()
@@ -629,14 +686,19 @@ class DecodeBinary:
                             (word >> 8) & 0xff,
                         ]
 
-                        data = bytes(self.CRCdata)
-                        check = self.CRCcalculator.checksum(data)
+                        crc = (word) & 0xff
 
-                        crc            = (word) & 0xff
-                        overflow_count = (word >> 11) & 0x7
-                        hamming_count  = (word >> 8) & 0x7
-
+                        mismatch = ""
                         if not self.skip_event_df:
+                            data = bytes(self.CRCdata)
+                            check = self.CRCcalculator.checksum(data)
+
+                            overflow_count = (word >> 11) & 0x7
+                            hamming_count  = (word >> 8) & 0x7
+
+                            if crc != check:
+                                mismatch = " CRC Mismatch"
+
                             self.event_data['evt'].append(self.event_counter)
                             self.event_data['bcid'].append(self.bcid)
                             self.event_data['l1a_counter'].append(self.l1acounter)
@@ -654,21 +716,21 @@ class DecodeBinary:
                         self.event_in_filler_40_counter += 1
 
                         if len(self.data_to_load['evt']) >= 10000:
-                            df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
+                            self.set_dtype()
+                            df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
                             self.data_to_load = self.copy_dict_by_json(self.data_template)
 
                             if not self.skip_crc_df:
-                                crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load, dtype=np.uint64)], ignore_index=True)
+                                self.set_crc_dtype()
+                                crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load)], ignore_index=True)
                                 self.crc_data_to_load = self.copy_dict_by_json(self.crc_data_template)
 
                             if not self.skip_event_df:
-                                event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
+                                self.set_event_dtype()
+                                event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load)], ignore_index=True)
                                 self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
                         if self.nem_file is not None:
-                            mismatch = ""
-                            if crc != check:
-                                mismatch = " CRC Mismatch"
                             self.write_to_nem(f"ET {self.event_number} {overflow_count} {hamming_count} 0b{crc:08b}{mismatch}\n")
 
                     # Event Data Word
@@ -742,17 +804,20 @@ class DecodeBinary:
                     self.reset_params()
 
                 if len(self.data_to_load['evt']) > 0:
-                    df = pd.concat([df, pd.DataFrame(self.data_to_load, dtype=np.uint64)], ignore_index=True)
+                    self.set_dtype()
+                    df = pd.concat([df, pd.DataFrame(self.data_to_load)], ignore_index=True)
                     self.data_to_load = self.copy_dict_by_json(self.data_template)
 
                 if len(self.crc_data_to_load['evt']) > 0:
                     if not self.skip_crc_df:
-                        crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load, dtype=np.uint64)], ignore_index=True)
+                        self.set_crc_dtype()
+                        crc_df = pd.concat([crc_df, pd.DataFrame(self.crc_data_to_load)], ignore_index=True)
                         self.crc_data_to_load = self.copy_dict_by_json(self.crc_data_template)
 
                 if len(self.event_data_to_load['evt']) > 0:
                     if not self.skip_event_df:
-                        event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load, dtype=np.uint64)], ignore_index=True)
+                        self.set_event_dtype()
+                        event_df = pd.concat([event_df, pd.DataFrame(self.event_data_to_load)], ignore_index=True)
                         self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
                 if len(self.filler_data['idx']) > 0:
@@ -795,7 +860,7 @@ def toSingleDataFrame(
         files = files[1:]
 
     for ifile in files:
-        file_d = copy.deepcopy(d)
+        file_d = json.loads(json.dumps(d))
         with open(ifile, 'r') as infile:
             for line in infile:
                 if line.split(' ')[2] == 'HEADER':
@@ -861,7 +926,7 @@ def toSingleDataFrame_newEventModel(
         files = files[1:]
 
     for ifile in files:
-        file_d = copy.deepcopy(d)
+        file_d = json.loads(json.dumps(d))
         with open(ifile, 'r') as infile:
             for line in infile:
                 if line.split(' ')[0] == 'EH':
@@ -947,7 +1012,7 @@ def toSingleDataFramePerDirectory(
         files = glob(f"{dir}/{name_pattern}")
 
         for ifile in files:
-            file_d = copy.deepcopy(d)
+            file_d = json.loads(json.dumps(d))
             with open(ifile, 'r') as infile:
                 for line in infile.readlines():
                     if line.split(' ')[2] == 'HEADER':
@@ -1025,7 +1090,7 @@ def toSingleDataFramePerDirectory_newEventModel(
         files = glob(f"{dir}/{name_pattern}")
 
         for ifile in files:
-            file_d = copy.deepcopy(d)
+            file_d = json.loads(json.dumps(d))
 
             if os.stat(ifile).st_size == 0:
                 continue
@@ -2064,6 +2129,7 @@ def plot_TWC(
         corr_toas: dict | None = None,
         boundary_cut: float = 0,
         distance: dict | None = None,
+        print_func: bool = False,
     ):
 
     if corr_toas is not None:
@@ -2104,6 +2170,11 @@ def plot_TWC(
 
     coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
     poly_func_b2 = np.poly1d(coeff_b2)
+
+    if print_func:
+        print(poly_func_b0)
+        print(poly_func_b1)
+        print(poly_func_b2)
 
     fig, axes = plt.subplots(1, 3, figsize=(38, 10))
     hep.hist2dplot(h_twc1, ax=axes[0], norm=colors.LogNorm())
