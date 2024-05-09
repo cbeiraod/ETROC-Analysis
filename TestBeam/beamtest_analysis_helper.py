@@ -544,18 +544,23 @@ class DecodeBinary:
                 (word >> 8) & 0xff,
                 #(word ) & 0xff,
                 ]
-            data = bytes(self.CRCdata_40bit)
-            check = self.CRCcalculator.checksum(data)
 
-            #print("Raw data:")
-            #print_string = ""
-            #for dat in self.CRCdata_40bit:
-            #    print_string += f"{dat:08b} "
-            #print(print_string)
-            #print(f"CRC: {CRC:08b}")
-            #print(f"CRC Check: {check:08b}")
-
+            mismatch = ""
             if not self.skip_crc_df:
+                data = bytes(self.CRCdata_40bit)
+                check = self.CRCcalculator.checksum(data)
+
+                #print("Raw data:")
+                #print_string = ""
+                #for dat in self.CRCdata_40bit:
+                #    print_string += f"{dat:08b} "
+                #print(print_string)
+                #print(f"CRC: {CRC:08b}")
+                #print(f"CRC Check: {check:08b}")
+
+                if CRC != check:
+                    mismatch = " CRC Mismatch"
+
                 self.crc_data[self.current_channel]['bcid'].append(self.bcid)
                 self.crc_data[self.current_channel]['l1a_counter'].append(self.l1acounter)
                 self.crc_data[self.current_channel]['evt'].append(self.event_counter)
@@ -565,9 +570,6 @@ class DecodeBinary:
                 self.crc_data[self.current_channel]['CRC_mismatch'].append(bool(CRC != check))
 
             if self.nem_file is not None:
-                mismatch = ""
-                if CRC != check:
-                    mismatch = " CRC Mismatch"
                 self.write_to_nem(f"T {self.current_channel} {status} {hits} 0b{CRC:08b}{mismatch}\n")
 
 
@@ -684,14 +686,19 @@ class DecodeBinary:
                             (word >> 8) & 0xff,
                         ]
 
-                        data = bytes(self.CRCdata)
-                        check = self.CRCcalculator.checksum(data)
+                        crc = (word) & 0xff
 
-                        crc            = (word) & 0xff
-                        overflow_count = (word >> 11) & 0x7
-                        hamming_count  = (word >> 8) & 0x7
-
+                        mismatch = ""
                         if not self.skip_event_df:
+                            data = bytes(self.CRCdata)
+                            check = self.CRCcalculator.checksum(data)
+
+                            overflow_count = (word >> 11) & 0x7
+                            hamming_count  = (word >> 8) & 0x7
+
+                            if crc != check:
+                                mismatch = " CRC Mismatch"
+
                             self.event_data['evt'].append(self.event_counter)
                             self.event_data['bcid'].append(self.bcid)
                             self.event_data['l1a_counter'].append(self.l1acounter)
@@ -724,9 +731,6 @@ class DecodeBinary:
                                 self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
                         if self.nem_file is not None:
-                            mismatch = ""
-                            if crc != check:
-                                mismatch = " CRC Mismatch"
                             self.write_to_nem(f"ET {self.event_number} {overflow_count} {hamming_count} 0b{crc:08b}{mismatch}\n")
 
                     # Event Data Word
