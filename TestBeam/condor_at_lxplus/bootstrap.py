@@ -431,6 +431,15 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '--board_id_rfsel1',
+        metavar = 'NUM',
+        type = int,
+        help = 'board ID that set to RfSel = 1',
+        default = -1,
+        dest = 'board_id_rfsel1',
+    )
+
+    parser.add_argument(
         '--autoTOTcuts',
         action = 'store_true',
         help = 'If set, select 80 percent of data around TOT median value of each board',
@@ -473,6 +482,10 @@ if __name__ == "__main__":
                 condition = df['tot'][idx] < 470
                 lower_bound = df['tot'][idx][condition].quantile(0.07)
                 upper_bound = df['tot'][idx][condition].quantile(0.98)
+                tot_cuts[idx] = [round(lower_bound), round(upper_bound)]
+            elif idx == args.board_id_rfsel1:
+                lower_bound = df['tot'][idx].quantile(0.01)
+                upper_bound = df['tot'][idx].quantile(0.96)
                 tot_cuts[idx] = [round(lower_bound), round(upper_bound)]
 
         else:
