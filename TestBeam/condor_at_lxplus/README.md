@@ -6,7 +6,9 @@
 ssh to Lxplus, then move to afs work directory
 
 ```cd /afs/cern.ch/work/<first alphabet of the username>/<username>```
+
 ```mkdir -p ETROC && cd ETROC```
+
 ```git clone https://github.com/CMS-ETROC/ETROC-Analysis.git```
 
 Then go to the directory where control submitting jobs.
