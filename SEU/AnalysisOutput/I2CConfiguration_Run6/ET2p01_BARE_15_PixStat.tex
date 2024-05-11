@@ -1,0 +1,47 @@
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\tiny
+\begin{tabularx}{700pt}{|r|*{8}{Y|} }
+\hline
+ & \textbf{\small Bit 7} & \textbf{\small Bit 6} & \textbf{\small Bit 5} & \textbf{\small Bit 4} & \textbf{\small Bit 3} & \textbf{\small Bit 2} & \textbf{\small Bit 1} & \textbf{\small Bit 0} \\
+\hline
+\hline
+\multirow{2}{*}{\small PixStat0} & \multicolumn{4}{c|}{PixelID - Row} & \multicolumn{4}{c|}{PixelID - Column} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixStat1} & \multicolumn{3}{c|}{THState} & \multicolumn{4}{c|}{NW} & ScanDone \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!100}12 & \small \cellcolor{red!100}13 & \small \cellcolor{red!20}2 & \small \cellcolor{red!10}1 & \small \cellcolor{red!30}3 & \small \cellcolor{red!50}5 & \small \cellcolor{red!50}5 & \small \cellcolor{red!40}4\\
+\hline
+\hline
+\multirow{2}{*}{\small PixStat2} & \multicolumn{8}{c|}{BL[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!50}5 & \small \cellcolor{red!10}1 & \small \cellcolor{red!30}3 & \small \cellcolor{red!30}3 & \small \cellcolor{red!80}8 & \small \cellcolor{red!40}4 & \small \cellcolor{red!20}2 & \small \cellcolor{red!30}3\\
+\hline
+\hline
+\multirow{2}{*}{\small PixStat3} & \multicolumn{2}{c|}{TH[1:0]} & -- & -- & -- & -- & \multicolumn{2}{c|}{BL[9:8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!10}1 & \small \cellcolor{red!70}7\\
+\hline
+\hline
+\multirow{2}{*}{\small PixStat4} & \multicolumn{8}{c|}{TH[9:2]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixStat5} & \multicolumn{8}{c|}{ACC[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!10}1 & \small \cellcolor{red!0}0 & \small \cellcolor{red!10}1 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!10}1 & \small \cellcolor{red!0}0 & \small \cellcolor{red!10}1\\
+\hline
+\hline
+\multirow{2}{*}{\small PixStat6} & \multicolumn{8}{c|}{ACC[15:8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!20}2 & \small \cellcolor{red!40}4 & \small \cellcolor{red!10}1 & \small \cellcolor{red!30}3 & \small \cellcolor{red!10}1 & \small \cellcolor{red!10}1\\
+\hline
+\hline
+\multirow{2}{*}{\small PixStat7} & \multicolumn{8}{c|}{PixCfg31} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\end{tabularx}

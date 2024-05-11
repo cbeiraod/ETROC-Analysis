@@ -1,0 +1,2 @@
+Address Space - ETROC2:
+PeriStat3 - 0b01010100 to 0b01010101

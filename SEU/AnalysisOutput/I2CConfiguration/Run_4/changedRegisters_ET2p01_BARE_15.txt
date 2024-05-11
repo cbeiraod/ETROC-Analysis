@@ -1,0 +1,4 @@
+Address Space - ETROC2:
+PeriStat3 - 0b11011101 to 0b11011110
+SEU Counter 0 - 0b00000000 to 0b00000010
+PixStat1 Pixel 6,5 - 0b11000110 to 0b01000110
