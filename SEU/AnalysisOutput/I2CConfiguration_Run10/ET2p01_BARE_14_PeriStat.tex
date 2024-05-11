@@ -1,0 +1,75 @@
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\tiny
+\begin{tabularx}{700pt}{|r|*{8}{Y|} }
+\hline
+ & \textbf{\small Bit 7} & \textbf{\small Bit 6} & \textbf{\small Bit 5} & \textbf{\small Bit 4} & \textbf{\small Bit 3} & \textbf{\small Bit 2} & \textbf{\small Bit 1} & \textbf{\small Bit 0} \\
+\hline
+\hline
+\multirow{2}{*}{\small PeriStat0} & PS\_Late & \multicolumn{6}{c|}{AFCcalCap} & AFCBusy \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriStat1} & \multicolumn{4}{c|}{fcAlignFinalState} & \multicolumn{4}{c|}{controlerState} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriStat2} & \multicolumn{4}{c|}{fcAlignStatus} & -- & -- & -- & fcBitAlignError \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriStat3} & \multicolumn{8}{c|}{invalidFCCount[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriStat4} & \multicolumn{4}{c|}{pllUnlockCount[3:0]} & \multicolumn{4}{c|}{invalidFCCount[11:8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriStat5} & \multicolumn{8}{c|}{pllUnlockCount[11:4]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriStat6} & \multicolumn{8}{c|}{EFuseQ[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriStat7} & \multicolumn{8}{c|}{EFuseQ[15:8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriStat8} & \multicolumn{8}{c|}{EFuseQ[23:16]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriStat9} & \multicolumn{8}{c|}{EFuseQ[31:24]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PeriStat10 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PeriStat11 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PeriStat12 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PeriStat13 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PeriStat14 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PeriStat15 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\end{tabularx}

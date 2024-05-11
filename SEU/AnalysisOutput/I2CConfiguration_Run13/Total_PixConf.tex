@@ -1,0 +1,153 @@
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\tiny
+\begin{tabularx}{700pt}{|r|*{8}{Y|} }
+\hline
+ & \textbf{\small Bit 7} & \textbf{\small Bit 6} & \textbf{\small Bit 5} & \textbf{\small Bit 4} & \textbf{\small Bit 3} & \textbf{\small Bit 2} & \textbf{\small Bit 1} & \textbf{\small Bit 0} \\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg0} & -- & \multicolumn{2}{c|}{RfSel} & \multicolumn{3}{c|}{IBSel} & \multicolumn{2}{c|}{CLSel} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg1} & -- & -- & QInjEn & \multicolumn{5}{c|}{QSel} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!10}1 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg2} & -- & -- & -- & DACDiscri & \multicolumn{4}{c|}{HysSel} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg3} & -- & -- & -- & ScanStart & CLKEn & Bypass & BufEn & RSTn \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg4} & \multicolumn{8}{c|}{DAC[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg5} & \multicolumn{6}{c|}{TH\_offset} & \multicolumn{2}{c|}{DAC[9:8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg6} & enable\_TDC & resetn\_TDC & autoReset\_TDC & testMode\_TDC & \multicolumn{3}{c|}{level\_TDC} & -- \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg7} & -- & -- & -- & \multicolumn{2}{c|}{workMode} & disTrigPath & disDataReadout & addrOffset \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg8} & L1ADelay[0] & \multicolumn{7}{c|}{selfTestOccupancy} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg9} & \multicolumn{8}{c|}{L1ADelay[8:1]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg10} & \multicolumn{8}{c|}{lowerCal[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg11} & \multicolumn{6}{c|}{upperCal[5:0]} & \multicolumn{2}{c|}{lowerCal[9:8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg12} & \multicolumn{4}{c|}{lowerTOA[3:0]} & \multicolumn{4}{c|}{upperCal[9:6]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg13} & \multicolumn{2}{c|}{upperTOA[1:0]} & \multicolumn{6}{c|}{lowerTOA[9:4]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg14} & \multicolumn{8}{c|}{upperTOA[9:2]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg15} & \multicolumn{8}{c|}{lowerTOT[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg16} & \multicolumn{7}{c|}{upperTOT[6:0]} & \multicolumn{1}{c|}{lowerTOT[8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg17} & \multicolumn{6}{c|}{lowerCalTrig[5:0]} & \multicolumn{2}{c|}{upperTOT[8:7]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg18} & \multicolumn{4}{c|}{upperCalTrig[3:0]} & \multicolumn{4}{c|}{lowerCalTrig[9:6]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!10}1 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg19} & \multicolumn{2}{c|}{lowerTOATrig[1:0]} & \multicolumn{6}{c|}{upperCalTrig[9:4]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg20} & \multicolumn{8}{c|}{lowerTOATrig[9:2]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg21} & \multicolumn{8}{c|}{upperTOATrig[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg22} & \multicolumn{6}{c|}{lowerTOTTrig[5:0]} & \multicolumn{2}{c|}{upperTOATrig[9:8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg23} & \multicolumn{5}{c|}{upperTOTTrig[4:0]} & \multicolumn{3}{c|}{lowerTOTTrig[8:6]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PixCfg24} & -- & -- & -- & -- & \multicolumn{4}{c|}{upperTOTTrig[8:5]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PixCfg25 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PixCfg26 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PixCfg27 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PixCfg28 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PixCfg29 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PixCfg30 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\small PixCfg31 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\end{tabularx}

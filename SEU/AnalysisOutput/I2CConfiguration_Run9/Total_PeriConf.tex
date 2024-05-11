@@ -1,0 +1,167 @@
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\tiny
+\begin{tabularx}{700pt}{|r|*{8}{Y|} }
+\hline
+ & \textbf{\small Bit 7} & \textbf{\small Bit 6} & \textbf{\small Bit 5} & \textbf{\small Bit 4} & \textbf{\small Bit 3} & \textbf{\small Bit 2} & \textbf{\small Bit 1} & \textbf{\small Bit 0} \\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg0} & FBDiv\_skip & clkTreeDisable & CLKSel & disVCO & disSER & disEOM & disDES & disCLK \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg1} & \multicolumn{4}{c|}{PLL\_I} & \multicolumn{4}{c|}{PLL\_BiasGen} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg2} & \multicolumn{4}{c|}{PLL\_R} & \multicolumn{4}{c|}{PLL\_P} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg3} & VRefGen & -- & ENABLEPLL & PLL\_vcoRailMode & \multicolumn{4}{c|}{PLL\_vcoDAC} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg4} & TS\_PD & PS\_ForceDown & PS\_Enable & PS\_CapRst & \multicolumn{4}{c|}{PS\_CPCurrent} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg5} & \multicolumn{8}{c|}{PS\_PhaseAdj} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg6} & \multicolumn{8}{c|}{RefStrSel} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg7} & GRO\_TOARST\_N & GRO\_Start & CLK40\_SetCM & CLK40\_InvData & \multicolumn{2}{c|}{CLK40\_Equ} & CLK40\_EnTer & CLK40\_EnRx \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg8} & GRO\_TOA\_Latch & GRO\_TOA\_CK & CLK1280\_SetCM & CLK1280\_InvData & \multicolumn{2}{c|}{CLK1280\_Equ} & CLK1280\_EnTer & CLK1280\_EnRx \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg9} & GRO\_TOT\_CK\_Latch & GRO\_TOTRST\_N & FC\_SetCM & FC\_InvData & \multicolumn{2}{c|}{FC\_Equ} & FC\_EnTer & FC\_EnRx \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg10} & \multicolumn{8}{c|}{BCIDoffset[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg11} & \multicolumn{4}{c|}{emptySlotBCID[3:0]} & \multicolumn{4}{c|}{BCIDoffset[11:8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg12} & \multicolumn{8}{c|}{emptySlotBCID[11:4]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg13} & asyPLLReset & asyLinkReset & asyAlignFastcommand & \multicolumn{5}{c|}{readoutClockDelayPixel} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg14} & asyResetGlobalReadout & asyResetFastcommand & asyResetChargeInj & \multicolumn{5}{c|}{readoutClockWidthPixel} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg15} & -- & asyStartCalibration & asyResetLockDetect & \multicolumn{5}{c|}{readoutClockDelayGlobal} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg16} & \multicolumn{3}{c|}{LTx\_AmplSel} & \multicolumn{5}{c|}{readoutClockWidthGlobal} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg17} & \multicolumn{3}{c|}{RTx\_AmplSel} & \multicolumn{5}{c|}{chargeInjectionDelay} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg18} & disLTx & \multicolumn{2}{c|}{onChipL1AConf} & fcDataDelayEn & fcClkDelayEn & fcSelfAlignEn & softBoot & disPowerSequence \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg19} & disRTx & singlePort & \multicolumn{2}{c|}{serRateRight} & \multicolumn{2}{c|}{serRateLeft} & linkResetTestPattern & disScrambler \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg20} & \multicolumn{4}{c|}{eFuse\_TCKHP} & \multicolumn{3}{c|}{triggerGranularity} & mergeTriggerData \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg21} & -- & -- & eFuse\_Bypass & eFuse\_Start & eFuse\_Rstn & \multicolumn{2}{c|}{eFuse\_Mode} & eFuse\_EnClk \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg22} & \multicolumn{8}{c|}{eFuse\_Prog[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg23} & \multicolumn{8}{c|}{eFuse\_Prog[15:8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg24} & \multicolumn{8}{c|}{eFuse\_Prog[23:16]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg25} & \multicolumn{8}{c|}{eFuse\_Prog[31:24]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg26} & \multicolumn{8}{c|}{linkResetFixedPattern[7:0]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg27} & \multicolumn{8}{c|}{linkResetFixedPattern[15:8]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg28} & \multicolumn{8}{c|}{linkResetFixedPattern[23:16]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg29} & \multicolumn{8}{c|}{linkResetFixedPattern[31:24]} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg30} & \multicolumn{4}{c|}{lfReLockThrCounter} & \multicolumn{4}{c|}{lfLockThrCounter} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\hline
+\multirow{2}{*}{\small PeriCfg31} & -- & -- & TDCStrobeTest & TDCClockTest & \multicolumn{4}{c|}{lfUnLockThrCounter} \\
+\hhline{|~|--------|}
+ & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0 & \small \cellcolor{red!0}0\\
+\hline
+\end{tabularx}
