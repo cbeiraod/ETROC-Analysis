@@ -2214,6 +2214,7 @@ def plot_resolution_with_pulls(
         fig_tag: str = '',
         hist_bins: int = 15,
         draw_arithmetic_mean: bool = False,
+        slides_friendly: bool = False,
     ):
     import matplotlib.gridspec as gridspec
     from lmfit.models import GaussianModel
@@ -2245,83 +2246,154 @@ def plot_resolution_with_pulls(
         pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
         pulls_dict[key] = pulls
 
-    # Create a figure with a 2x2 grid
-    fig = plt.figure(figsize=(24, 16))
-    gs = fig.add_gridspec(2, 2)
 
-    for i, plot in enumerate(gs):
-        global_ax = fig.add_subplot(plot)
-        inner_plot = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=global_ax, hspace=0, height_ratios=[3, 1])
-        main_ax = fig.add_subplot(inner_plot[0])
-        sub_ax = fig.add_subplot(inner_plot[1], sharex=main_ax)
-        global_ax.xaxis.set_visible(False)
-        global_ax.yaxis.set_visible(False)
-        main_ax.xaxis.set_visible(False)
+    if slides_friendly:
 
-        if i not in hists:
-            global_ax.set_axis_off()
-            main_ax.set_axis_off()
-            sub_ax.set_axis_off()
-            continue
+        # Create a figure with a 2x2 grid
+        fig = plt.figure(figsize=(24, 16))
+        gs = fig.add_gridspec(2, 2)
 
-        centers = hists[i].axes[0].centers
-        hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
-        main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=11)
+        for i, plot in enumerate(gs):
+            global_ax = fig.add_subplot(plot)
+            inner_plot = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=global_ax, hspace=0, height_ratios=[3, 1])
+            main_ax = fig.add_subplot(inner_plot[0])
+            sub_ax = fig.add_subplot(inner_plot[1], sharex=main_ax)
+            global_ax.xaxis.set_visible(False)
+            global_ax.yaxis.set_visible(False)
+            main_ax.xaxis.set_visible(False)
 
-        main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
-                        ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
-                        ms=6, capsize=1, capthick=2, alpha=0.8)
+            if i not in hists:
+                global_ax.set_axis_off()
+                main_ax.set_axis_off()
+                sub_ax.set_axis_off()
+                continue
 
-        if draw_arithmetic_mean:
-            main_ax.vlines(means[i], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
+            centers = hists[i].axes[0].centers
+            hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
+            main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=11)
 
-        main_ax.set_ylabel('Counts', fontsize=20)
-        main_ax.set_ylim(-5, None)
-        main_ax.tick_params(axis='x', labelsize=20)
-        main_ax.tick_params(axis='y', labelsize=20)
+            main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
+                            ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+                            ms=6, capsize=1, capthick=2, alpha=0.8)
 
-        x_min = centers[0]
-        x_max = centers[-1]
+            if draw_arithmetic_mean:
+                main_ax.vlines(means[i], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
 
-        x_range = np.linspace(x_min, x_max, 200)
-        popt = [par for name, par in fit_params[i].best_values.items()]
-        pcov = fit_params[i].covar
+            main_ax.set_ylabel('Counts', fontsize=20)
+            main_ax.set_ylim(-5, None)
+            main_ax.tick_params(axis='x', labelsize=20)
+            main_ax.tick_params(axis='y', labelsize=20)
 
-        if np.isfinite(pcov).all():
-            n_samples = 100
-            vopts = np.random.multivariate_normal(popt, pcov, n_samples)
-            sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
-            model_uncert = np.nanstd(sampled_ydata, axis=0)
-        else:
-            model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
+            x_min = centers[0]
+            x_max = centers[-1]
 
-        main_ax.plot(x_range, fit_params[i].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
-                    label=fr"$\mu$:{fit_params[i].params['center'].value:.2f} $\pm$ {fit_params[i].params['center'].stderr:.2f}")
-        main_ax.plot(np.NaN, np.NaN, color='none',
-                     label=fr"$\sigma$: {abs(fit_params[i].params['sigma'].value):.2f} $\pm$ {abs(fit_params[i].params['sigma'].stderr):.2f}")
+            x_range = np.linspace(x_min, x_max, 200)
+            popt = [par for name, par in fit_params[i].best_values.items()]
+            pcov = fit_params[i].covar
 
-        main_ax.fill_between(
-            x_range,
-            fit_params[i].eval(x=x_range) - model_uncert,
-            fit_params[i].eval(x=x_range) + model_uncert,
-            color="hotpink",
-            alpha=0.2,
-            label='Uncertainty'
-        )
-        main_ax.legend(fontsize=20, loc='upper right')
+            if np.isfinite(pcov).all():
+                n_samples = 100
+                vopts = np.random.multivariate_normal(popt, pcov, n_samples)
+                sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
+                model_uncert = np.nanstd(sampled_ydata, axis=0)
+            else:
+                model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
 
-        width = (x_max - x_min) / len(pulls_dict[i])
-        sub_ax.axhline(1, c='black', lw=0.75)
-        sub_ax.axhline(0, c='black', lw=1.2)
-        sub_ax.axhline(-1, c='black', lw=0.75)
-        sub_ax.bar(centers, pulls_dict[i], width=width, fc='royalblue')
-        sub_ax.set_ylim(-2, 2)
-        sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
-        sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
-        sub_ax.tick_params(axis='x', which='both', labelsize=20)
-        sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+            main_ax.plot(x_range, fit_params[i].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
+                        label=fr"$\mu$:{fit_params[i].params['center'].value:.2f} $\pm$ {fit_params[i].params['center'].stderr:.2f}")
+            main_ax.plot(np.NaN, np.NaN, color='none',
+                        label=fr"$\sigma$: {abs(fit_params[i].params['sigma'].value):.2f} $\pm$ {abs(fit_params[i].params['sigma'].stderr):.2f}")
 
-    del hists, fit_params, pulls_dict, mod
+            main_ax.fill_between(
+                x_range,
+                fit_params[i].eval(x=x_range) - model_uncert,
+                fit_params[i].eval(x=x_range) + model_uncert,
+                color="hotpink",
+                alpha=0.2,
+                label='Uncertainty'
+            )
+            main_ax.legend(fontsize=20, loc='upper right')
+
+            width = (x_max - x_min) / len(pulls_dict[i])
+            sub_ax.axhline(1, c='black', lw=0.75)
+            sub_ax.axhline(0, c='black', lw=1.2)
+            sub_ax.axhline(-1, c='black', lw=0.75)
+            sub_ax.bar(centers, pulls_dict[i], width=width, fc='royalblue')
+            sub_ax.set_ylim(-2, 2)
+            sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
+            sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
+            sub_ax.tick_params(axis='x', which='both', labelsize=20)
+            sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+
+        del hists, fit_params, pulls_dict, mod
+
+    else:
+        for idx in hists.keys():
+            fig = plt.figure(figsize=(10, 9))
+            grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
+
+            main_ax = fig.add_subplot(grid[0])
+            sub_ax = fig.add_subplot(grid[1], sharex=main_ax)
+            plt.setp(main_ax.get_xticklabels(), visible=False)
+
+            centers = hists[idx].axes[0].centers
+            hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
+            main_ax.set_title(f'{fig_title[idx]} {fig_tag}', loc="right", size=11)
+
+            main_ax.errorbar(centers, hists[idx].values(), np.sqrt(hists[idx].variances()),
+                            ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+                            ms=6, capsize=1, capthick=2, alpha=0.8)
+
+            if draw_arithmetic_mean:
+                main_ax.vlines(means[idx], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
+
+            main_ax.set_ylabel('Counts', fontsize=20)
+            main_ax.set_ylim(-5, None)
+            main_ax.tick_params(axis='x', labelsize=20)
+            main_ax.tick_params(axis='y', labelsize=20)
+
+            x_min = centers[0]
+            x_max = centers[-1]
+
+            x_range = np.linspace(x_min, x_max, 200)
+            popt = [par for name, par in fit_params[idx].best_values.items()]
+            pcov = fit_params[idx].covar
+
+            if np.isfinite(pcov).all():
+                n_samples = 100
+                vopts = np.random.multivariate_normal(popt, pcov, n_samples)
+                sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
+                model_uncert = np.nanstd(sampled_ydata, axis=0)
+            else:
+                model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
+
+            main_ax.plot(x_range, fit_params[idx].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
+                        label=fr"$\mu$:{fit_params[idx].params['center'].value:.2f} $\pm$ {fit_params[idx].params['center'].stderr:.2f}")
+            main_ax.plot(np.NaN, np.NaN, color='none',
+                        label=fr"$\sigma$: {abs(fit_params[idx].params['sigma'].value):.2f} $\pm$ {abs(fit_params[idx].params['sigma'].stderr):.2f}")
+
+            main_ax.fill_between(
+                x_range,
+                fit_params[idx].eval(x=x_range) - model_uncert,
+                fit_params[idx].eval(x=x_range) + model_uncert,
+                color="hotpink",
+                alpha=0.2,
+                label='Uncertainty'
+            )
+            main_ax.legend(fontsize=20, loc='upper right')
+
+            width = (x_max - x_min) / len(pulls_dict[idx])
+            sub_ax.axhline(1, c='black', lw=0.75)
+            sub_ax.axhline(0, c='black', lw=1.2)
+            sub_ax.axhline(-1, c='black', lw=0.75)
+            sub_ax.bar(centers, pulls_dict[idx], width=width, fc='royalblue')
+            sub_ax.set_ylim(-2, 2)
+            sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
+            sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
+            sub_ax.tick_params(axis='x', which='both', labelsize=20)
+            sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+
+        del hists, fit_params, pulls_dict, mod
 
 ## --------------------------------------
 def plot_resolution_table(
