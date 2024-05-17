@@ -2895,9 +2895,10 @@ def four_board_iterative_timewalk_correction(
 def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
         n_components: int = 2,
-        plotting: bool = False,
-        plotting_each_component: bool = False,
-        plotting_detail: bool = False,
+        show_plot: bool = False,
+        show_sub_gaussian: bool = False,
+        show_fwhm_guideline: bool = False,
+        show_number: bool = False,
         title: str = '',
     ):
 
@@ -2932,12 +2933,12 @@ def fwhm_based_on_gaussian_mixture_model(
     xval = x_range[np.argmax(pdf)][0]
 
     ### Draw plot
-    if plotting_each_component:
+    if show_sub_gaussian:
         # Compute PDF for each component
         responsibilities = models.predict_proba(x_range)
         pdf_individual = responsibilities * pdf[:, np.newaxis]
 
-    if plotting:
+    if show_plot:
 
         fig, ax = plt.subplots(figsize=(10,10))
 
@@ -2947,22 +2948,24 @@ def fwhm_based_on_gaussian_mixture_model(
         # Plot PDF of whole model
         hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
         ax.set_title(f'{title}', loc="right", fontsize=17)
-        if plotting_detail:
+        if show_number:
             ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
+            ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
         else:
             ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
 
-        if plotting_each_component:
+        if show_sub_gaussian:
             # Plot PDF of each component
             ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
-        if plotting_detail:
-            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
+        if show_fwhm_guideline:
+            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
             ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
             ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
             ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
 
         ax.legend(loc='best', fontsize=14)
+        plt.tight_layout()
 
     return fwhm, [silhouette_eval_score, jensenshannon_score]
 
