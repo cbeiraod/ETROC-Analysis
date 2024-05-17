@@ -1869,7 +1869,6 @@ def plot_1d_TDC_histograms(
             plt.clf()
             plt.close(fig)
 
-
         if event_hist is not None:
             fig = plt.figure(dpi=50, figsize=(20,10))
             gs = fig.add_gridspec(1,1)
@@ -2204,6 +2203,8 @@ def plot_TWC(
         axes[0].legend(loc='best')
         axes[1].legend(loc='best')
         axes[2].legend(loc='best')
+
+    plt.tight_layout()
 
 ## --------------------------------------
 def plot_resolution_with_pulls(
