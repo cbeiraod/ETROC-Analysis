@@ -2329,6 +2329,8 @@ def plot_resolution_table(
         chipLabels: list[int],
         fig_title: list[str],
         fig_tag: str = '',
+        min_resolution: float = 25.0,
+        max_resolution: float = 75.0,
         missing_pixel_info: dict | None = None,
         slides_friendly: bool = False,
         show_number: bool = False,
@@ -2368,7 +2370,7 @@ def plot_resolution_table(
             if idx not in tables:
                 ax.set_axis_off()
                 continue
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=25, vmax=75)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=min_resolution, vmax=max_resolution)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -2405,7 +2407,7 @@ def plot_resolution_table(
             # Create a heatmap to visualize the count of hits
             fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
             ax.cla()
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=25, vmax=75)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=min_resolution, vmax=max_resolution)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
