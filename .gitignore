@@ -3,6 +3,13 @@
 */figures/*
 .DS_Store
 
+# SEU output
+*/AnalysisOutput
+*/ChipConfig/
+*/data/
+*/test_data/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
