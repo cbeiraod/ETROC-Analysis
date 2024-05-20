@@ -1979,18 +1979,19 @@ def plot_1d_CRC_histogram(
 def plot_correlation_of_pixels(
         input_df: pd.DataFrame,
         board_ids: np.array,
-        xaxis_label_board_name: str,
+        board_name1: str,
+        board_name2: str,
         fig_title: str,
         fit_tag: str = '',
     ):
 
     h_row = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='row1', label='Trigger Board Row'),
-        hist.axis.Regular(16, 0, 16, name='row2', label=f'{xaxis_label_board_name} Row'),
+        hist.axis.Regular(16, 0, 16, name='row1', label=f'{board_name1} Row'),
+        hist.axis.Regular(16, 0, 16, name='row2', label=f'{board_name2} Row'),
     )
     h_col = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='col1', label='Trigger Board Col'),
-        hist.axis.Regular(16, 0, 16, name='col2', label=f'{xaxis_label_board_name} Col'),
+        hist.axis.Regular(16, 0, 16, name='col1', label=f'{board_name1} Col'),
+        hist.axis.Regular(16, 0, 16, name='col2', label=f'{board_name2} Col'),
     )
 
     h_row.fill(input_df.loc[input_df['board'] == board_ids[0]]['row'], input_df.loc[input_df['board'] == board_ids[1]]['row'])
@@ -2097,8 +2098,8 @@ def plot_TOA_correlation(
     y = input_df['toa'][board_id2]
 
     h = hist.Hist(
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'{board_names[board_id1]}'),
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'{board_names[board_id2]}'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'TOA of {board_names[board_id1]} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'TOA of {board_names[board_id2]} [LSB]'),
     )
     h.fill(x, y)
     params = np.polyfit(x, y, 1)
