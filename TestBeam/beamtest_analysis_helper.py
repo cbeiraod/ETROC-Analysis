@@ -2950,6 +2950,7 @@ def fwhm_based_on_gaussian_mixture_model(
         # Plot PDF of whole model
         hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
         ax.set_title(f'{title}', loc="right", fontsize=17)
+        ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{title}}}$ [ps]')
         if show_number:
             ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
             ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
