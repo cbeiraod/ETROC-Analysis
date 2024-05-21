@@ -374,6 +374,7 @@ class DecodeBinary:
 
         decoding = False
         for ifile in self.files_to_process:
+            print(ifile)
             with open(file=ifile, mode='rb') as infile:
                 while True:
                     in_data = infile.read(4)
