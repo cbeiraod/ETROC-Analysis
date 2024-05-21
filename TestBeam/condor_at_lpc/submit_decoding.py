@@ -151,5 +151,11 @@ Queue name, path from input_list_for_decoding.txt
 with open(f'condor_decoding.jdl','w') as jdlfile:
     jdlfile.write(jdl)
 
-if not args.dryrun:
+if args.dryrun:
+    print('=============== Input list ===============')
+    os.system('cat input_list_for_decoding.txt')
+    print()
+    print('=============== bash script ===============')
+    os.system('cat run_decode.sh')
+else:
     os.system(f'condor_submit condor_decoding.jdl')
