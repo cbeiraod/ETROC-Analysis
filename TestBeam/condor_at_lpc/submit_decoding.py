@@ -70,6 +70,21 @@ os.system(f'eos root://cmseos.fnal.gov mkdir -p /store/group/lpcmtdstudies/{args
 os.system(f"eos root://cmseos.fnal.gov ls /store/group/lpcmtdstudies/{args.data_era} | grep --color \"feather\"")
 print()
 
+eosls_command = ["eos", "root://cmseos.fnal.gov", "ls", f"/store/group/lpcmtdstudies/{args.data_era}/{args.run_name}_feather",]
+result = subprocess.run(eosls_command, capture_output=True, text=True)
+file_list = natsorted(result.stdout.split())
+
+if len(file_list) > 0:
+    print('It looks like feather files already exists.')
+    print('First flie:', file_list[0], '/ Last file:', file_list[-1])
+    print('Do you really want to submit jobs?')
+    print('If so, please remove or rename the directory first')
+    print('EOS rename command:')
+    print('eos root://cmseos.fnal.gov file rename /store/user/username/testing_old.root /store/user/username/testing_Name_v2.txt')
+    print('EOS mv command:')
+    print('eos root://cmseos.fnal.gov mv /store/user/tonjes/step4_test.root /store/group/lpcci2dileptons/tonjes_test.root')
+    sys.exit()
+
 # Define the bash script template
 bash_template = """#!/bin/bash
 
