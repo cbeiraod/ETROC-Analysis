@@ -102,8 +102,8 @@ ls -ltrh
 echo ""
 
 # Copy output using xrdcp
-echo "xrdcp {{ input_dir_name }}.feather root://cmseos.fnal.gov//store/group/lpcmtdstudies/{args.data_era}/{{ output_dir }}"
-xrdcp {{ input_dir_name }}.feather root://cmseos.fnal.gov//store/group/lpcmtdstudies/{args.data_era}/{{ output_dir }}
+echo "xrdcp {{ input_dir_name }}.feather root://cmseos.fnal.gov//store/group/lpcmtdstudies/{{ data_era }}/{{ output_dir }}"
+xrdcp {{ input_dir_name }}.feather root://cmseos.fnal.gov//store/group/lpcmtdstudies/{{ data_era }}/{{ output_dir }}
 XRDEXIT=$?
 if [[ $XRDEXIT -ne 0 ]]; then
     echo "exit code $XRDEXIT, failure in xrdcp"
@@ -117,6 +117,7 @@ rm {{ input_dir_name }}.feather
 options = {
     'input_dir_name': '${1}',
     'input_dir_path': '${2}',
+    'data_era': args.data_era,
     'output_dir': outdir,
 }
 
