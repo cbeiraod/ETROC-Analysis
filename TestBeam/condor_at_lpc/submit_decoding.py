@@ -65,12 +65,12 @@ with open(listfile, 'a') as listfile:
         listfile.write(save_string + '\n')
 
 outdir = f'{args.run_name}_feather'
-print(f"Make output directory {outdir} at /store/group/lpcmtdstudies/{args.data_era}")
-os.system(f'eos root://cmseos.fnal.gov mkdir -p /store/group/lpcmtdstudies/{args.data_era}/{outdir}')
-os.system(f"eos root://cmseos.fnal.gov ls /store/group/lpcmtdstudies/{args.data_era} | grep --color \"feather\"")
+print(f"Make output directory {outdir} at /store/group/lpcmtdstudies/{args.data_era}/Run_feathers")
+os.system(f'eos root://cmseos.fnal.gov mkdir -p /store/group/lpcmtdstudies/{args.data_era}/Run_feathers/{outdir}')
+os.system(f"eos root://cmseos.fnal.gov ls /store/group/lpcmtdstudies/{args.data_era}/Run_feathers | grep --color \"feather\"")
 print()
 
-eosls_command = ["eos", "root://cmseos.fnal.gov", "ls", f"/store/group/lpcmtdstudies/{args.data_era}/{args.run_name}_feather",]
+eosls_command = ["eos", "root://cmseos.fnal.gov", "ls", f"/store/group/lpcmtdstudies/{args.data_era}/Run_feathers/{args.run_name}_feather",]
 result = subprocess.run(eosls_command, capture_output=True, text=True)
 file_list = natsorted(result.stdout.split())
 
