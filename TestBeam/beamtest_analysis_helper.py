@@ -1869,7 +1869,6 @@ def plot_1d_TDC_histograms(
             plt.clf()
             plt.close(fig)
 
-
         if event_hist is not None:
             fig = plt.figure(dpi=50, figsize=(20,10))
             gs = fig.add_gridspec(1,1)
@@ -1980,18 +1979,19 @@ def plot_1d_CRC_histogram(
 def plot_correlation_of_pixels(
         input_df: pd.DataFrame,
         board_ids: np.array,
-        xaxis_label_board_name: str,
+        board_name1: str,
+        board_name2: str,
         fig_title: str,
         fit_tag: str = '',
     ):
 
     h_row = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='row1', label='Trigger Board Row'),
-        hist.axis.Regular(16, 0, 16, name='row2', label=f'{xaxis_label_board_name} Row'),
+        hist.axis.Regular(16, 0, 16, name='row1', label=f'{board_name1} Row'),
+        hist.axis.Regular(16, 0, 16, name='row2', label=f'{board_name2} Row'),
     )
     h_col = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='col1', label='Trigger Board Col'),
-        hist.axis.Regular(16, 0, 16, name='col2', label=f'{xaxis_label_board_name} Col'),
+        hist.axis.Regular(16, 0, 16, name='col1', label=f'{board_name1} Col'),
+        hist.axis.Regular(16, 0, 16, name='col2', label=f'{board_name2} Col'),
     )
 
     h_row.fill(input_df.loc[input_df['board'] == board_ids[0]]['row'], input_df.loc[input_df['board'] == board_ids[1]]['row'])
@@ -2098,8 +2098,8 @@ def plot_TOA_correlation(
     y = input_df['toa'][board_id2]
 
     h = hist.Hist(
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'{board_names[board_id1]}'),
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'{board_names[board_id2]}'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'TOA of {board_names[board_id1]} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'TOA of {board_names[board_id2]} [LSB]'),
     )
     h.fill(x, y)
     params = np.polyfit(x, y, 1)
@@ -2125,6 +2125,7 @@ def plot_TOA_correlation(
 def plot_TWC(
         input_df: pd.DataFrame,
         board_list: list[int],
+        tot_range: list[int],
         poly_order: int = 2,
         corr_toas: dict | None = None,
         boundary_cut: float = 0,
@@ -2142,15 +2143,15 @@ def plot_TWC(
         del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
 
     h_twc1 = hist.Hist(
-        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[0]}', label=f'tot_b{board_list[0]}'),
+        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[0]}', label=f'tot_b{board_list[0]}'),
         hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[0]}', label=f'delta_toa{board_list[0]}')
     )
     h_twc2 = hist.Hist(
-        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[1]}', label=f'tot_b{board_list[1]}'),
+        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[1]}', label=f'tot_b{board_list[1]}'),
         hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[1]}', label=f'delta_toa{board_list[1]}')
     )
     h_twc3 = hist.Hist(
-        hist.axis.Regular(50, 1000, 8000, name=f'tot_b{board_list[2]}', label=f'tot_b{board_list[2]}'),
+        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[2]}', label=f'tot_b{board_list[2]}'),
         hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[2]}', label=f'delta_toa{board_list[2]}')
     )
 
@@ -2180,18 +2181,18 @@ def plot_TWC(
     hep.hist2dplot(h_twc1, ax=axes[0], norm=colors.LogNorm())
     hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=20)
     axes[0].plot(b1_xrange, poly_func_b0(b1_xrange), 'r-', lw=3, label='linear fit')
-    axes[0].set_xlabel('TOT1')
-    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1', fontsize=15)
+    axes[0].set_xlabel('TOT1 [ps]')
+    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1 [ps]', fontsize=15)
     hep.hist2dplot(h_twc2, ax=axes[1], norm=colors.LogNorm())
     hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=20)
     axes[1].plot(b2_xrange, poly_func_b1(b2_xrange), 'r-', lw=3, label='linear fit')
-    axes[1].set_xlabel('TOT2')
-    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2', fontsize=15)
+    axes[1].set_xlabel('TOT2 [ps]')
+    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2 [ps]', fontsize=15)
     hep.hist2dplot(h_twc3, ax=axes[2], norm=colors.LogNorm())
     hep.cms.text(loc=0, ax=axes[2], text="Phase-2 Preliminary", fontsize=20)
     axes[2].plot(b3_xrange, poly_func_b2(b3_xrange), 'r-', lw=3, label='linear fit')
-    axes[2].set_xlabel('TOT3')
-    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3', fontsize=15)
+    axes[2].set_xlabel('TOT3 [ps]')
+    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3 [ps]', fontsize=15)
 
     if distance is not None:
         axes[0].fill_between(b1_xrange, y1=poly_func_b0(b1_xrange)-boundary_cut*np.std(distance[0]), y2=poly_func_b0(b1_xrange)+boundary_cut*np.std(distance[0]),
@@ -2205,6 +2206,8 @@ def plot_TWC(
         axes[1].legend(loc='best')
         axes[2].legend(loc='best')
 
+    plt.tight_layout()
+
 ## --------------------------------------
 def plot_resolution_with_pulls(
         input_df: pd.DataFrame,
@@ -2213,6 +2216,7 @@ def plot_resolution_with_pulls(
         fig_tag: str = '',
         hist_bins: int = 15,
         draw_arithmetic_mean: bool = False,
+        slides_friendly: bool = False,
     ):
     import matplotlib.gridspec as gridspec
     from lmfit.models import GaussianModel
@@ -2244,83 +2248,154 @@ def plot_resolution_with_pulls(
         pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
         pulls_dict[key] = pulls
 
-    # Create a figure with a 2x2 grid
-    fig = plt.figure(figsize=(24, 16))
-    gs = fig.add_gridspec(2, 2)
 
-    for i, plot in enumerate(gs):
-        global_ax = fig.add_subplot(plot)
-        inner_plot = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=global_ax, hspace=0, height_ratios=[3, 1])
-        main_ax = fig.add_subplot(inner_plot[0])
-        sub_ax = fig.add_subplot(inner_plot[1], sharex=main_ax)
-        global_ax.xaxis.set_visible(False)
-        global_ax.yaxis.set_visible(False)
-        main_ax.xaxis.set_visible(False)
+    if slides_friendly:
 
-        if i not in hists:
-            global_ax.set_axis_off()
-            main_ax.set_axis_off()
-            sub_ax.set_axis_off()
-            continue
+        # Create a figure with a 2x2 grid
+        fig = plt.figure(figsize=(24, 16))
+        gs = fig.add_gridspec(2, 2)
 
-        centers = hists[i].axes[0].centers
-        hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
-        main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=11)
+        for i, plot in enumerate(gs):
+            global_ax = fig.add_subplot(plot)
+            inner_plot = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=global_ax, hspace=0, height_ratios=[3, 1])
+            main_ax = fig.add_subplot(inner_plot[0])
+            sub_ax = fig.add_subplot(inner_plot[1], sharex=main_ax)
+            global_ax.xaxis.set_visible(False)
+            global_ax.yaxis.set_visible(False)
+            main_ax.xaxis.set_visible(False)
 
-        main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
-                        ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
-                        ms=6, capsize=1, capthick=2, alpha=0.8)
+            if i not in hists:
+                global_ax.set_axis_off()
+                main_ax.set_axis_off()
+                sub_ax.set_axis_off()
+                continue
 
-        if draw_arithmetic_mean:
-            main_ax.vlines(means[i], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
+            centers = hists[i].axes[0].centers
+            hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
+            main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=11)
 
-        main_ax.set_ylabel('Counts', fontsize=20)
-        main_ax.set_ylim(-5, None)
-        main_ax.tick_params(axis='x', labelsize=20)
-        main_ax.tick_params(axis='y', labelsize=20)
+            main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
+                            ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+                            ms=6, capsize=1, capthick=2, alpha=0.8)
 
-        x_min = centers[0]
-        x_max = centers[-1]
+            if draw_arithmetic_mean:
+                main_ax.vlines(means[i], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
 
-        x_range = np.linspace(x_min, x_max, 200)
-        popt = [par for name, par in fit_params[i].best_values.items()]
-        pcov = fit_params[i].covar
+            main_ax.set_ylabel('Counts', fontsize=20)
+            main_ax.set_ylim(-5, None)
+            main_ax.tick_params(axis='x', labelsize=20)
+            main_ax.tick_params(axis='y', labelsize=20)
 
-        if np.isfinite(pcov).all():
-            n_samples = 100
-            vopts = np.random.multivariate_normal(popt, pcov, n_samples)
-            sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
-            model_uncert = np.nanstd(sampled_ydata, axis=0)
-        else:
-            model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
+            x_min = centers[0]
+            x_max = centers[-1]
 
-        main_ax.plot(x_range, fit_params[i].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
-                    label=fr"$\mu$:{fit_params[i].params['center'].value:.2f} $\pm$ {fit_params[i].params['center'].stderr:.2f}")
-        main_ax.plot(np.NaN, np.NaN, color='none',
-                     label=fr"$\sigma$: {abs(fit_params[i].params['sigma'].value):.2f} $\pm$ {abs(fit_params[i].params['sigma'].stderr):.2f}")
+            x_range = np.linspace(x_min, x_max, 200)
+            popt = [par for name, par in fit_params[i].best_values.items()]
+            pcov = fit_params[i].covar
 
-        main_ax.fill_between(
-            x_range,
-            fit_params[i].eval(x=x_range) - model_uncert,
-            fit_params[i].eval(x=x_range) + model_uncert,
-            color="hotpink",
-            alpha=0.2,
-            label='Uncertainty'
-        )
-        main_ax.legend(fontsize=20, loc='upper right')
+            if np.isfinite(pcov).all():
+                n_samples = 100
+                vopts = np.random.multivariate_normal(popt, pcov, n_samples)
+                sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
+                model_uncert = np.nanstd(sampled_ydata, axis=0)
+            else:
+                model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
 
-        width = (x_max - x_min) / len(pulls_dict[i])
-        sub_ax.axhline(1, c='black', lw=0.75)
-        sub_ax.axhline(0, c='black', lw=1.2)
-        sub_ax.axhline(-1, c='black', lw=0.75)
-        sub_ax.bar(centers, pulls_dict[i], width=width, fc='royalblue')
-        sub_ax.set_ylim(-2, 2)
-        sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
-        sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
-        sub_ax.tick_params(axis='x', which='both', labelsize=20)
-        sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+            main_ax.plot(x_range, fit_params[i].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
+                        label=fr"$\mu$:{fit_params[i].params['center'].value:.2f} $\pm$ {fit_params[i].params['center'].stderr:.2f}")
+            main_ax.plot(np.NaN, np.NaN, color='none',
+                        label=fr"$\sigma$: {abs(fit_params[i].params['sigma'].value):.2f} $\pm$ {abs(fit_params[i].params['sigma'].stderr):.2f}")
 
-    del hists, fit_params, pulls_dict, mod
+            main_ax.fill_between(
+                x_range,
+                fit_params[i].eval(x=x_range) - model_uncert,
+                fit_params[i].eval(x=x_range) + model_uncert,
+                color="hotpink",
+                alpha=0.2,
+                label='Uncertainty'
+            )
+            main_ax.legend(fontsize=20, loc='upper right')
+
+            width = (x_max - x_min) / len(pulls_dict[i])
+            sub_ax.axhline(1, c='black', lw=0.75)
+            sub_ax.axhline(0, c='black', lw=1.2)
+            sub_ax.axhline(-1, c='black', lw=0.75)
+            sub_ax.bar(centers, pulls_dict[i], width=width, fc='royalblue')
+            sub_ax.set_ylim(-2, 2)
+            sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
+            sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
+            sub_ax.tick_params(axis='x', which='both', labelsize=20)
+            sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+
+        del hists, fit_params, pulls_dict, mod
+
+    else:
+        for idx in hists.keys():
+            fig = plt.figure(figsize=(10, 9))
+            grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
+
+            main_ax = fig.add_subplot(grid[0])
+            sub_ax = fig.add_subplot(grid[1], sharex=main_ax)
+            plt.setp(main_ax.get_xticklabels(), visible=False)
+
+            centers = hists[idx].axes[0].centers
+            hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
+            main_ax.set_title(f'{fig_title[idx]} {fig_tag}', loc="right", size=11)
+
+            main_ax.errorbar(centers, hists[idx].values(), np.sqrt(hists[idx].variances()),
+                            ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
+                            ms=6, capsize=1, capthick=2, alpha=0.8)
+
+            if draw_arithmetic_mean:
+                main_ax.vlines(means[idx], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
+
+            main_ax.set_ylabel('Counts', fontsize=20)
+            main_ax.set_ylim(-5, None)
+            main_ax.tick_params(axis='x', labelsize=20)
+            main_ax.tick_params(axis='y', labelsize=20)
+
+            x_min = centers[0]
+            x_max = centers[-1]
+
+            x_range = np.linspace(x_min, x_max, 200)
+            popt = [par for name, par in fit_params[idx].best_values.items()]
+            pcov = fit_params[idx].covar
+
+            if np.isfinite(pcov).all():
+                n_samples = 100
+                vopts = np.random.multivariate_normal(popt, pcov, n_samples)
+                sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
+                model_uncert = np.nanstd(sampled_ydata, axis=0)
+            else:
+                model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
+
+            main_ax.plot(x_range, fit_params[idx].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
+                        label=fr"$\mu$:{fit_params[idx].params['center'].value:.2f} $\pm$ {fit_params[idx].params['center'].stderr:.2f}")
+            main_ax.plot(np.NaN, np.NaN, color='none',
+                        label=fr"$\sigma$: {abs(fit_params[idx].params['sigma'].value):.2f} $\pm$ {abs(fit_params[idx].params['sigma'].stderr):.2f}")
+
+            main_ax.fill_between(
+                x_range,
+                fit_params[idx].eval(x=x_range) - model_uncert,
+                fit_params[idx].eval(x=x_range) + model_uncert,
+                color="hotpink",
+                alpha=0.2,
+                label='Uncertainty'
+            )
+            main_ax.legend(fontsize=20, loc='upper right')
+
+            width = (x_max - x_min) / len(pulls_dict[idx])
+            sub_ax.axhline(1, c='black', lw=0.75)
+            sub_ax.axhline(0, c='black', lw=1.2)
+            sub_ax.axhline(-1, c='black', lw=0.75)
+            sub_ax.bar(centers, pulls_dict[idx], width=width, fc='royalblue')
+            sub_ax.set_ylim(-2, 2)
+            sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
+            sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
+            sub_ax.tick_params(axis='x', which='both', labelsize=20)
+            sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+
+        del hists, fit_params, pulls_dict, mod
 
 ## --------------------------------------
 def plot_resolution_table(
@@ -2328,6 +2403,8 @@ def plot_resolution_table(
         chipLabels: list[int],
         fig_title: list[str],
         fig_tag: str = '',
+        min_resolution: float = 25.0,
+        max_resolution: float = 75.0,
         missing_pixel_info: dict | None = None,
         slides_friendly: bool = False,
         show_number: bool = False,
@@ -2367,7 +2444,7 @@ def plot_resolution_table(
             if idx not in tables:
                 ax.set_axis_off()
                 continue
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=25, vmax=75)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=min_resolution, vmax=max_resolution)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -2404,7 +2481,7 @@ def plot_resolution_table(
             # Create a heatmap to visualize the count of hits
             fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
             ax.cla()
-            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=25, vmax=75)
+            im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=min_resolution, vmax=max_resolution)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -2820,9 +2897,10 @@ def four_board_iterative_timewalk_correction(
 def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
         n_components: int = 2,
-        plotting: bool = False,
-        plotting_each_component: bool = False,
-        plotting_detail: bool = False,
+        show_plot: bool = False,
+        show_sub_gaussian: bool = False,
+        show_fwhm_guideline: bool = False,
+        show_number: bool = False,
         title: str = '',
     ):
 
@@ -2857,12 +2935,12 @@ def fwhm_based_on_gaussian_mixture_model(
     xval = x_range[np.argmax(pdf)][0]
 
     ### Draw plot
-    if plotting_each_component:
+    if show_sub_gaussian:
         # Compute PDF for each component
         responsibilities = models.predict_proba(x_range)
         pdf_individual = responsibilities * pdf[:, np.newaxis]
 
-    if plotting:
+    if show_plot:
 
         fig, ax = plt.subplots(figsize=(10,10))
 
@@ -2872,22 +2950,25 @@ def fwhm_based_on_gaussian_mixture_model(
         # Plot PDF of whole model
         hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
         ax.set_title(f'{title}', loc="right", fontsize=17)
-        if plotting_detail:
+        ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{title}}}$ [ps]')
+        if show_number:
             ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
+            ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
         else:
             ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
 
-        if plotting_each_component:
+        if show_sub_gaussian:
             # Plot PDF of each component
             ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
-        if plotting_detail:
-            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
+        if show_fwhm_guideline:
+            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
             ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
             ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
             ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
 
         ax.legend(loc='best', fontsize=14)
+        plt.tight_layout()
 
     return fwhm, [silhouette_eval_score, jensenshannon_score]
 
