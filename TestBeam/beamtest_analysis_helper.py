@@ -1319,30 +1319,14 @@ def making_pivot(
             for board in ignore_boards:
                 ana_df = ana_df.loc[ana_df['board'] != board].copy()
         pivot_data_df = ana_df.pivot(
-        index = index,
-        columns = columns,
-        values = list(set(ana_df.columns) - drop_columns),
+            index = index,
+            columns = columns,
+            values = list(set(ana_df.columns) - drop_columns),
         )
         pivot_data_df.columns = ["{}_{}".format(x, y) for x, y in pivot_data_df.columns]
 
         return pivot_data_df
 
-## --------------------------------------
-def broadcast_dataframe(
-        input_group: pd.DataFrame.groupby,
-        reference_board_id: int,
-        board_id_want_broadcast: int,
-    ):
-
-    ref_info = input_group[input_group['board'] == reference_board_id].copy()
-    want_broadcast_info = input_group[input_group['board'] == board_id_want_broadcast].iloc[0].copy()
-
-    # Broadcasting dataframe
-    broadcasted_df = pd.concat([want_broadcast_info.to_frame().T] * ref_info.shape[0], ignore_index=True)
-
-    # Concatenate the original board information and the broadcasted board information
-    result_df = pd.concat([broadcasted_df, ref_info], ignore_index=True)
-    return result_df
 
 ## --------------------------------------
 def return_broadcast_dataframe(
@@ -1351,21 +1335,36 @@ def return_broadcast_dataframe(
         board_id_want_broadcast: int,
     ):
 
-    event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+    tmp_df = input_df.loc[(input_df['board'] == reference_board_id) | (input_df['board'] == board_id_want_broadcast)]
+    tmp_df = tmp_df.drop(columns=['ea', 'toa', 'tot', 'cal'])
+
+    event_board_counts = tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
     event_selections = (event_board_counts[board_id_want_broadcast] == 1) & (event_board_counts[reference_board_id] == 1)
-    dut_single_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
-    dut_single_df = dut_single_df.loc[(dut_single_df['board'] == reference_board_id) | (dut_single_df['board'] == board_id_want_broadcast)]
-    dut_single_df.reset_index(inplace=True, drop=True)
+    single_hit_df = tmp_df.loc[tmp_df['evt'].isin(event_board_counts[event_selections].index)]
+    single_hit_df.reset_index(inplace=True, drop=True)
+
+    if 'identifier' in single_hit_df.columns:
+        single_hit_df = single_hit_df.drop(columns=['identifier'])
+
+    sub_single_df1 = single_hit_df.loc[single_hit_df['board'] == board_id_want_broadcast]
+    sub_single_df2 = single_hit_df.loc[single_hit_df['board'] == reference_board_id]
+
+    single_df = pd.merge(sub_single_df1, sub_single_df2, on='evt', suffixes=[f'_{board_id_want_broadcast}', f'_{reference_board_id}'])
+    single_df = single_df.drop(columns=['evt'])
+    del single_hit_df, sub_single_df1, sub_single_df2
 
     event_selections = (event_board_counts[board_id_want_broadcast] == 1) & (event_board_counts[reference_board_id] >= 2)
-    dut_multiple_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
-    dut_multiple_df = dut_multiple_df.loc[(dut_multiple_df['board'] == reference_board_id) | (dut_multiple_df['board'] == board_id_want_broadcast)]
-    dut_multiple_df.reset_index(inplace=True, drop=True)
+    multi_hit_df = tmp_df.loc[tmp_df['evt'].isin(event_board_counts[event_selections].index)]
+    multi_hit_df.reset_index(inplace=True, drop=True)
 
-    broadcasted_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=reference_board_id, board_id_want_broadcast=board_id_want_broadcast).reset_index(drop=True)
-    broadcasted_df = broadcasted_df.astype('uint64')
+    sub_multiple_df1 = multi_hit_df.loc[multi_hit_df['board'] == board_id_want_broadcast]
+    sub_multiple_df2 = multi_hit_df.loc[multi_hit_df['board'] == reference_board_id]
 
-    return dut_single_df, broadcasted_df
+    multi_df = pd.merge(sub_multiple_df1, sub_multiple_df2, on='evt', suffixes=[f'_{board_id_want_broadcast}', f'_{reference_board_id}'])
+    multi_df = multi_df.drop(columns=['evt'])
+    del multi_hit_df, tmp_df, sub_multiple_df1, sub_multiple_df2
+
+    return single_df, multi_df
 
 
 ## --------------- Modify DataFrame -----------------------
