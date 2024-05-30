@@ -1977,7 +1977,7 @@ def plot_1d_CRC_histogram(
 ## --------------------------------------
 def plot_correlation_of_pixels(
         input_df: pd.DataFrame,
-        board_ids: np.array,
+        board_ids: list[int],
         board_name1: str,
         board_name2: str,
         fig_title: str,
@@ -1985,25 +1985,24 @@ def plot_correlation_of_pixels(
     ):
 
     h_row = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='row1', label=f'{board_name1} Row'),
-        hist.axis.Regular(16, 0, 16, name='row2', label=f'{board_name2} Row'),
+        hist.axis.Regular(16, 0, 16, name='row1', label=f'Row of {board_name1}'),
+        hist.axis.Regular(16, 0, 16, name='row2', label=f'Row of {board_name2}'),
     )
     h_col = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='col1', label=f'{board_name1} Col'),
-        hist.axis.Regular(16, 0, 16, name='col2', label=f'{board_name2} Col'),
+        hist.axis.Regular(16, 0, 16, name='col1', label=f'Column of {board_name1}'),
+        hist.axis.Regular(16, 0, 16, name='col2', label=f'Column of {board_name2}'),
     )
 
-    h_row.fill(input_df.loc[input_df['board'] == board_ids[0]]['row'], input_df.loc[input_df['board'] == board_ids[1]]['row'])
-    h_col.fill(input_df.loc[input_df['board'] == board_ids[0]]['col'], input_df.loc[input_df['board'] == board_ids[1]]['col'])
-
+    h_row.fill(input_df[f'row_{board_ids[0]}'].values, input_df[f'row_{board_ids[1]}'].values)
+    h_col.fill(input_df[f'col_{board_ids[0]}'].values, input_df[f'col_{board_ids[1]}'].values)
 
     location = np.arange(0, 16) + 0.5
     tick_labels = np.char.mod('%d', np.arange(0, 16))
     fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
-    hep.hist2dplot(h_row, ax=ax[0], norm=matplotlib.colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=25)
-    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
+    hep.hist2dplot(h_row, ax=ax[0], norm= colors.LogNorm())
+    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=22)
+    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=16)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[0].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2012,9 +2011,9 @@ def plot_correlation_of_pixels(
     ax[0].yaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
     ax[0].tick_params(axis='both', which='major', length=0)
 
-    hep.hist2dplot(h_col, ax=ax[1], norm=matplotlib.colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=25)
-    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
+    hep.hist2dplot(h_col, ax=ax[1], norm= colors.LogNorm())
+    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=22)
+    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=16)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[1].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2028,12 +2027,13 @@ def plot_correlation_of_pixels(
 ## --------------------------------------
 def plot_difference_of_pixels(
         input_df: pd.DataFrame,
-        board_ids: np.array,
+        board_ids: list[int],
         fig_title: str,
         fit_tag: str = '',
     ):
-    diff_row = input_df.loc[input_df['board'] == board_ids[0]]['row'].values.astype(np.int64) - input_df.loc[input_df['board'] == board_ids[1]]['row'].values.astype(np.int64)
-    diff_col = input_df.loc[input_df['board'] == board_ids[0]]['col'].values.astype(np.int64) - input_df.loc[input_df['board'] == board_ids[1]]['col'].values.astype(np.int64)
+
+    diff_row = (input_df[f'row_{board_ids[0]}'].astype(np.int8) - input_df[f'row_{board_ids[1]}'].astype(np.int8)).values
+    diff_col = (input_df[f'col_{board_ids[0]}'].astype(np.int8) - input_df[f'col_{board_ids[1]}'].astype(np.int8)).values
 
     h = hist.Hist(
         hist.axis.Regular(32, -16, 16, name='delta_row', label=r"$\Delta$Row"),
