@@ -2229,8 +2229,8 @@ def plot_resolution_with_pulls(
     means = {}
 
     for key in board_ids:
-        hist_x_min = int(input_df[f'res{key}'].min())-5
-        hist_x_max = int(input_df[f'res{key}'].max())+5
+        hist_x_min = 20
+        hist_x_max = 95
         hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_x_min, hist_x_max, name="time_resolution", label=r'Time Resolution [ps]'))
         hists[key].fill(input_df[f'res{key}'].values)
         means[key] = np.mean(input_df[f'res{key}'].values)
@@ -2281,7 +2281,7 @@ def plot_resolution_with_pulls(
                 main_ax.vlines(means[i], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
 
             main_ax.set_ylabel('Counts', fontsize=20)
-            main_ax.set_ylim(-5, None)
+            main_ax.set_ylim(-5, 190)
             main_ax.tick_params(axis='x', labelsize=20)
             main_ax.tick_params(axis='y', labelsize=20)
 
@@ -2313,7 +2313,7 @@ def plot_resolution_with_pulls(
                 alpha=0.2,
                 label='Uncertainty'
             )
-            main_ax.legend(fontsize=20, loc='upper right')
+            main_ax.legend(fontsize=18, loc='best')
 
             width = (x_max - x_min) / len(pulls_dict[i])
             sub_ax.axhline(1, c='black', lw=0.75)
@@ -2349,7 +2349,7 @@ def plot_resolution_with_pulls(
                 main_ax.vlines(means[idx], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
 
             main_ax.set_ylabel('Counts', fontsize=20)
-            main_ax.set_ylim(-5, None)
+            main_ax.set_ylim(-5, 190)
             main_ax.tick_params(axis='x', labelsize=20)
             main_ax.tick_params(axis='y', labelsize=20)
 
@@ -2381,7 +2381,7 @@ def plot_resolution_with_pulls(
                 alpha=0.2,
                 label='Uncertainty'
             )
-            main_ax.legend(fontsize=20, loc='upper right')
+            main_ax.legend(fontsize=18, loc='best')
 
             width = (x_max - x_min) / len(pulls_dict[idx])
             sub_ax.axhline(1, c='black', lw=0.75)
