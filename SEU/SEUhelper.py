@@ -119,8 +119,17 @@ def plotBoardPower(board: str, channels: dict[str, str], dataframe: pandas.DataF
     mplhep.cms.text(loc=0, ax=axis[1][0], text='Preliminary', fontsize=25)
     mplhep.cms.text(loc=0, ax=axis[1][1], text='Preliminary', fontsize=25)
 
-    digital_df = dataframe.loc[dataframe['Channel'] == channels["Digital"]].copy()
-    analog_df = dataframe.loc[dataframe['Channel'] == channels["Analog"]].copy()
+    if ':' not in channels["Digital"]:
+        digital_df = dataframe.loc[dataframe['Channel'] == channels["Digital"]].copy()
+    else:
+        instrument, channel = channels["Digital"].split(':')
+        digital_df = dataframe.loc[(dataframe['Instrument'] == instrument) & (dataframe['Channel'] == channel)].copy()
+
+    if ':' not in channels["Analog"]:
+        analog_df = dataframe.loc[dataframe['Channel'] == channels["Analog"]].copy()
+    else:
+        instrument, channel = channels["Analog"].split(':')
+        analog_df = dataframe.loc[(dataframe['Instrument'] == instrument) & (dataframe['Channel'] == channel)].copy()
 
     analog_df.plot(
                     x = 'Time',
