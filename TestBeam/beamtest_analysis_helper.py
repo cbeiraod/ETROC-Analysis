@@ -1319,30 +1319,14 @@ def making_pivot(
             for board in ignore_boards:
                 ana_df = ana_df.loc[ana_df['board'] != board].copy()
         pivot_data_df = ana_df.pivot(
-        index = index,
-        columns = columns,
-        values = list(set(ana_df.columns) - drop_columns),
+            index = index,
+            columns = columns,
+            values = list(set(ana_df.columns) - drop_columns),
         )
         pivot_data_df.columns = ["{}_{}".format(x, y) for x, y in pivot_data_df.columns]
 
         return pivot_data_df
 
-## --------------------------------------
-def broadcast_dataframe(
-        input_group: pd.DataFrame.groupby,
-        reference_board_id: int,
-        board_id_want_broadcast: int,
-    ):
-
-    ref_info = input_group[input_group['board'] == reference_board_id].copy()
-    want_broadcast_info = input_group[input_group['board'] == board_id_want_broadcast].iloc[0].copy()
-
-    # Broadcasting dataframe
-    broadcasted_df = pd.concat([want_broadcast_info.to_frame().T] * ref_info.shape[0], ignore_index=True)
-
-    # Concatenate the original board information and the broadcasted board information
-    result_df = pd.concat([broadcasted_df, ref_info], ignore_index=True)
-    return result_df
 
 ## --------------------------------------
 def return_broadcast_dataframe(
@@ -1351,21 +1335,36 @@ def return_broadcast_dataframe(
         board_id_want_broadcast: int,
     ):
 
-    event_board_counts = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+    tmp_df = input_df.loc[(input_df['board'] == reference_board_id) | (input_df['board'] == board_id_want_broadcast)]
+    tmp_df = tmp_df.drop(columns=['ea', 'toa', 'tot', 'cal'])
+
+    event_board_counts = tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
     event_selections = (event_board_counts[board_id_want_broadcast] == 1) & (event_board_counts[reference_board_id] == 1)
-    dut_single_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
-    dut_single_df = dut_single_df.loc[(dut_single_df['board'] == reference_board_id) | (dut_single_df['board'] == board_id_want_broadcast)]
-    dut_single_df.reset_index(inplace=True, drop=True)
+    single_hit_df = tmp_df.loc[tmp_df['evt'].isin(event_board_counts[event_selections].index)]
+    single_hit_df.reset_index(inplace=True, drop=True)
+
+    if 'identifier' in single_hit_df.columns:
+        single_hit_df = single_hit_df.drop(columns=['identifier'])
+
+    sub_single_df1 = single_hit_df.loc[single_hit_df['board'] == board_id_want_broadcast]
+    sub_single_df2 = single_hit_df.loc[single_hit_df['board'] == reference_board_id]
+
+    single_df = pd.merge(sub_single_df1, sub_single_df2, on='evt', suffixes=[f'_{board_id_want_broadcast}', f'_{reference_board_id}'])
+    single_df = single_df.drop(columns=['evt'])
+    del single_hit_df, sub_single_df1, sub_single_df2
 
     event_selections = (event_board_counts[board_id_want_broadcast] == 1) & (event_board_counts[reference_board_id] >= 2)
-    dut_multiple_df = input_df.loc[input_df['evt'].isin(event_board_counts[event_selections].index)]
-    dut_multiple_df = dut_multiple_df.loc[(dut_multiple_df['board'] == reference_board_id) | (dut_multiple_df['board'] == board_id_want_broadcast)]
-    dut_multiple_df.reset_index(inplace=True, drop=True)
+    multi_hit_df = tmp_df.loc[tmp_df['evt'].isin(event_board_counts[event_selections].index)]
+    multi_hit_df.reset_index(inplace=True, drop=True)
 
-    broadcasted_df = dut_multiple_df.groupby('evt').apply(broadcast_dataframe, reference_board_id=reference_board_id, board_id_want_broadcast=board_id_want_broadcast).reset_index(drop=True)
-    broadcasted_df = broadcasted_df.astype('uint64')
+    sub_multiple_df1 = multi_hit_df.loc[multi_hit_df['board'] == board_id_want_broadcast]
+    sub_multiple_df2 = multi_hit_df.loc[multi_hit_df['board'] == reference_board_id]
 
-    return dut_single_df, broadcasted_df
+    multi_df = pd.merge(sub_multiple_df1, sub_multiple_df2, on='evt', suffixes=[f'_{board_id_want_broadcast}', f'_{reference_board_id}'])
+    multi_df = multi_df.drop(columns=['evt'])
+    del multi_hit_df, tmp_df, sub_multiple_df1, sub_multiple_df2
+
+    return single_df, multi_df
 
 
 ## --------------- Modify DataFrame -----------------------
@@ -1978,7 +1977,7 @@ def plot_1d_CRC_histogram(
 ## --------------------------------------
 def plot_correlation_of_pixels(
         input_df: pd.DataFrame,
-        board_ids: np.array,
+        board_ids: list[int],
         board_name1: str,
         board_name2: str,
         fig_title: str,
@@ -1986,25 +1985,24 @@ def plot_correlation_of_pixels(
     ):
 
     h_row = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='row1', label=f'{board_name1} Row'),
-        hist.axis.Regular(16, 0, 16, name='row2', label=f'{board_name2} Row'),
+        hist.axis.Regular(16, 0, 16, name='row1', label=f'Row of {board_name1}'),
+        hist.axis.Regular(16, 0, 16, name='row2', label=f'Row of {board_name2}'),
     )
     h_col = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='col1', label=f'{board_name1} Col'),
-        hist.axis.Regular(16, 0, 16, name='col2', label=f'{board_name2} Col'),
+        hist.axis.Regular(16, 0, 16, name='col1', label=f'Column of {board_name1}'),
+        hist.axis.Regular(16, 0, 16, name='col2', label=f'Column of {board_name2}'),
     )
 
-    h_row.fill(input_df.loc[input_df['board'] == board_ids[0]]['row'], input_df.loc[input_df['board'] == board_ids[1]]['row'])
-    h_col.fill(input_df.loc[input_df['board'] == board_ids[0]]['col'], input_df.loc[input_df['board'] == board_ids[1]]['col'])
-
+    h_row.fill(input_df[f'row_{board_ids[0]}'].values, input_df[f'row_{board_ids[1]}'].values)
+    h_col.fill(input_df[f'col_{board_ids[0]}'].values, input_df[f'col_{board_ids[1]}'].values)
 
     location = np.arange(0, 16) + 0.5
     tick_labels = np.char.mod('%d', np.arange(0, 16))
     fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
-    hep.hist2dplot(h_row, ax=ax[0], norm=matplotlib.colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=25)
-    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
+    hep.hist2dplot(h_row, ax=ax[0], norm= colors.LogNorm())
+    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=22)
+    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=16)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[0].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2013,9 +2011,9 @@ def plot_correlation_of_pixels(
     ax[0].yaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
     ax[0].tick_params(axis='both', which='major', length=0)
 
-    hep.hist2dplot(h_col, ax=ax[1], norm=matplotlib.colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=25)
-    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
+    hep.hist2dplot(h_col, ax=ax[1], norm= colors.LogNorm())
+    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=22)
+    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=16)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[1].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2029,12 +2027,13 @@ def plot_correlation_of_pixels(
 ## --------------------------------------
 def plot_difference_of_pixels(
         input_df: pd.DataFrame,
-        board_ids: np.array,
+        board_ids: list[int],
         fig_title: str,
         fit_tag: str = '',
     ):
-    diff_row = input_df.loc[input_df['board'] == board_ids[0]]['row'].values.astype(np.int64) - input_df.loc[input_df['board'] == board_ids[1]]['row'].values.astype(np.int64)
-    diff_col = input_df.loc[input_df['board'] == board_ids[0]]['col'].values.astype(np.int64) - input_df.loc[input_df['board'] == board_ids[1]]['col'].values.astype(np.int64)
+
+    diff_row = (input_df[f'row_{board_ids[0]}'].astype(np.int8) - input_df[f'row_{board_ids[1]}'].astype(np.int8)).values
+    diff_col = (input_df[f'col_{board_ids[0]}'].astype(np.int8) - input_df[f'col_{board_ids[1]}'].astype(np.int8)).values
 
     h = hist.Hist(
         hist.axis.Regular(32, -16, 16, name='delta_row', label=r"$\Delta$Row"),
@@ -2230,8 +2229,8 @@ def plot_resolution_with_pulls(
     means = {}
 
     for key in board_ids:
-        hist_x_min = int(input_df[f'res{key}'].min())-5
-        hist_x_max = int(input_df[f'res{key}'].max())+5
+        hist_x_min = 20
+        hist_x_max = 95
         hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_x_min, hist_x_max, name="time_resolution", label=r'Time Resolution [ps]'))
         hists[key].fill(input_df[f'res{key}'].values)
         means[key] = np.mean(input_df[f'res{key}'].values)
@@ -2282,7 +2281,7 @@ def plot_resolution_with_pulls(
                 main_ax.vlines(means[i], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
 
             main_ax.set_ylabel('Counts', fontsize=20)
-            main_ax.set_ylim(-5, None)
+            main_ax.set_ylim(-5, 190)
             main_ax.tick_params(axis='x', labelsize=20)
             main_ax.tick_params(axis='y', labelsize=20)
 
@@ -2314,7 +2313,7 @@ def plot_resolution_with_pulls(
                 alpha=0.2,
                 label='Uncertainty'
             )
-            main_ax.legend(fontsize=20, loc='upper right')
+            main_ax.legend(fontsize=18, loc='best')
 
             width = (x_max - x_min) / len(pulls_dict[i])
             sub_ax.axhline(1, c='black', lw=0.75)
@@ -2350,7 +2349,7 @@ def plot_resolution_with_pulls(
                 main_ax.vlines(means[idx], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
 
             main_ax.set_ylabel('Counts', fontsize=20)
-            main_ax.set_ylim(-5, None)
+            main_ax.set_ylim(-5, 190)
             main_ax.tick_params(axis='x', labelsize=20)
             main_ax.tick_params(axis='y', labelsize=20)
 
@@ -2382,7 +2381,7 @@ def plot_resolution_with_pulls(
                 alpha=0.2,
                 label='Uncertainty'
             )
-            main_ax.legend(fontsize=20, loc='upper right')
+            main_ax.legend(fontsize=18, loc='best')
 
             width = (x_max - x_min) / len(pulls_dict[idx])
             sub_ax.axhline(1, c='black', lw=0.75)
