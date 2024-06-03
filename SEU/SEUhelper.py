@@ -347,7 +347,12 @@ def makePerRunPlots(
     run_df = run_df.loc[run_df['Time'] <= record_end].copy()
 
     plotVRefPower(run_df.loc[run_df['Channel'] == "VRef"], f'{run_to_plot_info["name"]} VRef', run_dir, times_to_plot=times_to_plot)
-    plotWSPower(run_df.loc[run_df['Channel'] == "WS"], f'{run_to_plot_info["name"]} Waveform Sampler', run_dir, times_to_plot=times_to_plot)
+
+    if 'WS' in run_df['Channel'].unique():
+        plotWSPower(run_df.loc[run_df['Channel'] == "WS"], f'{run_to_plot_info["name"]} Waveform Sampler', run_dir, times_to_plot=times_to_plot)
+    else:
+        plotWSPower(run_df.loc[run_df['Channel'] == "WSAnalog"],  f'{run_to_plot_info["name"]} Waveform Sampler Analog',  run_dir, times_to_plot=times_to_plot)
+        plotWSPower(run_df.loc[run_df['Channel'] == "WSDigital"], f'{run_to_plot_info["name"]} Waveform Sampler Digital', run_dir, times_to_plot=times_to_plot)
 
     for board in run_to_plot_info["boards"]:
         plotBoardPower(board, power_connections[board], run_df, f'{run_to_plot_info["name"]} {board} Power over Time', run_dir, times_to_plot=times_to_plot)
