@@ -1474,8 +1474,8 @@ def return_event_hist(
         input_df: pd.DataFrame,
 ):
 
-    h = hist.Hist(hist.axis.Regular(8, 0, 7, name="HA", label="Hamming Count"),
-                  hist.axis.Regular(2, 0, 1, name="CRC_mismatch", label="CRC Mismatch"))
+    h = hist.Hist(hist.axis.Regular(8, 0, 8, name="HA", label="Hamming Count"),
+                  hist.axis.Regular(2, 0, 2, name="CRC_mismatch", label="CRC Mismatch"))
 
     h.fill(input_df["hamming_count"].values, input_df["CRC_mismatch"].values)
 
@@ -1488,7 +1488,7 @@ def return_crc_hist(
         chipLabels: list[int],
 ):
     h = {chipNames[board_idx]: hist.Hist(
-            hist.axis.Regular(2, 0, 1, name="CRC_mismatch", label="CRC Mismatch"),
+            hist.axis.Regular(2, 0, 2, name="CRC_mismatch", label="CRC Mismatch"),
         )
     for board_idx in range(len(chipLabels))}
 
