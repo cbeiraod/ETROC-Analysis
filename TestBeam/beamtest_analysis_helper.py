@@ -1633,7 +1633,7 @@ def plot_occupany_map(
         fig_tag: str = '',
         fname_tag: str = '',
         exclude_noise: bool = False,
-        save: bool = False,
+        save_mother_dir: Path | None = None,
     ):
 
     from matplotlib import colormaps
@@ -1699,9 +1699,13 @@ def plot_occupany_map(
         ax.invert_xaxis()
         ax.invert_yaxis()
         plt.minorticks_off()
+        plt.tight_layout()
 
-        if (save):
-            fig.savefig(f"{fig_path}/occupancy_{chipNames[board_id]}_{fname_tag}.png")
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'occupancy_map'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"occupancy_{chipNames[board_id]}_{fname_tag}.png")
+            fig.savefig(save_dir / f"occupancy_{chipNames[board_id]}_{fname_tag}.pdf")
             plt.close(fig)
 
 ## --------------------------------------
