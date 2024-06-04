@@ -1786,105 +1786,117 @@ def plot_TDC_summary_table(
 
 ## --------------------------------------
 def plot_1d_TDC_histograms(
-        input_hist: hist.Hist,
+        input_hist: dict,
         chip_name: str,
-        chip_figname: str,
-        fig_title: str,
-        fig_path: Path = Path('./'),
-        save: bool = False,
-        tag: str = '',
-        fig_tag: str = '',
+        tb_loc: str,
+        fig_tag: str | None = None,
         slide_friendly: bool = False,
         do_logy: bool = False,
         event_hist: hist.Hist | None = None,
+        save_mother_dir: Path | None = None,
+        tag: str = '',
     ):
+    """Make plots of 1D TDC histograms.
+
+    Parameters
+    ----------
+    input_hist: dict,
+        A dictionary of TDC histograms, which returns from return_hist, return_hist_pivot
+    chip_name: str,
+        Board name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fig_tag: str, optional
+        Additional board information to show in the plot.
+    slide_friendly: bool, optional
+        If it is True, draw plots in a single figure. Recommend this option, when you try to add plots on the slides.
+    do_logy: bool, optional
+        Set log y-axis on 1D histograms.
+    event_hist: hist.Hist, optional
+        A dictionary of TDC histograms, which returns from return_event_hist
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'1d_tdc_hists'.
+    tag: str, optional (recommend),
+        Additional tag for the file name.
+    """
+
+    if tb_loc == 'desy':
+        plot_title = r'4 GeV $e^{-}$ at DESY'
+    elif tb_loc == 'cern':
+        plot_title = r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at SPS'
+    elif tb_loc == 'fnal':
+        plot_title = r'120 GeV p at FNAL'
 
     if not slide_friendly:
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_CAL_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
 
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_TOT_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
+        vals = ["CAL", "TOT", "TOA", "EA"]
+        for ival in vals:
+            try:
+                fig, ax = plt.subplots(figsize=(11, 10))
+                ax.set_title(plot_title, loc="right", size=18)
+                hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+                input_hist[chip_name].project(ival)[:].plot1d(ax=ax, lw=2)
+                ax.xaxis.label.set_fontsize(18)
+                ax.yaxis.label.set_fontsize(18)
 
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_TOA_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
+                if fig_tag is not None:
+                    ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right')
 
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, EA{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("EA")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_EA_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
+                if do_logy:
+                    ax.set_yscale('log')
+                plt.tight_layout()
 
-        fig = plt.figure(dpi=50, figsize=(20,20))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
-        if do_logy:
-            #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
-            #plt.colorbar(pcm)
-            pass
+                if save_mother_dir is not None:
+                    save_dir = save_mother_dir / '1d_tdc_hists'
+                    save_dir.mkdir(exist_ok=True)
+                    fig.savefig(save_dir / f'{chip_name}_{ival}_{tag}.png')
+                    fig.savefig(save_dir / f'{chip_name}_{ival}_{tag}.pdf')
+                    plt.close(fig)
+            except Exception as e:
+                plt.close(fig)
+                print(f'No {ival} histogram is found')
+
+        ## 2D TOA-TOT
+        fig, ax = plt.subplots(figsize=(11, 10))
+        ax.set_title(plot_title, loc="right", size=18)
+        ax.xaxis.label.set_fontsize(18)
+        ax.yaxis.label.set_fontsize(18)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+        hep.hist2dplot(input_hist[chip_name].project("TOA","TOT")[::2j,::2j], ax=ax)
+
+        if fig_tag is not None:
+            ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right', bbox=dict(facecolor='white'))
+
         plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.pdf')
-            plt.clf()
+
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / '1d_tdc_hists'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f'{chip_name}_TOA_TOT_{tag}.png')
+            fig.savefig(save_dir / f'{chip_name}_TOA_TOT_{tag}.pdf')
             plt.close(fig)
 
         if event_hist is not None:
-            fig = plt.figure(dpi=50, figsize=(20,10))
-            gs = fig.add_gridspec(1,1)
-            ax = fig.add_subplot(gs[0,0])
-            ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=25)
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+            fig, ax = plt.subplots(figsize=(11, 10))
+            ax.set_title(plot_title, loc="right", size=18)
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
             event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
+            ax.xaxis.label.set_fontsize(18)
+            ax.yaxis.label.set_fontsize(18)
+
+            if fig_tag is not None:
+                ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right')
+
             if do_logy:
                 ax.set_yscale('log')
+
             plt.tight_layout()
-            if(save):
-                plt.savefig(fig_path/f'{chip_figname}_Hamming_Count_{tag}.pdf')
-                plt.clf()
+
+            if save_mother_dir is not None:
+                save_dir = save_mother_dir / '1d_tdc_hists'
+                save_dir.mkdir(exist_ok=True)
+                fig.savefig(save_dir / f'{chip_name}_Hamming_Count_{tag}.png')
+                fig.savefig(save_dir / f'{chip_name}_Hamming_Count_{tag}.pdf')
                 plt.close(fig)
 
     else:
@@ -1895,38 +1907,40 @@ def plot_1d_TDC_histograms(
             ax = fig.add_subplot(plot_info)
             hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
             if i == 0:
-                ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=15)
+                ax.set_title(plot_title, loc="right", size=18)
                 input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 1:
-                ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=15)
+                ax.set_title(plot_title, loc="right", size=18)
                 input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 2:
-                ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=15)
+                ax.set_title(plot_title, loc="right", size=18)
                 input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 3:
                 if event_hist is None:
-                    ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
+                    ax.set_title(plot_title, loc="right", size=18)
                     input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
                     if do_logy:
                         #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
                         #plt.colorbar(pcm)
                         pass
                 else:
-                    ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=15)
+                    ax.set_title(plot_title, loc="right", size=18)
                     event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
                     if do_logy:
                         ax.set_yscale('log')
 
         plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_combined_TDC_{tag}.pdf')
-            plt.clf()
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / '1d_tdc_hists'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f'{chip_name}_combined_{tag}.png')
+            fig.savefig(save_dir / f'{chip_name}_combined_{tag}.pdf')
             plt.close(fig)
 
 ## --------------------------------------
@@ -1952,7 +1966,7 @@ def plot_1d_event_CRC_histogram(
         plt.clf()
         plt.close(fig)
 
-## --------------------------------------
+## ------------------------------------
 def plot_1d_CRC_histogram(
         input_hist: hist.Hist,
         chip_name: str,
@@ -2039,7 +2053,6 @@ def plot_correlation_of_pixels(
         fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fig_tag}.pdf")
         plt.close(fig)
 
-
 ## --------------------------------------
 def plot_difference_of_pixels(
         input_df: pd.DataFrame,
@@ -2116,23 +2129,58 @@ def plot_TOA_correlation(
         board_id2: int,
         boundary_cut: float,
         board_names: list[str],
+        tb_loc: str,
         draw_boundary: bool = False,
+        save_mother_dir: Path | None = None,
     ):
+    """Make plot of TOA correlation between selected two boards.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of a single track.
+    board_id1: int,
+        Board 1 ID.
+    board_id2: int,
+        Board 2 ID.
+    boundary_cut: float,
+        Size of boundary. boundary_cut * standard devition of distance arrays
+    board_names: list[str],
+        A string list including board names.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    draw_boundary: bool, optional
+        Draw boundary cut in the plot.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'temporal_correlation'.
+    """
 
     x = input_df['toa'][board_id1]
     y = input_df['toa'][board_id2]
 
+    axis_name1 = board_names[board_id1].replace('_', ' ')
+    axis_name2 = board_names[board_id2].replace('_', ' ')
+
     h = hist.Hist(
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'TOA of {board_names[board_id1]} [LSB]'),
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'TOA of {board_names[board_id2]} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'TOA of {axis_name1} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'TOA of {axis_name2} [LSB]'),
     )
     h.fill(x, y)
     params = np.polyfit(x, y, 1)
     distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
 
     fig, ax = plt.subplots(figsize=(10, 10))
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-    ax.set_title(f"TOA correlation", loc="right", size=20)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+
+    if tb_loc == 'desy':
+        ax.set_title(r'4 GeV $e^{-}$ at DESY', loc='right', fontsize=18)
+    elif tb_loc == 'cern':
+        ax.set_title(r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at SPS', loc='right', fontsize=18)
+    elif tb_loc == 'fnal':
+        ax.set_title(r'120 GeV p at FNAL', loc='right', fontsize=18)
+
+    ax.xaxis.label.set_fontsize(18)
+    ax.yaxis.label.set_fontsize(18)
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
 
     # calculate the trendline
@@ -2145,6 +2193,13 @@ def plot_TOA_correlation(
         ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(distance), y2=trendpoly(x_range)+boundary_cut*np.std(distance),
                         facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
     ax.legend()
+
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'temporal_correlation'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"toa_correlation_{board_names[board_id1]}_{board_names[board_id2]}.png")
+        fig.savefig(save_dir / f"toa_correlation_{board_names[board_id1]}_{board_names[board_id2]}.pdf")
+        plt.close(fig)
 
 ## --------------------------------------
 def plot_TWC(
