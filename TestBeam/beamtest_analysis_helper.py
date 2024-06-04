@@ -1985,16 +1985,20 @@ def plot_correlation_of_pixels(
         board_name1: str,
         board_name2: str,
         fig_title: str,
-        fit_tag: str = '',
+        fig_tag: str = '',
+        save_mother_dir: Path | None = None,
     ):
 
+    axis_name1 = board_name1.replace('_', ' ')
+    axis_name2 = board_name2.replace('_', ' ')
+
     h_row = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='row1', label=f'Row of {board_name1}'),
-        hist.axis.Regular(16, 0, 16, name='row2', label=f'Row of {board_name2}'),
+        hist.axis.Regular(16, 0, 16, name='row1', label=f'Row of {axis_name1}'),
+        hist.axis.Regular(16, 0, 16, name='row2', label=f'Row of {axis_name2}'),
     )
     h_col = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='col1', label=f'Column of {board_name1}'),
-        hist.axis.Regular(16, 0, 16, name='col2', label=f'Column of {board_name2}'),
+        hist.axis.Regular(16, 0, 16, name='col1', label=f'Column of {axis_name1}'),
+        hist.axis.Regular(16, 0, 16, name='col2', label=f'Column of {axis_name2}'),
     )
 
     h_row.fill(input_df[f'row_{board_ids[0]}'].values, input_df[f'row_{board_ids[1]}'].values)
@@ -2006,7 +2010,7 @@ def plot_correlation_of_pixels(
 
     hep.hist2dplot(h_row, ax=ax[0], norm= colors.LogNorm())
     hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=22)
-    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=16)
+    ax[0].set_title(f"{fig_title}", loc="right", size=16)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[0].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2017,7 +2021,7 @@ def plot_correlation_of_pixels(
 
     hep.hist2dplot(h_col, ax=ax[1], norm= colors.LogNorm())
     hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=22)
-    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=16)
+    ax[1].set_title(f"{fig_title}", loc="right", size=16)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[1].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2028,12 +2032,23 @@ def plot_correlation_of_pixels(
 
     plt.tight_layout()
 
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'spatial_correlation'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fig_tag}.png")
+        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fig_tag}.pdf")
+        plt.close(fig)
+
+
 ## --------------------------------------
 def plot_difference_of_pixels(
         input_df: pd.DataFrame,
         board_ids: list[int],
+        board_name1: str,
+        board_name2: str,
         fig_title: str,
-        fit_tag: str = '',
+        fig_tag: str = '',
+        save_mother_dir: Path | None = None,
     ):
 
     diff_row = (input_df[f'row_{board_ids[0]}'].astype(np.int8) - input_df[f'row_{board_ids[1]}'].astype(np.int8)).values
@@ -2050,11 +2065,18 @@ def plot_difference_of_pixels(
 
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
     hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=22)
-    ax.set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
+    ax.set_title(f"{fig_title}", loc="right", size=18)
     ax.tick_params(axis='x', which='both', length=5, labelsize=17)
     ax.tick_params(axis='y', which='both', length=5, labelsize=17)
     plt.minorticks_off()
     plt.tight_layout()
+
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'spatial_correlation'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fig_tag}.png")
+        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fig_tag}.pdf")
+        plt.close(fig)
 
 ## --------------------------------------
 def plot_distance(
