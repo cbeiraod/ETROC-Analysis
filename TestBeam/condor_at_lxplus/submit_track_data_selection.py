@@ -109,7 +109,7 @@ if listfile.is_file():
 
 with open(listfile, 'a') as listfile:
     for idir in dirs:
-        files = glob(f'{idir}/*feather')
+        files = glob(f'{idir}/loop*feather')
         for ifile in files:
             pattern = r'Run_(\d+)'
             fname = ifile.split('/')[-1]
