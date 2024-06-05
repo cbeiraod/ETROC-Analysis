@@ -109,7 +109,7 @@ should_Transfer_Files = YES
 whenToTransferOutput  = ON_EXIT
 arguments             = $(name) $(path)
 transfer_Input_Files  = decoding.py, python_lib.tar
-TransferOutputRemaps = "$(name).feather={1}/$(name).feather"
+TransferOutputRemaps = "$(name).feather={1}/$(name).feather;filler_$(name).feather={1}/filler_$(name).feather"
 output                = {0}/$(ClusterId).$(ProcId).decoding.stdout
 error                 = {0}/$(ClusterId).$(ProcId).decoding.stderr
 log                   = {0}/$(ClusterId).$(ProcId).decoding.log
