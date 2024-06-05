@@ -1724,7 +1724,7 @@ def plot_occupany_map(
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(plot_title, loc="right", size=18)
+        ax.set_title(f"{plot_title} | {board_names[board_id].replace('_', ' ')}", loc="right", size=18)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
