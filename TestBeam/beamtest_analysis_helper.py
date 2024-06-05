@@ -1453,11 +1453,11 @@ def load_fig_title(
     tb_loc:str
 ):
     if tb_loc == 'desy':
-        plot_title = r'4 GeV $e^{-}$ at DESY'
+        plot_title = r'4 GeV $e^{-}$ at DESY TB'
     elif tb_loc == 'cern':
-        plot_title = r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at SPS'
+        plot_title = r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at CERN SPS'
     elif tb_loc == 'fnal':
-        plot_title = r'120 GeV p at FNAL'
+        plot_title = r'120 GeV p at Fermilab TB'
 
     return plot_title
 
@@ -2373,16 +2373,40 @@ def plot_TWC(
 def plot_resolution_with_pulls(
         input_df: pd.DataFrame,
         board_ids: list[int],
-        fig_title: list[str],
-        fig_tag: str = '',
+        board_names: list[str],
+        tb_loc: str,
+        fig_tag: list[str],
         hist_bins: int = 15,
-        draw_arithmetic_mean: bool = False,
         slides_friendly: bool = False,
+        save_mother_dir: Path | None = None,
     ):
+    """Make summary plot of the board resolution plot with a gaussian fit.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame
+        Pandas dataframe includes bootstrap results.
+    board_ids: list[int]
+        A list of board IDs to make plots.
+    board_names: list[str]
+        A list of board names.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fig_tag: list[str]
+        Additional information to show in the plot as legend title.
+    hist_bins: int, optional
+        Adjust the histogram bins. Default value is 15.
+    slide_friendly: bool, optional
+        If it is True, draw plots in a single figure. Recommend this option, when you try to add plots on the slides.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'time_resolution_results'.
+    """
+
     import matplotlib.gridspec as gridspec
     from lmfit.models import GaussianModel
     from lmfit.lineshapes import gaussian
 
+    plot_title = load_fig_title(tb_loc)
     mod = GaussianModel(nan_policy='omit')
 
     hists = {}
@@ -2433,19 +2457,16 @@ def plot_resolution_with_pulls(
 
             centers = hists[i].axes[0].centers
             hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
-            main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=11)
+            main_ax.set_title(f'{plot_title} {fig_tag[i]}', loc="right", size=18)
 
             main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
                             ms=6, capsize=1, capthick=2, alpha=0.8)
 
-            if draw_arithmetic_mean:
-                main_ax.vlines(means[i], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
-
-            main_ax.set_ylabel('Counts', fontsize=20)
+            main_ax.set_ylabel('Counts', fontsize=18)
             main_ax.set_ylim(-5, 190)
-            main_ax.tick_params(axis='x', labelsize=20)
-            main_ax.tick_params(axis='y', labelsize=20)
+            main_ax.tick_params(axis='x', labelsize=18)
+            main_ax.tick_params(axis='y', labelsize=18)
 
             x_min = centers[0]
             x_max = centers[-1]
@@ -2463,9 +2484,9 @@ def plot_resolution_with_pulls(
                 model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
 
             main_ax.plot(x_range, fit_params[i].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
-                        label=fr"$\mu$:{fit_params[i].params['center'].value:.2f} $\pm$ {fit_params[i].params['center'].stderr:.2f}")
+                        label=fr"$\mu$:{fit_params[i].params['center'].value:.2f} $\pm$ {fit_params[i].params['center'].stderr:.2f} ps")
             main_ax.plot(np.NaN, np.NaN, color='none',
-                        label=fr"$\sigma$: {abs(fit_params[i].params['sigma'].value):.2f} $\pm$ {abs(fit_params[i].params['sigma'].stderr):.2f}")
+                        label=fr"$\sigma$: {abs(fit_params[i].params['sigma'].value):.2f} $\pm$ {abs(fit_params[i].params['sigma'].stderr):.2f} ps")
 
             main_ax.fill_between(
                 x_range,
@@ -2475,7 +2496,7 @@ def plot_resolution_with_pulls(
                 alpha=0.2,
                 label='Uncertainty'
             )
-            main_ax.legend(fontsize=18, loc='best')
+            main_ax.legend(fontsize=18, loc='best', title=fig_tag[i], title_fontsize=18)
 
             width = (x_max - x_min) / len(pulls_dict[i])
             sub_ax.axhline(1, c='black', lw=0.75)
@@ -2488,11 +2509,18 @@ def plot_resolution_with_pulls(
             sub_ax.tick_params(axis='x', which='both', labelsize=20)
             sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
 
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'time_resolution_results'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"board_res.png")
+            fig.savefig(save_dir / f"board_res.pdf")
+            plt.close(fig)
+
         del hists, fit_params, pulls_dict, mod
 
     else:
         for idx in hists.keys():
-            fig = plt.figure(figsize=(10, 9))
+            fig = plt.figure(figsize=(11, 10))
             grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
 
             main_ax = fig.add_subplot(grid[0])
@@ -2500,15 +2528,12 @@ def plot_resolution_with_pulls(
             plt.setp(main_ax.get_xticklabels(), visible=False)
 
             centers = hists[idx].axes[0].centers
-            hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
-            main_ax.set_title(f'{fig_title[idx]} {fig_tag}', loc="right", size=11)
+            hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=18)
+            main_ax.set_title(f'{plot_title}', loc="right", size=18)
 
             main_ax.errorbar(centers, hists[idx].values(), np.sqrt(hists[idx].variances()),
                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
                             ms=6, capsize=1, capthick=2, alpha=0.8)
-
-            if draw_arithmetic_mean:
-                main_ax.vlines(means[idx], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
 
             main_ax.set_ylabel('Counts', fontsize=20)
             main_ax.set_ylim(-5, 190)
@@ -2531,9 +2556,9 @@ def plot_resolution_with_pulls(
                 model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
 
             main_ax.plot(x_range, fit_params[idx].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
-                        label=fr"$\mu$:{fit_params[idx].params['center'].value:.2f} $\pm$ {fit_params[idx].params['center'].stderr:.2f}")
+                        label=fr"$\mu$:{fit_params[idx].params['center'].value:.2f} $\pm$ {fit_params[idx].params['center'].stderr:.2f} ps")
             main_ax.plot(np.NaN, np.NaN, color='none',
-                        label=fr"$\sigma$: {abs(fit_params[idx].params['sigma'].value):.2f} $\pm$ {abs(fit_params[idx].params['sigma'].stderr):.2f}")
+                        label=fr"$\sigma$: {abs(fit_params[idx].params['sigma'].value):.2f} $\pm$ {abs(fit_params[idx].params['sigma'].stderr):.2f} ps")
 
             main_ax.fill_between(
                 x_range,
@@ -2543,7 +2568,7 @@ def plot_resolution_with_pulls(
                 alpha=0.2,
                 label='Uncertainty'
             )
-            main_ax.legend(fontsize=18, loc='best')
+            main_ax.legend(fontsize=18, loc='best', title=fig_tag[idx], title_fontsize=18)
 
             width = (x_max - x_min) / len(pulls_dict[idx])
             sub_ax.axhline(1, c='black', lw=0.75)
@@ -2556,27 +2581,38 @@ def plot_resolution_with_pulls(
             sub_ax.tick_params(axis='x', which='both', labelsize=20)
             sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
 
+            if save_mother_dir is not None:
+                save_dir = save_mother_dir / 'time_resolution_results'
+                save_dir.mkdir(exist_ok=True)
+                fig.savefig(save_dir / f"board_res_{board_names[idx]}.png")
+                fig.savefig(save_dir / f"board_res_{board_names[idx]}.pdf")
+                plt.close(fig)
+
         del hists, fit_params, pulls_dict, mod
 
 ## --------------------------------------
 def plot_resolution_table(
         input_df: pd.DataFrame,
-        chipLabels: list[int],
-        fig_title: list[str],
+        board_ids: list[int],
+        board_names: list[str],
+        tb_loc: str,
         fig_tag: str = '',
         min_resolution: float = 25.0,
         max_resolution: float = 75.0,
         missing_pixel_info: dict | None = None,
         slides_friendly: bool = False,
         show_number: bool = False,
+        save_mother_dir: Path | None = None,
     ):
 
     from matplotlib import colormaps
     cmap = colormaps['viridis']
     cmap.set_under(color='lightgrey')
 
+    plot_title = load_fig_title(tb_loc)
+
     tables = {}
-    for board_id in chipLabels:
+    for board_id in board_ids:
         board_info = input_df[[f'row{board_id}', f'col{board_id}', f'res{board_id}', f'err{board_id}']]
 
         res = board_info.groupby([f'row{board_id}', f'col{board_id}']).apply(lambda x: np.average(x[f'res{board_id}'], weights=1/x[f'err{board_id}']**2)).reset_index()
@@ -2610,6 +2646,7 @@ def plot_resolution_table(
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             cbar.set_label('Time Resolution (ps)', fontsize=20)
+            cbar.ax.tick_params(labelsize=18)
 
             if show_number:
                 for i in range(16):
@@ -2617,36 +2654,45 @@ def plot_resolution_table(
                         value = tables[idx][0].iloc[i, j]
                         error = tables[idx][1].iloc[i, j]
                         if value == -1: continue
-                        text_color = 'black'
+                        text_color = 'black' if value > 0.66*(min_resolution + max_resolution) else 'white'
                         text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
-                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=18, rotation=45)
 
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-            ax.set_xlabel('Column (col)', fontsize=20)
-            ax.set_ylabel('Row (row)', fontsize=20)
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+            ax.set_xlabel('Column (col)', fontsize=18)
+            ax.set_ylabel('Row (row)', fontsize=18)
             ticks = range(0, 16)
             ax.set_xticks(ticks)
             ax.set_yticks(ticks)
-            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=18)
-            ax.tick_params(axis='x', which='both', length=5, labelsize=20)
-            ax.tick_params(axis='y', which='both', length=5, labelsize=20)
+            ax.set_title(f"{plot_title} | {fig_tag[idx]}", loc="right", size=18)
+            ax.tick_params(axis='x', which='both', length=5, labelsize=18)
+            ax.tick_params(axis='y', which='both', length=5, labelsize=18)
             ax.invert_xaxis()
             ax.invert_yaxis()
             plt.minorticks_off()
 
         plt.tight_layout()
+
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'time_resolution_results'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"resolution_map.png")
+            fig.savefig(save_dir / f"resolution_map.pdf")
+            plt.close(fig)
         del tables
 
     else:
         for idx in tables.keys():
             # Create a heatmap to visualize the count of hits
-            fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
+            fig, ax = plt.subplots(dpi=100, figsize=(15, 15))
             ax.cla()
             im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=min_resolution, vmax=max_resolution)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cbar.set_label('Time Resolution (ps)', fontsize=20)
+            cbar.set_label('Time Resolution (ps)', fontsize=18)
+            cbar.ax.tick_params(labelsize=18)
+
 
             if show_number:
                 for i in range(16):
@@ -2654,28 +2700,35 @@ def plot_resolution_table(
                         value = tables[idx][0].iloc[i, j]
                         error = tables[idx][1].iloc[i, j]
                         if value == -1: continue
-                        text_color = 'black'
+                        text_color = 'black' if value > 0.66*(min_resolution + max_resolution) else 'white'
                         text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
-                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=15, rotation=45)
 
             if missing_pixel_info is not None:
                 for jdx in range(len(missing_pixel_info[idx]['res'])):
                     text = str(rf"{float(missing_pixel_info[idx]['res'][jdx]):.1f}""\n"fr"$\pm$ {float(missing_pixel_info[idx]['err'][jdx]):.1f}")
-                    plt.text(int(missing_pixel_info[idx]['col'][jdx]), int(missing_pixel_info[idx]['row'][jdx]), text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+                    plt.text(int(missing_pixel_info[idx]['col'][jdx]), int(missing_pixel_info[idx]['row'][jdx]), text, va='center', ha='center', color='black', fontsize=15 , rotation=45)
 
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-            ax.set_xlabel('Column (col)', fontsize=20)
-            ax.set_ylabel('Row (row)', fontsize=20)
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+            ax.set_xlabel('Column (col)', fontsize=18)
+            ax.set_ylabel('Row (row)', fontsize=18)
             ticks = range(0, 16)
             ax.set_xticks(ticks)
             ax.set_yticks(ticks)
-            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=20)
-            ax.tick_params(axis='x', which='both', length=5, labelsize=17)
-            ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+            ax.set_title(f"{plot_title} | {fig_tag[idx]}", loc="right", size=18)
+            ax.tick_params(axis='x', which='both', length=5, labelsize=18)
+            ax.tick_params(axis='y', which='both', length=5, labelsize=18)
             ax.invert_xaxis()
             ax.invert_yaxis()
             plt.minorticks_off()
             plt.tight_layout()
+
+            if save_mother_dir is not None:
+                save_dir = save_mother_dir / 'time_resolution_results'
+                save_dir.mkdir(exist_ok=True)
+                fig.savefig(save_dir / f"resolution_map_{board_names[idx]}.png")
+                fig.savefig(save_dir / f"resolution_map_{board_names[idx]}.pdf")
+                plt.close(fig)
 
         del tables
 
