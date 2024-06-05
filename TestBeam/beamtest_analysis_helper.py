@@ -1639,18 +1639,37 @@ def plot_2d_nHits_nBoard(
 def plot_occupany_map(
         input_df: pd.DataFrame,
         chipLabels: list[int],
-        chipNames: list[str],
-        fig_title: list[str],
-        fig_path: str = './',
-        fig_tag: str = '',
+        board_names: list[str],
+        tb_loc: str,
         fname_tag: str = '',
         exclude_noise: bool = False,
         save_mother_dir: Path | None = None,
     ):
+    """Make occupancy plot.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    chipLabels: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_names: list[str],
+        A list of board name that will use for the file name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional
+        Draw boundary cut in the plot.
+    exclude_noise: bool, optional
+        Remove hits when TOT < 10 before plotting.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'occupancy_map'.
+    """
 
     from matplotlib import colormaps
     cmap = colormaps['viridis']
     cmap.set_under(color='lightgrey')
+
+    plot_title = load_fig_title(tb_loc)
 
     if exclude_noise:
         ana_df = input_df.loc[input_df['tot'] > 10].copy()
@@ -1682,14 +1701,14 @@ def plot_occupany_map(
             pivot_table = pivot_table.fillna(-1)
 
         # Create a heatmap to visualize the count of hits
-        fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
+        fig, ax = plt.subplots(dpi=100, figsize=(12, 12))
         ax.cla()
         im = ax.imshow(pivot_table, cmap=cmap, interpolation="nearest", vmin=0)
 
         # Add color bar
         cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        cbar.set_label('Hits', fontsize=20)
-        cbar.ax.tick_params(labelsize=20)
+        cbar.set_label('Hits', fontsize=18)
+        cbar.ax.tick_params(labelsize=18)
 
         for i in range(16):
             for j in range(16):
@@ -1697,15 +1716,15 @@ def plot_occupany_map(
                 if value == -1: continue
                 text_color = 'black' if value > 0.5*(pivot_table.values.max() + pivot_table.values.min()) else 'white'
                 text = str("{:.0f}".format(value))
-                plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=17)
+                plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=12)
 
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        ax.set_xlabel('Column (col)', fontsize=20)
-        ax.set_ylabel('Row (row)', fontsize=20)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+        ax.set_xlabel('Column (col)', fontsize=18)
+        ax.set_ylabel('Row (row)', fontsize=18)
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{fig_title[board_id]}, Occupancy map {fig_tag}", loc="right", size=20)
+        ax.set_title(plot_title, loc="right", size=18)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
@@ -1716,8 +1735,8 @@ def plot_occupany_map(
         if save_mother_dir is not None:
             save_dir = save_mother_dir / 'occupancy_map'
             save_dir.mkdir(exist_ok=True)
-            fig.savefig(save_dir / f"occupancy_{chipNames[board_id]}_{fname_tag}.png")
-            fig.savefig(save_dir / f"occupancy_{chipNames[board_id]}_{fname_tag}.pdf")
+            fig.savefig(save_dir / f"occupancy_{board_names[board_id]}_{fname_tag}.png")
+            fig.savefig(save_dir / f"occupancy_{board_names[board_id]}_{fname_tag}.pdf")
             plt.close(fig)
 
 ## --------------------------------------
@@ -2004,11 +2023,31 @@ def plot_correlation_of_pixels(
         board_ids: list[int],
         board_name1: str,
         board_name2: str,
-        fig_title: str,
-        fig_tag: str = '',
+        tb_loc: str,
+        fname_tag: str = '',
         save_mother_dir: Path | None = None,
     ):
+    """Make pixel row-column correlation plot.
 
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    board_ids: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_name1: str,
+        Board 1 name.
+    board_name2: str,
+        Board 2 name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional (recommend)
+        Additiional tag for the file name.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'spatial_correlation'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     axis_name1 = board_name1.replace('_', ' ')
     axis_name2 = board_name2.replace('_', ' ')
 
@@ -2029,8 +2068,10 @@ def plot_correlation_of_pixels(
     fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
     hep.hist2dplot(h_row, ax=ax[0], norm= colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=22)
-    ax[0].set_title(f"{fig_title}", loc="right", size=16)
+    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=18)
+    ax[0].set_title(plot_title, loc="right", size=18)
+    ax[0].xaxis.label.set_fontsize(18)
+    ax[0].yaxis.label.set_fontsize(18)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[0].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2040,8 +2081,10 @@ def plot_correlation_of_pixels(
     ax[0].tick_params(axis='both', which='major', length=0)
 
     hep.hist2dplot(h_col, ax=ax[1], norm= colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=22)
-    ax[1].set_title(f"{fig_title}", loc="right", size=16)
+    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=18)
+    ax[1].set_title(plot_title, loc="right", size=18)
+    ax[1].xaxis.label.set_fontsize(18)
+    ax[1].yaxis.label.set_fontsize(18)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[1].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2055,8 +2098,8 @@ def plot_correlation_of_pixels(
     if save_mother_dir is not None:
         save_dir = save_mother_dir / 'spatial_correlation'
         save_dir.mkdir(exist_ok=True)
-        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fig_tag}.png")
-        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fig_tag}.pdf")
+        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fname_tag}.png")
+        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fname_tag}.pdf")
         plt.close(fig)
 
 ## --------------------------------------
@@ -2065,11 +2108,31 @@ def plot_difference_of_pixels(
         board_ids: list[int],
         board_name1: str,
         board_name2: str,
-        fig_title: str,
-        fig_tag: str = '',
+        tb_loc: str,
+        fname_tag: str = '',
         save_mother_dir: Path | None = None,
     ):
+    """Make 2D map of delta Row and delta Column.
 
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    board_ids: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_name1: str,
+        Board 1 name.
+    board_name2: str,
+        Board 2 name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional (recommend)
+        Additiional tag for the file name.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'spatial_correlation'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     diff_row = (input_df[f'row_{board_ids[0]}'].astype(np.int8) - input_df[f'row_{board_ids[1]}'].astype(np.int8)).values
     diff_col = (input_df[f'col_{board_ids[0]}'].astype(np.int8) - input_df[f'col_{board_ids[1]}'].astype(np.int8)).values
 
@@ -2083,8 +2146,10 @@ def plot_difference_of_pixels(
     fig, ax = plt.subplots(dpi=100, figsize=(11, 11))
 
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=22)
-    ax.set_title(f"{fig_title}", loc="right", size=18)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+    ax.set_title(plot_title, loc="right", size=18)
+    ax.xaxis.label.set_fontsize(18)
+    ax.yaxis.label.set_fontsize(18)
     ax.tick_params(axis='x', which='both', length=5, labelsize=17)
     ax.tick_params(axis='y', which='both', length=5, labelsize=17)
     plt.minorticks_off()
@@ -2093,8 +2158,8 @@ def plot_difference_of_pixels(
     if save_mother_dir is not None:
         save_dir = save_mother_dir / 'spatial_correlation'
         save_dir.mkdir(exist_ok=True)
-        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fig_tag}.png")
-        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fig_tag}.pdf")
+        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fname_tag}.png")
+        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fname_tag}.pdf")
         plt.close(fig)
 
 ## --------------------------------------
