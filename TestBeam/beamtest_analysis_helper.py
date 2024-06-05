@@ -2255,8 +2255,10 @@ def plot_TOA_correlation(
     # plot the trend line
     ax.plot(x_range, trendpoly(x_range), 'r-', label='linear fit')
     if draw_boundary:
-        ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(distance), y2=trendpoly(x_range)+boundary_cut*np.std(distance),
-                        facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+        ax.plot(x_range, trendpoly(x_range)-boundary_cut*np.std(distance), 'r--', label=fr'{boundary_cut}$\sigma$ boundary')
+        ax.plot(x_range, trendpoly(x_range)+boundary_cut*np.std(distance), 'r--')
+        # ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(distance), y2=trendpoly(x_range)+boundary_cut*np.std(distance),
+        #                 facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
     ax.legend()
 
     if save_mother_dir is not None:
