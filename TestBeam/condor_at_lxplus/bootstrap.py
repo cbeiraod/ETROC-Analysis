@@ -475,7 +475,7 @@ if __name__ == "__main__":
     for idx in board_ids:
         if args.autoTOTcuts:
             lower_bound = df['tot'][idx].quantile(0.01)
-            upper_bound = df['tot'][idx].quantile(0.99)
+            upper_bound = df['tot'][idx].quantile(0.96)
             tot_cuts[idx] = [round(lower_bound), round(upper_bound)]
 
             if idx == args.board_id_rfsel0:
