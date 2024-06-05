@@ -1449,6 +1449,18 @@ def return_TWC_param(
 
 
 ## --------------- Plotting -----------------------
+def load_fig_title(
+    tb_loc:str
+):
+    if tb_loc == 'desy':
+        plot_title = r'4 GeV $e^{-}$ at DESY'
+    elif tb_loc == 'cern':
+        plot_title = r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at SPS'
+    elif tb_loc == 'fnal':
+        plot_title = r'120 GeV p at FNAL'
+
+    return plot_title
+
 ## --------------------------------------
 def return_hist(
         input_df: pd.DataFrame,
@@ -1820,13 +1832,7 @@ def plot_1d_TDC_histograms(
         Additional tag for the file name.
     """
 
-    if tb_loc == 'desy':
-        plot_title = r'4 GeV $e^{-}$ at DESY'
-    elif tb_loc == 'cern':
-        plot_title = r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at SPS'
-    elif tb_loc == 'fnal':
-        plot_title = r'120 GeV p at FNAL'
-
+    plot_title = load_fig_title(tb_loc)
     if not slide_friendly:
 
         vals = ["CAL", "TOT", "TOA", "EA"]
@@ -2155,6 +2161,7 @@ def plot_TOA_correlation(
         Plot will be saved at save_mother_dir/'temporal_correlation'.
     """
 
+    plot_title = load_fig_title(tb_loc)
     x = input_df['toa'][board_id1]
     y = input_df['toa'][board_id2]
 
@@ -2171,14 +2178,7 @@ def plot_TOA_correlation(
 
     fig, ax = plt.subplots(figsize=(10, 10))
     hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
-
-    if tb_loc == 'desy':
-        ax.set_title(r'4 GeV $e^{-}$ at DESY', loc='right', fontsize=18)
-    elif tb_loc == 'cern':
-        ax.set_title(r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at SPS', loc='right', fontsize=18)
-    elif tb_loc == 'fnal':
-        ax.set_title(r'120 GeV p at FNAL', loc='right', fontsize=18)
-
+    ax.set_title(plot_title, loc='right', fontsize=18)
     ax.xaxis.label.set_fontsize(18)
     ax.yaxis.label.set_fontsize(18)
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
@@ -2206,12 +2206,16 @@ def plot_TWC(
         input_df: pd.DataFrame,
         board_list: list[int],
         tot_range: list[int],
+        tb_loc: str,
         poly_order: int = 2,
         corr_toas: dict | None = None,
         boundary_cut: float = 0,
         distance: dict | None = None,
+        save_mother_dir: Path | None = None,
         print_func: bool = False,
     ):
+
+    plot_title = load_fig_title(tb_loc)
 
     if corr_toas is not None:
         del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
@@ -2261,18 +2265,21 @@ def plot_TWC(
     hep.hist2dplot(h_twc1, ax=axes[0], norm=colors.LogNorm())
     hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=20)
     axes[0].plot(b1_xrange, poly_func_b0(b1_xrange), 'r-', lw=3, label='linear fit')
-    axes[0].set_xlabel('TOT1 [ps]')
-    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1 [ps]', fontsize=15)
+    axes[0].set_xlabel('TOT1 [ps]', fontsize=18)
+    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1 [ps]', fontsize=18)
+    axes[0].set_title(plot_title, fontsize=18, loc='right')
     hep.hist2dplot(h_twc2, ax=axes[1], norm=colors.LogNorm())
     hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=20)
     axes[1].plot(b2_xrange, poly_func_b1(b2_xrange), 'r-', lw=3, label='linear fit')
-    axes[1].set_xlabel('TOT2 [ps]')
-    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2 [ps]', fontsize=15)
+    axes[1].set_xlabel('TOT2 [ps]', fontsize=18)
+    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2 [ps]', fontsize=18)
+    axes[1].set_title(plot_title, fontsize=18, loc='right')
     hep.hist2dplot(h_twc3, ax=axes[2], norm=colors.LogNorm())
     hep.cms.text(loc=0, ax=axes[2], text="Phase-2 Preliminary", fontsize=20)
     axes[2].plot(b3_xrange, poly_func_b2(b3_xrange), 'r-', lw=3, label='linear fit')
-    axes[2].set_xlabel('TOT3 [ps]')
-    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3 [ps]', fontsize=15)
+    axes[2].set_xlabel('TOT3 [ps]', fontsize=18)
+    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3 [ps]', fontsize=18)
+    axes[2].set_title(plot_title, fontsize=18, loc='right')
 
     if distance is not None:
         axes[0].fill_between(b1_xrange, y1=poly_func_b0(b1_xrange)-boundary_cut*np.std(distance[0]), y2=poly_func_b0(b1_xrange)+boundary_cut*np.std(distance[0]),
@@ -2287,6 +2294,13 @@ def plot_TWC(
         axes[2].legend(loc='best')
 
     plt.tight_layout()
+
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'twc_fit'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"twc_fit.png")
+        fig.savefig(save_dir / f"twc_fit.pdf")
+        plt.close(fig)
 
 ## --------------------------------------
 def plot_resolution_with_pulls(
@@ -2976,17 +2990,44 @@ def four_board_iterative_timewalk_correction(
 ## --------------------------------------
 def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
-        n_components: int = 2,
-        show_plot: bool = False,
+        tb_loc: str,
+        tag: str,
+        n_components: int = 3,
         show_sub_gaussian: bool = False,
         show_fwhm_guideline: bool = False,
         show_number: bool = False,
-        title: str = '',
+        save_mother_dir: Path | None = None,
+        fname_tag: str = '',
     ):
+    """Find the sigma of delta TOA distribution and plot the distribution.
+
+    Parameters
+    ----------
+    input_data: np.array,
+        A numpy array includes delta TOA values.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    tag: str,
+        Additional string to show which boards are used for delta TOA calculation.
+    n_components: int
+        Number of sub-gaussian to be considered for the Gaussian Mixture Model
+    show_sub_gaussian: bool, optional
+        If it is True, show sub-gaussian in the plot.
+    show_fwhm_guideline: bool, optional
+        If it is True, show horizontal and vertical lines to show how FWHM has been performed.
+    show_number: bool, optional
+        If it is True, FWHM and sigma will be shown in the plot.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'fwhm'.
+    fname_tag: str, optional
+        Additional tag for the file name.
+    """
 
     from sklearn.mixture import GaussianMixture
     from sklearn.metrics import silhouette_score
     from scipy.spatial import distance
+
+    plot_title = load_fig_title(tb_loc)
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
     bins, edges = np.histogram(input_data, bins=30, density=True)
@@ -2998,8 +3039,6 @@ def fwhm_based_on_gaussian_mixture_model(
     logprob = models.score_samples(centers.reshape(-1, 1))
     pdf = np.exp(logprob)
     jensenshannon_score = distance.jensenshannon(bins, pdf)
-    # hellinger_score = hellinger_distance(bins, pdf)
-    # bhattacharyya_score = bhattacharyya_distance(bins, pdf) * (np.max(np.concatenate((bins, pdf)))-np.min(np.concatenate((bins, pdf))))/30.
 
     logprob = models.score_samples(x_range)
     pdf = np.exp(logprob)
@@ -3020,35 +3059,41 @@ def fwhm_based_on_gaussian_mixture_model(
         responsibilities = models.predict_proba(x_range)
         pdf_individual = responsibilities * pdf[:, np.newaxis]
 
-    if show_plot:
+    fig, ax = plt.subplots(figsize=(11,10))
 
-        fig, ax = plt.subplots(figsize=(10,10))
+    # Plot data histogram
+    bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
-        # Plot data histogram
-        bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
+    # Plot PDF of whole model
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+    ax.set_title(plot_title, loc="right", fontsize=18)
+    ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{tag}}}$ [ps]', fontsize=18)
+    ax.yaxis.label.set_fontsize(18)
+    if show_number:
+        ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
+        ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
+    else:
+        ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
 
-        # Plot PDF of whole model
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
-        ax.set_title(f'{title}', loc="right", fontsize=17)
-        ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{title}}}$ [ps]')
-        if show_number:
-            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
-            ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
-        else:
-            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
+    if show_sub_gaussian:
+        # Plot PDF of each component
+        ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
-        if show_sub_gaussian:
-            # Plot PDF of each component
-            ax.plot(x_range, pdf_individual, '--', label='Component PDF')
+    if show_fwhm_guideline:
+        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+        ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+        ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
+        ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
 
-        if show_fwhm_guideline:
-            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-            ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-            ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
-            ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
+    ax.legend(loc='best', fontsize=14)
+    plt.tight_layout()
 
-        ax.legend(loc='best', fontsize=14)
-        plt.tight_layout()
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'fwhm'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.png")
+        fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.pdf")
+        plt.close(fig)
 
     return fwhm, [silhouette_eval_score, jensenshannon_score]
 
