@@ -252,5 +252,11 @@ Queue run,fname,loop,path from input_list_for_dataSelection.txt
 with open(f'condor_track_data_selection.jdl','w') as jdlfile:
     jdlfile.write(jdl)
 
-if not args.dryrun:
+if args.dryrun:
+    print('=========== Input text file ===========')
+    os.system('cat input_list_for_dataSelection.txt')
+    print()
+    print('=========== Bash file ===========')
+    os.system('cat run_track_data_selection.sh')
+else:
     os.system(f'condor_submit condor_track_data_selection.jdl')
