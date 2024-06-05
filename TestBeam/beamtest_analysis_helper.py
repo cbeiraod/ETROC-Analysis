@@ -1449,6 +1449,18 @@ def return_TWC_param(
 
 
 ## --------------- Plotting -----------------------
+def load_fig_title(
+    tb_loc:str
+):
+    if tb_loc == 'desy':
+        plot_title = r'4 GeV $e^{-}$ at DESY'
+    elif tb_loc == 'cern':
+        plot_title = r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at SPS'
+    elif tb_loc == 'fnal':
+        plot_title = r'120 GeV p at FNAL'
+
+    return plot_title
+
 ## --------------------------------------
 def return_hist(
         input_df: pd.DataFrame,
@@ -1627,18 +1639,37 @@ def plot_2d_nHits_nBoard(
 def plot_occupany_map(
         input_df: pd.DataFrame,
         chipLabels: list[int],
-        chipNames: list[str],
-        fig_title: list[str],
-        fig_path: str = './',
-        fig_tag: str = '',
+        board_names: list[str],
+        tb_loc: str,
         fname_tag: str = '',
         exclude_noise: bool = False,
         save_mother_dir: Path | None = None,
     ):
+    """Make occupancy plot.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    chipLabels: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_names: list[str],
+        A list of board name that will use for the file name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional
+        Draw boundary cut in the plot.
+    exclude_noise: bool, optional
+        Remove hits when TOT < 10 before plotting.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'occupancy_map'.
+    """
 
     from matplotlib import colormaps
     cmap = colormaps['viridis']
     cmap.set_under(color='lightgrey')
+
+    plot_title = load_fig_title(tb_loc)
 
     if exclude_noise:
         ana_df = input_df.loc[input_df['tot'] > 10].copy()
@@ -1670,14 +1701,14 @@ def plot_occupany_map(
             pivot_table = pivot_table.fillna(-1)
 
         # Create a heatmap to visualize the count of hits
-        fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
+        fig, ax = plt.subplots(dpi=100, figsize=(12, 12))
         ax.cla()
         im = ax.imshow(pivot_table, cmap=cmap, interpolation="nearest", vmin=0)
 
         # Add color bar
         cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        cbar.set_label('Hits', fontsize=20)
-        cbar.ax.tick_params(labelsize=20)
+        cbar.set_label('Hits', fontsize=18)
+        cbar.ax.tick_params(labelsize=18)
 
         for i in range(16):
             for j in range(16):
@@ -1685,15 +1716,15 @@ def plot_occupany_map(
                 if value == -1: continue
                 text_color = 'black' if value > 0.5*(pivot_table.values.max() + pivot_table.values.min()) else 'white'
                 text = str("{:.0f}".format(value))
-                plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=17)
+                plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=12)
 
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        ax.set_xlabel('Column (col)', fontsize=20)
-        ax.set_ylabel('Row (row)', fontsize=20)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+        ax.set_xlabel('Column (col)', fontsize=18)
+        ax.set_ylabel('Row (row)', fontsize=18)
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{fig_title[board_id]}, Occupancy map {fig_tag}", loc="right", size=20)
+        ax.set_title(plot_title, loc="right", size=18)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
@@ -1704,8 +1735,8 @@ def plot_occupany_map(
         if save_mother_dir is not None:
             save_dir = save_mother_dir / 'occupancy_map'
             save_dir.mkdir(exist_ok=True)
-            fig.savefig(save_dir / f"occupancy_{chipNames[board_id]}_{fname_tag}.png")
-            fig.savefig(save_dir / f"occupancy_{chipNames[board_id]}_{fname_tag}.pdf")
+            fig.savefig(save_dir / f"occupancy_{board_names[board_id]}_{fname_tag}.png")
+            fig.savefig(save_dir / f"occupancy_{board_names[board_id]}_{fname_tag}.pdf")
             plt.close(fig)
 
 ## --------------------------------------
@@ -1786,105 +1817,111 @@ def plot_TDC_summary_table(
 
 ## --------------------------------------
 def plot_1d_TDC_histograms(
-        input_hist: hist.Hist,
+        input_hist: dict,
         chip_name: str,
-        chip_figname: str,
-        fig_title: str,
-        fig_path: Path = Path('./'),
-        save: bool = False,
-        tag: str = '',
-        fig_tag: str = '',
+        tb_loc: str,
+        fig_tag: str | None = None,
         slide_friendly: bool = False,
         do_logy: bool = False,
         event_hist: hist.Hist | None = None,
+        save_mother_dir: Path | None = None,
+        tag: str = '',
     ):
+    """Make plots of 1D TDC histograms.
 
+    Parameters
+    ----------
+    input_hist: dict,
+        A dictionary of TDC histograms, which returns from return_hist, return_hist_pivot
+    chip_name: str,
+        Board name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fig_tag: str, optional
+        Additional board information to show in the plot.
+    slide_friendly: bool, optional
+        If it is True, draw plots in a single figure. Recommend this option, when you try to add plots on the slides.
+    do_logy: bool, optional
+        Set log y-axis on 1D histograms.
+    event_hist: hist.Hist, optional
+        A dictionary of TDC histograms, which returns from return_event_hist
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'1d_tdc_hists'.
+    tag: str, optional (recommend),
+        Additional tag for the file name.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     if not slide_friendly:
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_CAL_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
 
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_TOT_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
+        vals = ["CAL", "TOT", "TOA", "EA"]
+        for ival in vals:
+            try:
+                fig, ax = plt.subplots(figsize=(11, 10))
+                ax.set_title(plot_title, loc="right", size=18)
+                hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+                input_hist[chip_name].project(ival)[:].plot1d(ax=ax, lw=2)
+                ax.xaxis.label.set_fontsize(18)
+                ax.yaxis.label.set_fontsize(18)
 
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_TOA_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
+                if fig_tag is not None:
+                    ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right')
 
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, EA{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("EA")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_EA_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
+                if do_logy:
+                    ax.set_yscale('log')
+                plt.tight_layout()
 
-        fig = plt.figure(dpi=50, figsize=(20,20))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
-        if do_logy:
-            #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
-            #plt.colorbar(pcm)
-            pass
+                if save_mother_dir is not None:
+                    save_dir = save_mother_dir / '1d_tdc_hists'
+                    save_dir.mkdir(exist_ok=True)
+                    fig.savefig(save_dir / f'{chip_name}_{ival}_{tag}.png')
+                    fig.savefig(save_dir / f'{chip_name}_{ival}_{tag}.pdf')
+                    plt.close(fig)
+            except Exception as e:
+                plt.close(fig)
+                print(f'No {ival} histogram is found')
+
+        ## 2D TOA-TOT
+        fig, ax = plt.subplots(figsize=(11, 10))
+        ax.set_title(plot_title, loc="right", size=18)
+        ax.xaxis.label.set_fontsize(18)
+        ax.yaxis.label.set_fontsize(18)
+        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+        hep.hist2dplot(input_hist[chip_name].project("TOA","TOT")[::2j,::2j], ax=ax)
+
+        if fig_tag is not None:
+            ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right', bbox=dict(facecolor='white'))
+
         plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.pdf')
-            plt.clf()
+
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / '1d_tdc_hists'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f'{chip_name}_TOA_TOT_{tag}.png')
+            fig.savefig(save_dir / f'{chip_name}_TOA_TOT_{tag}.pdf')
             plt.close(fig)
 
         if event_hist is not None:
-            fig = plt.figure(dpi=50, figsize=(20,10))
-            gs = fig.add_gridspec(1,1)
-            ax = fig.add_subplot(gs[0,0])
-            ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=25)
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+            fig, ax = plt.subplots(figsize=(11, 10))
+            ax.set_title(plot_title, loc="right", size=18)
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
             event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
+            ax.xaxis.label.set_fontsize(18)
+            ax.yaxis.label.set_fontsize(18)
+
+            if fig_tag is not None:
+                ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right')
+
             if do_logy:
                 ax.set_yscale('log')
+
             plt.tight_layout()
-            if(save):
-                plt.savefig(fig_path/f'{chip_figname}_Hamming_Count_{tag}.pdf')
-                plt.clf()
+
+            if save_mother_dir is not None:
+                save_dir = save_mother_dir / '1d_tdc_hists'
+                save_dir.mkdir(exist_ok=True)
+                fig.savefig(save_dir / f'{chip_name}_Hamming_Count_{tag}.png')
+                fig.savefig(save_dir / f'{chip_name}_Hamming_Count_{tag}.pdf')
                 plt.close(fig)
 
     else:
@@ -1895,38 +1932,40 @@ def plot_1d_TDC_histograms(
             ax = fig.add_subplot(plot_info)
             hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
             if i == 0:
-                ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=15)
+                ax.set_title(plot_title, loc="right", size=18)
                 input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 1:
-                ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=15)
+                ax.set_title(plot_title, loc="right", size=18)
                 input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 2:
-                ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=15)
+                ax.set_title(plot_title, loc="right", size=18)
                 input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 3:
                 if event_hist is None:
-                    ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
+                    ax.set_title(plot_title, loc="right", size=18)
                     input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
                     if do_logy:
                         #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
                         #plt.colorbar(pcm)
                         pass
                 else:
-                    ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=15)
+                    ax.set_title(plot_title, loc="right", size=18)
                     event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
                     if do_logy:
                         ax.set_yscale('log')
 
         plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_combined_TDC_{tag}.pdf')
-            plt.clf()
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / '1d_tdc_hists'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f'{chip_name}_combined_{tag}.png')
+            fig.savefig(save_dir / f'{chip_name}_combined_{tag}.pdf')
             plt.close(fig)
 
 ## --------------------------------------
@@ -1952,7 +1991,7 @@ def plot_1d_event_CRC_histogram(
         plt.clf()
         plt.close(fig)
 
-## --------------------------------------
+## ------------------------------------
 def plot_1d_CRC_histogram(
         input_hist: hist.Hist,
         chip_name: str,
@@ -1984,11 +2023,31 @@ def plot_correlation_of_pixels(
         board_ids: list[int],
         board_name1: str,
         board_name2: str,
-        fig_title: str,
-        fig_tag: str = '',
+        tb_loc: str,
+        fname_tag: str = '',
         save_mother_dir: Path | None = None,
     ):
+    """Make pixel row-column correlation plot.
 
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    board_ids: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_name1: str,
+        Board 1 name.
+    board_name2: str,
+        Board 2 name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional (recommend)
+        Additiional tag for the file name.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'spatial_correlation'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     axis_name1 = board_name1.replace('_', ' ')
     axis_name2 = board_name2.replace('_', ' ')
 
@@ -2009,8 +2068,10 @@ def plot_correlation_of_pixels(
     fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
     hep.hist2dplot(h_row, ax=ax[0], norm= colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=22)
-    ax[0].set_title(f"{fig_title}", loc="right", size=16)
+    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=18)
+    ax[0].set_title(plot_title, loc="right", size=18)
+    ax[0].xaxis.label.set_fontsize(18)
+    ax[0].yaxis.label.set_fontsize(18)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[0].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2020,8 +2081,10 @@ def plot_correlation_of_pixels(
     ax[0].tick_params(axis='both', which='major', length=0)
 
     hep.hist2dplot(h_col, ax=ax[1], norm= colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=22)
-    ax[1].set_title(f"{fig_title}", loc="right", size=16)
+    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=18)
+    ax[1].set_title(plot_title, loc="right", size=18)
+    ax[1].xaxis.label.set_fontsize(18)
+    ax[1].yaxis.label.set_fontsize(18)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[1].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2035,10 +2098,9 @@ def plot_correlation_of_pixels(
     if save_mother_dir is not None:
         save_dir = save_mother_dir / 'spatial_correlation'
         save_dir.mkdir(exist_ok=True)
-        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fig_tag}.png")
-        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fig_tag}.pdf")
+        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fname_tag}.png")
+        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fname_tag}.pdf")
         plt.close(fig)
-
 
 ## --------------------------------------
 def plot_difference_of_pixels(
@@ -2046,11 +2108,31 @@ def plot_difference_of_pixels(
         board_ids: list[int],
         board_name1: str,
         board_name2: str,
-        fig_title: str,
-        fig_tag: str = '',
+        tb_loc: str,
+        fname_tag: str = '',
         save_mother_dir: Path | None = None,
     ):
+    """Make 2D map of delta Row and delta Column.
 
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    board_ids: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_name1: str,
+        Board 1 name.
+    board_name2: str,
+        Board 2 name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional (recommend)
+        Additiional tag for the file name.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'spatial_correlation'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     diff_row = (input_df[f'row_{board_ids[0]}'].astype(np.int8) - input_df[f'row_{board_ids[1]}'].astype(np.int8)).values
     diff_col = (input_df[f'col_{board_ids[0]}'].astype(np.int8) - input_df[f'col_{board_ids[1]}'].astype(np.int8)).values
 
@@ -2064,8 +2146,10 @@ def plot_difference_of_pixels(
     fig, ax = plt.subplots(dpi=100, figsize=(11, 11))
 
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=22)
-    ax.set_title(f"{fig_title}", loc="right", size=18)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+    ax.set_title(plot_title, loc="right", size=18)
+    ax.xaxis.label.set_fontsize(18)
+    ax.yaxis.label.set_fontsize(18)
     ax.tick_params(axis='x', which='both', length=5, labelsize=17)
     ax.tick_params(axis='y', which='both', length=5, labelsize=17)
     plt.minorticks_off()
@@ -2074,8 +2158,8 @@ def plot_difference_of_pixels(
     if save_mother_dir is not None:
         save_dir = save_mother_dir / 'spatial_correlation'
         save_dir.mkdir(exist_ok=True)
-        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fig_tag}.png")
-        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fig_tag}.pdf")
+        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fname_tag}.png")
+        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fname_tag}.pdf")
         plt.close(fig)
 
 ## --------------------------------------
@@ -2116,23 +2200,52 @@ def plot_TOA_correlation(
         board_id2: int,
         boundary_cut: float,
         board_names: list[str],
+        tb_loc: str,
         draw_boundary: bool = False,
+        save_mother_dir: Path | None = None,
     ):
+    """Make plot of TOA correlation between selected two boards.
 
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of a single track.
+    board_id1: int,
+        Board 1 ID.
+    board_id2: int,
+        Board 2 ID.
+    boundary_cut: float,
+        Size of boundary. boundary_cut * standard devition of distance arrays
+    board_names: list[str],
+        A string list including board names.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    draw_boundary: bool, optional
+        Draw boundary cut in the plot.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'temporal_correlation'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     x = input_df['toa'][board_id1]
     y = input_df['toa'][board_id2]
 
+    axis_name1 = board_names[board_id1].replace('_', ' ')
+    axis_name2 = board_names[board_id2].replace('_', ' ')
+
     h = hist.Hist(
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'TOA of {board_names[board_id1]} [LSB]'),
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'TOA of {board_names[board_id2]} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'TOA of {axis_name1} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'TOA of {axis_name2} [LSB]'),
     )
     h.fill(x, y)
     params = np.polyfit(x, y, 1)
     distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
 
     fig, ax = plt.subplots(figsize=(10, 10))
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-    ax.set_title(f"TOA correlation", loc="right", size=20)
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+    ax.set_title(plot_title, loc='right', fontsize=18)
+    ax.xaxis.label.set_fontsize(18)
+    ax.yaxis.label.set_fontsize(18)
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
 
     # calculate the trendline
@@ -2146,17 +2259,28 @@ def plot_TOA_correlation(
                         facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
     ax.legend()
 
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'temporal_correlation'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"toa_correlation_{board_names[board_id1]}_{board_names[board_id2]}.png")
+        fig.savefig(save_dir / f"toa_correlation_{board_names[board_id1]}_{board_names[board_id2]}.pdf")
+        plt.close(fig)
+
 ## --------------------------------------
 def plot_TWC(
         input_df: pd.DataFrame,
         board_list: list[int],
         tot_range: list[int],
+        tb_loc: str,
         poly_order: int = 2,
         corr_toas: dict | None = None,
         boundary_cut: float = 0,
         distance: dict | None = None,
+        save_mother_dir: Path | None = None,
         print_func: bool = False,
     ):
+
+    plot_title = load_fig_title(tb_loc)
 
     if corr_toas is not None:
         del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
@@ -2206,18 +2330,21 @@ def plot_TWC(
     hep.hist2dplot(h_twc1, ax=axes[0], norm=colors.LogNorm())
     hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=20)
     axes[0].plot(b1_xrange, poly_func_b0(b1_xrange), 'r-', lw=3, label='linear fit')
-    axes[0].set_xlabel('TOT1 [ps]')
-    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1 [ps]', fontsize=15)
+    axes[0].set_xlabel('TOT1 [ps]', fontsize=18)
+    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1 [ps]', fontsize=18)
+    axes[0].set_title(plot_title, fontsize=18, loc='right')
     hep.hist2dplot(h_twc2, ax=axes[1], norm=colors.LogNorm())
     hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=20)
     axes[1].plot(b2_xrange, poly_func_b1(b2_xrange), 'r-', lw=3, label='linear fit')
-    axes[1].set_xlabel('TOT2 [ps]')
-    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2 [ps]', fontsize=15)
+    axes[1].set_xlabel('TOT2 [ps]', fontsize=18)
+    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2 [ps]', fontsize=18)
+    axes[1].set_title(plot_title, fontsize=18, loc='right')
     hep.hist2dplot(h_twc3, ax=axes[2], norm=colors.LogNorm())
     hep.cms.text(loc=0, ax=axes[2], text="Phase-2 Preliminary", fontsize=20)
     axes[2].plot(b3_xrange, poly_func_b2(b3_xrange), 'r-', lw=3, label='linear fit')
-    axes[2].set_xlabel('TOT3 [ps]')
-    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3 [ps]', fontsize=15)
+    axes[2].set_xlabel('TOT3 [ps]', fontsize=18)
+    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3 [ps]', fontsize=18)
+    axes[2].set_title(plot_title, fontsize=18, loc='right')
 
     if distance is not None:
         axes[0].fill_between(b1_xrange, y1=poly_func_b0(b1_xrange)-boundary_cut*np.std(distance[0]), y2=poly_func_b0(b1_xrange)+boundary_cut*np.std(distance[0]),
@@ -2232,6 +2359,13 @@ def plot_TWC(
         axes[2].legend(loc='best')
 
     plt.tight_layout()
+
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'twc_fit'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"twc_fit.png")
+        fig.savefig(save_dir / f"twc_fit.pdf")
+        plt.close(fig)
 
 ## --------------------------------------
 def plot_resolution_with_pulls(
@@ -2921,17 +3055,44 @@ def four_board_iterative_timewalk_correction(
 ## --------------------------------------
 def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
-        n_components: int = 2,
-        show_plot: bool = False,
+        tb_loc: str,
+        tag: str,
+        n_components: int = 3,
         show_sub_gaussian: bool = False,
         show_fwhm_guideline: bool = False,
         show_number: bool = False,
-        title: str = '',
+        save_mother_dir: Path | None = None,
+        fname_tag: str = '',
     ):
+    """Find the sigma of delta TOA distribution and plot the distribution.
+
+    Parameters
+    ----------
+    input_data: np.array,
+        A numpy array includes delta TOA values.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    tag: str,
+        Additional string to show which boards are used for delta TOA calculation.
+    n_components: int
+        Number of sub-gaussian to be considered for the Gaussian Mixture Model
+    show_sub_gaussian: bool, optional
+        If it is True, show sub-gaussian in the plot.
+    show_fwhm_guideline: bool, optional
+        If it is True, show horizontal and vertical lines to show how FWHM has been performed.
+    show_number: bool, optional
+        If it is True, FWHM and sigma will be shown in the plot.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'fwhm'.
+    fname_tag: str, optional
+        Additional tag for the file name.
+    """
 
     from sklearn.mixture import GaussianMixture
     from sklearn.metrics import silhouette_score
     from scipy.spatial import distance
+
+    plot_title = load_fig_title(tb_loc)
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
     bins, edges = np.histogram(input_data, bins=30, density=True)
@@ -2943,8 +3104,6 @@ def fwhm_based_on_gaussian_mixture_model(
     logprob = models.score_samples(centers.reshape(-1, 1))
     pdf = np.exp(logprob)
     jensenshannon_score = distance.jensenshannon(bins, pdf)
-    # hellinger_score = hellinger_distance(bins, pdf)
-    # bhattacharyya_score = bhattacharyya_distance(bins, pdf) * (np.max(np.concatenate((bins, pdf)))-np.min(np.concatenate((bins, pdf))))/30.
 
     logprob = models.score_samples(x_range)
     pdf = np.exp(logprob)
@@ -2965,35 +3124,41 @@ def fwhm_based_on_gaussian_mixture_model(
         responsibilities = models.predict_proba(x_range)
         pdf_individual = responsibilities * pdf[:, np.newaxis]
 
-    if show_plot:
+    fig, ax = plt.subplots(figsize=(11,10))
 
-        fig, ax = plt.subplots(figsize=(10,10))
+    # Plot data histogram
+    bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
-        # Plot data histogram
-        bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
+    # Plot PDF of whole model
+    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+    ax.set_title(plot_title, loc="right", fontsize=18)
+    ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{tag}}}$ [ps]', fontsize=18)
+    ax.yaxis.label.set_fontsize(18)
+    if show_number:
+        ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
+        ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
+    else:
+        ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
 
-        # Plot PDF of whole model
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
-        ax.set_title(f'{title}', loc="right", fontsize=17)
-        ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{title}}}$ [ps]')
-        if show_number:
-            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
-            ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
-        else:
-            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
+    if show_sub_gaussian:
+        # Plot PDF of each component
+        ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
-        if show_sub_gaussian:
-            # Plot PDF of each component
-            ax.plot(x_range, pdf_individual, '--', label='Component PDF')
+    if show_fwhm_guideline:
+        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+        ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+        ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
+        ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
 
-        if show_fwhm_guideline:
-            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-            ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-            ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
-            ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
+    ax.legend(loc='best', fontsize=14)
+    plt.tight_layout()
 
-        ax.legend(loc='best', fontsize=14)
-        plt.tight_layout()
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'fwhm'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.png")
+        fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.pdf")
+        plt.close(fig)
 
     return fwhm, [silhouette_eval_score, jensenshannon_score]
 
