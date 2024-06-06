@@ -204,17 +204,6 @@ print('====== Merging is finished ======\n')
 
 print('====== Saving data by track ======')
 
-# for ikey in tqdm(merged_data.keys()):
-#     board_ids = merged_data[ikey].columns.get_level_values('board').unique().tolist()
-#     outname = f"track_{ikey}"
-#     for board_id in board_ids:
-#         irow = merged_data[ikey]['row'][board_id].unique()[0]
-#         icol = merged_data[ikey]['col'][board_id].unique()[0]
-#         outname += f"_R{irow}C{icol}"
-
-#     merged_data[ikey].to_pickle(track_dir / f'{outname}.pkl')
-#     merged_data_in_time[ikey].to_pickle(time_dir / f'{outname}.pkl')
-
 def save_data(ikey, merged_data, merged_data_in_time, track_dir, time_dir):
     board_ids = merged_data[ikey].columns.get_level_values('board').unique().tolist()
     row_cols = {
