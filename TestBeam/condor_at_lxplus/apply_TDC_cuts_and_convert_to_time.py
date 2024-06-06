@@ -190,26 +190,15 @@ print('====== Merging is started ======')
 merged_data = defaultdict(list)
 merged_data_in_time = defaultdict(list)
 
-for result in tqdm(results):
+for result in results:
     for key in result[0].keys():
         merged_data[key].append(result[0][key])
         merged_data_in_time[key].append(result[1][key])
 
 # Now concatenate the lists of DataFrames
-merged_data = {key: pd.concat(df_list, ignore_index=True) for key, df_list in merged_data.items()}
-merged_data_in_time = {key: pd.concat(df_list, ignore_index=True) for key, df_list in merged_data_in_time.items()}
+merged_data = {key: pd.concat(df_list, ignore_index=True) for key, df_list in tqdm(merged_data.items())}
+merged_data_in_time = {key: pd.concat(df_list, ignore_index=True) for key, df_list in tqdm(merged_data_in_time.items())}
 del results
-
-# for idx in tqdm(range(len(results))):
-#     keys = results[idx][0].keys()
-
-#     for key in keys:
-#         if key not in merged_data:
-#             merged_data[key] = results[idx][0][key]
-#             merged_data_in_time[key] = results[idx][1][key]
-#         else:
-#             merged_data[key] = pd.concat([merged_data[key], results[idx][0][key]], ignore_index=True)
-#             merged_data_in_time[key] = pd.concat([merged_data_in_time[key], results[idx][1][key]], ignore_index=True)
 
 print('====== Merging is finished ======\n')
 
