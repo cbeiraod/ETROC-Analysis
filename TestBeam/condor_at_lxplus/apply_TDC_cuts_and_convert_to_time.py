@@ -157,8 +157,7 @@ def convert_to_time_df(process_executor, input_file):
 
     return data_dict, data_in_time
 
-# files = natsorted(list(Path(args.dirname).glob('run*pickle')))
-files = natsorted(list(Path(args.dirname).glob('run4_loop_[0..1].pickle')))
+files = natsorted(list(Path(args.dirname).glob('run*pickle')))
 
 if len(files) == 0:
     print('No input files')
