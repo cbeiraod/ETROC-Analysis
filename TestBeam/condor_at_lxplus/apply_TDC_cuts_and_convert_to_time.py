@@ -117,7 +117,8 @@ def tdc_event_selection_pivot(
     return input_df[combined_mask].reset_index(drop=True)
 
 ## --------------------------------------
-def convert_to_time_df(process_executor, input_file):
+def convert_to_time_df(input_file):
+
     data_in_time = {}
     with open(input_file, 'rb') as f:
         # data_dict = pickle.load(f)  # Load dictionary from file (assuming files are pickled)
@@ -167,16 +168,14 @@ print('====== Code to Time Conversion is started ======')
 results = []
 with tqdm(files) as pbar:
     with ProcessPoolExecutor() as process_executor:
-        with ThreadPoolExecutor(10) as thread_executor:
-            # Each input results in multiple threading jobs being created:print(len(results))
-#print(results[0][0])
-            futures = [
-                thread_executor.submit(convert_to_time_df, process_executor, ifile)
-                    for ifile in files
-            ]
-            for future in as_completed(futures):
-                pbar.update(1)
-                results.append(future.result())
+        # Each input results in multiple threading jobs being created:
+        futures = [
+            process_executor.submit(convert_to_time_df, ifile)
+                for ifile in files
+        ]
+        for future in as_completed(futures):
+            pbar.update(1)
+            results.append(future.result())
 
 print('====== Code to Time Conversion is finished ======\n')
 
