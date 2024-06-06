@@ -20,6 +20,16 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '-o',
+    '--outputdir',
+    metavar = 'DIRNAME',
+    type = str,
+    help = 'output directory name',
+    required = True,
+    dest = 'outputdir',
+)
+
+parser.add_argument(
     '-i',
     '--iteration',
     metavar = 'ITERATION',
@@ -133,7 +143,7 @@ with open(listfile, 'a') as listfile:
         save_string = f"{name}, {ifile}"
         listfile.write(save_string + '\n')
 
-outdir = current_dir / f'resolution_{args.dirname}'
+outdir = current_dir / f'resolution_{args.outputdir}'
 outdir.mkdir(exist_ok = False)
 
 #### Make python command
@@ -190,6 +200,7 @@ bash_script = Template(bash_template).render(options)
 
 print('\n========= Run option =========')
 print(f'Input dataset: {args.dirname}')
+print(f'Output direcotry: {args.outputdir}')
 print(f'Bootstrap iteration: {args.iteration}')
 print(f'{args.sampling}% of random sampling')
 print(f'Consider board IDs: {args.board_ids}')
