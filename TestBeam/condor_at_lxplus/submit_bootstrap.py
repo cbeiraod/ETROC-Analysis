@@ -58,6 +58,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--board_ids',
+    metavar='N',
+    type=int,
+    nargs='+',
+    help='board IDs to analyze'
+)
+
+parser.add_argument(
     '--trigTOALower',
     metavar = 'NUM',
     type = int,
@@ -84,14 +92,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '--board_id_rfsel1',
-    metavar = 'NUM',
-    type = int,
-    help = 'board ID that set to RfSel = 1',
-    dest = 'board_id_rfsel1',
-)
-
-parser.add_argument(
     '--autoTOTcuts',
     action = 'store_true',
     help = 'If set, select 80 percent of data around TOT median value of each board',
@@ -99,17 +99,17 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    '--noTrig',
-    action = 'store_true',
-    help = 'If set, trigger will not be considered for the analysis',
-    dest = 'noTrig',
-)
-
-parser.add_argument(
     '--reproducible',
     action = 'store_true',
     help = 'If set, random seed will be set by counter and save random seed in the final output',
     dest = 'reproducible',
+)
+
+parser.add_argument(
+    '--time_df_input',
+    action = 'store_true',
+    help = 'If set, time_df_bootstrap function will be used',
+    dest = 'time_df_input',
 )
 
 parser.add_argument(
@@ -139,12 +139,12 @@ outdir.mkdir(exist_ok = False)
 #### Make python command
 bash_command = "python bootstrap.py -f {{ filename }} -i {{ iteration }} -s {{ sampling }} \
 --board_id_for_TOA_cut {{ board_id_for_TOA_cut }} --minimum_nevt {{ minimum_nevt }} \
---trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }}"
+--trigTOALower {{ trigTOALower }} --trigTOAUpper {{ trigTOAUpper }} --board_ids {{ board_ids }}"
 
 conditional_args = {
     'autoTOTcuts': args.autoTOTcuts,
-    'noTrig': args.noTrig,
     'reproducible': args.reproducible,
+    'time_df_input': args.time_df_input,
 }
 
 for arg, value in conditional_args.items():
@@ -153,7 +153,6 @@ for arg, value in conditional_args.items():
 
 conditional_input_args = {
     'board_id_rfsel0': args.board_id_rfsel0,
-    'board_id_rfsel1': args.board_id_rfsel1,
 }
 
 for arg, value in conditional_input_args.items():
@@ -183,6 +182,7 @@ options = {
     'minimum_nevt': args.minimum_nevt,
     'trigTOALower': args.trigTOALower,
     'trigTOAUpper': args.trigTOAUpper,
+    'board_ids': ' '.join(map(str, args.board_ids))
 }
 
 # Render the template with the data
