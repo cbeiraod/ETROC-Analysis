@@ -1,6 +1,6 @@
 from natsort import natsorted
 from pathlib import Path
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from collections import defaultdict
 
@@ -204,13 +204,27 @@ print('====== Merging is finished ======\n')
 
 print('====== Saving data by track ======')
 
-for ikey in tqdm(merged_data.keys()):
+# for ikey in tqdm(merged_data.keys()):
+#     board_ids = merged_data[ikey].columns.get_level_values('board').unique().tolist()
+#     outname = f"track_{ikey}"
+#     for board_id in board_ids:
+#         irow = merged_data[ikey]['row'][board_id].unique()[0]
+#         icol = merged_data[ikey]['col'][board_id].unique()[0]
+#         outname += f"_R{irow}C{icol}"
+
+#     merged_data[ikey].to_pickle(track_dir / f'{outname}.pkl')
+#     merged_data_in_time[ikey].to_pickle(time_dir / f'{outname}.pkl')
+
+def save_data(ikey, merged_data, merged_data_in_time, track_dir, time_dir):
     board_ids = merged_data[ikey].columns.get_level_values('board').unique().tolist()
-    outname = f"track_{ikey}"
-    for board_id in board_ids:
-        irow = merged_data[ikey]['row'][board_id].unique()[0]
-        icol = merged_data[ikey]['col'][board_id].unique()[0]
-        outname += f"_R{irow}C{icol}"
+    row_cols = {
+        board_id: (merged_data[ikey]['row'][board_id].unique()[0], merged_data[ikey]['col'][board_id].unique()[0])
+        for board_id in board_ids
+    }
+    outname = f"track_{ikey}" + ''.join([f"_R{row}C{col}" for board_id, (row, col) in row_cols.items()])
 
     merged_data[ikey].to_pickle(track_dir / f'{outname}.pkl')
     merged_data_in_time[ikey].to_pickle(time_dir / f'{outname}.pkl')
+
+with ThreadPoolExecutor() as executor:
+    list(tqdm(executor.map(lambda ikey: save_data(ikey, merged_data, merged_data_in_time, track_dir, time_dir), merged_data.keys()), total=len(merged_data)))
