@@ -192,12 +192,11 @@ print('\n========= Run option =========')
 print(f'Input dataset: {args.dirname}')
 print(f'Bootstrap iteration: {args.iteration}')
 print(f'{args.sampling}% of random sampling')
+print(f'Consider board IDs: {args.board_ids}')
 print(f"TOA cut for a 'NEW' trigger is {args.trigTOALower}-{args.trigTOAUpper} on board ID={args.board_id_for_TOA_cut}")
 print(f'Number of events larger than {args.minimum_nevt} will be considered')
 if args.autoTOTcuts:
     print(f'Automatic TOT cuts will be applied')
-if args.noTrig:
-    print('Trigger board will not be considered')
 if args.reproducible:
     print('Random seed will be set by counter. The final output will have seed information together')
 print('========= Run option =========\n')
@@ -232,5 +231,11 @@ Queue ifile,path from input_list_for_bootstrap.txt
 with open(f'condor_bootstrap.jdl','w') as jdlfile:
     jdlfile.write(jdl)
 
-if not args.dryrun:
+if args.dryrun:
+    print('=========== Input text file ===========')
+    os.system('cat input_list_for_bootstrap.txt')
+    print()
+    print('=========== Bash file ===========')
+    os.system('cat run_bootstrap.sh')
+else:
     os.system(f'condor_submit condor_bootstrap.jdl')
