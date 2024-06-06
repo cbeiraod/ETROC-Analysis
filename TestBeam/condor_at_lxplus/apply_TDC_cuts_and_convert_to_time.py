@@ -2,6 +2,7 @@ from natsort import natsorted
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
+from collections import defaultdict
 
 import pandas as pd
 import numpy as np
@@ -182,25 +183,34 @@ print('====== Code to Time Conversion is finished ======\n')
 ## Structure of results array: nested three-level
 # First [] points output from each file
 # Second [0] is data in code, [1] is data in time
-# Third [] access singel dataframe of each track
+# Third [] access single dataframe of each track
 
 print('====== Merging is started ======')
 
-merged_data = {}
-merged_data_in_time = {}
+merged_data = defaultdict(list)
+merged_data_in_time = defaultdict(list)
 
-for idx in tqdm(range(len(results))):
-    keys = results[idx][0].keys()
+for result in tqdm(results):
+    for key in result[0].keys():
+        merged_data[key].append(result[0][key])
+        merged_data_in_time[key].append(result[1][key])
 
-    for key in keys:
-        if key not in merged_data:
-            merged_data[key] = results[idx][0][key]
-            merged_data_in_time[key] = results[idx][1][key]
-        else:
-            merged_data[key] = pd.concat([merged_data[key], results[idx][0][key]], ignore_index=True)
-            merged_data_in_time[key] = pd.concat([merged_data_in_time[key], results[idx][1][key]], ignore_index=True)
-
+# Now concatenate the lists of DataFrames
+merged_data = {key: pd.concat(df_list, ignore_index=True) for key, df_list in merged_data.items()}
+merged_data_in_time = {key: pd.concat(df_list, ignore_index=True) for key, df_list in merged_data_in_time.items()}
 del results
+
+# for idx in tqdm(range(len(results))):
+#     keys = results[idx][0].keys()
+
+#     for key in keys:
+#         if key not in merged_data:
+#             merged_data[key] = results[idx][0][key]
+#             merged_data_in_time[key] = results[idx][1][key]
+#         else:
+#             merged_data[key] = pd.concat([merged_data[key], results[idx][0][key]], ignore_index=True)
+#             merged_data_in_time[key] = pd.concat([merged_data_in_time[key], results[idx][1][key]], ignore_index=True)
+
 print('====== Merging is finished ======\n')
 
 print('====== Saving data by track ======')
