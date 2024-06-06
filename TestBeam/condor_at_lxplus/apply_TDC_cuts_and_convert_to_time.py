@@ -128,22 +128,21 @@ def convert_to_time_df(process_executor, input_file):
                 data_in_time[key] = pd.DataFrame()
                 continue
 
-            tot_cuts = {}
-            for idx in board_ids:
-                if args.autoTOTcuts:
-                    lower_bound = data_dict[key]['tot'][idx].quantile(0.01)
-                    upper_bound = data_dict[key]['tot'][idx].quantile(0.96)
-                    tot_cuts[idx] = [round(lower_bound), round(upper_bound)]
-                else:
-                    tot_cuts[idx] = [0, 600]
+            tot_cuts = {
+                idx: (
+                    [round(data_dict[key]['tot'][idx].quantile(0.01)), round(data_dict[key]['tot'][idx].quantile(0.96))]
+                    if args.autoTOTcuts else [0, 600]
+                ) for idx in board_ids
+            }
 
-            ## Selecting good hits with TDC cuts
-            tdc_cuts = {}
-            for idx in board_ids:
-                if idx == args.setTrigBoardID:
-                    tdc_cuts[idx] = [0, 1100, args.trigTOALower, args.trigTOAUpper, tot_cuts[idx][0], tot_cuts[idx][1]]
-                else:
-                    tdc_cuts[idx] = [0, 1100, 0, 1100, tot_cuts[idx][0], tot_cuts[idx][1]]
+            tdc_cuts = {
+                idx: [
+                    0, 1100,
+                    args.trigTOALower if idx == args.setTrigBoardID else 0,
+                    args.trigTOAUpper if idx == args.setTrigBoardID else 1100,
+                    *tot_cuts[idx]
+                ] for idx in board_ids
+            }
 
             interest_df = tdc_event_selection_pivot(data_dict[key], tdc_cuts_dict=tdc_cuts)
 
