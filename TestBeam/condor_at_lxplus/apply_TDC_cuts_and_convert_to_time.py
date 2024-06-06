@@ -4,7 +4,9 @@ import pandas as pd
 import numpy as np
 import pickle
 import argparse
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from tqdm import tqdm
+import sys
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -103,90 +105,116 @@ board_ids = [args.setTrigBoardID, args.setDUTBoardID, args.setRefBoardID]
 def tdc_event_selection_pivot(
         input_df: pd.DataFrame,
         tdc_cuts_dict: dict
-    ):
-    # Create boolean masks for each board's filtering criteria
-    masks = {}
+    ) -> pd.DataFrame:
+    combined_mask = pd.Series(True, index=input_df.index)
     for board, cuts in tdc_cuts_dict.items():
         mask = (
             input_df['cal'][board].between(cuts[0], cuts[1]) &
             input_df['toa'][board].between(cuts[2], cuts[3]) &
             input_df['tot'][board].between(cuts[4], cuts[5])
         )
-        masks[board] = mask
-
-    # Combine the masks using logical AND
-    combined_mask = pd.concat(masks, axis=1).all(axis=1)
-    del masks
-
-    # Apply the combined mask to the DataFrame
-    tdc_filtered_df = input_df[combined_mask].reset_index(drop=True)
-    del combined_mask
-    return tdc_filtered_df
+        combined_mask &= mask
+    return input_df[combined_mask].reset_index(drop=True)
 
 ## --------------------------------------
-def merge_dataframes(files):
-    merged_data = {}  # Dictionary to store merged DataFrames
-    merged_data_in_time = {}
-    keys = None  # To store keys from the first file
-    for file in tqdm(files):
-        with open(file, 'rb') as f:
-            # data_dict = pickle.load(f)  # Load dictionary from file (assuming files are pickled)
-            data_dict = pd.read_pickle(f)
-            if keys is None:
-                keys = data_dict.keys()  # Store keys from the first file
-            else:
-                if keys != data_dict.keys():
-                    raise ValueError("Keys in dictionaries are not the same across all files")
-            # Merge DataFrames for each key
-            for key in data_dict.keys():
+def convert_to_time_df(process_executor, input_file):
+    data_in_time = {}
+    with open(input_file, 'rb') as f:
+        # data_dict = pickle.load(f)  # Load dictionary from file (assuming files are pickled)
+        data_dict = pd.read_pickle(f)
+        for key in data_dict.keys():
 
-                tot_cuts = {}
-                for idx in board_ids:
-                    if args.autoTOTcuts:
-                        lower_bound = data_dict[key]['tot'][idx].quantile(0.01)
-                        upper_bound = data_dict[key]['tot'][idx].quantile(0.96)
-                        tot_cuts[idx] = [round(lower_bound), round(upper_bound)]
-                    else:
-                        tot_cuts[idx] = [0, 600]
+            if data_dict[key].empty:
+                data_in_time[key] = pd.DataFrame()
+                continue
 
-                ## Selecting good hits with TDC cuts
-                tdc_cuts = {}
-                for idx in board_ids:
-                    if idx == args.setTrigBoardID:
-                        tdc_cuts[idx] = [0, 1100, args.trigTOALower, args.trigTOAUpper, tot_cuts[idx][0], tot_cuts[idx][1]]
-                    else:
-                        tdc_cuts[idx] = [0, 1100, 0, 1100, tot_cuts[idx][0], tot_cuts[idx][1]]
-
-                interest_df = tdc_event_selection_pivot(data_dict[key], tdc_cuts_dict=tdc_cuts)
-
-                df_in_time = pd.DataFrame()
-                for idx in board_ids:
-                    bins = 3.125/interest_df['cal'][idx].mean()
-                    df_in_time[f'toa_b{str(idx)}'] = (12.5 - interest_df['toa'][idx] * bins)*1e3
-                    df_in_time[f'tot_b{str(idx)}'] = ((2*interest_df['tot'][idx] - np.floor(interest_df['tot'][idx]/32)) * bins)*1e3
-
-                if key not in merged_data:
-                    merged_data[key] = data_dict[key]
-                    merged_data_in_time[key] = df_in_time
+            tot_cuts = {}
+            for idx in board_ids:
+                if args.autoTOTcuts:
+                    lower_bound = data_dict[key]['tot'][idx].quantile(0.01)
+                    upper_bound = data_dict[key]['tot'][idx].quantile(0.96)
+                    tot_cuts[idx] = [round(lower_bound), round(upper_bound)]
                 else:
-                    merged_data[key] = pd.concat([merged_data[key], data_dict[key]], ignore_index=True)
-                    merged_data_in_time[key] = pd.concat([merged_data_in_time[key], df_in_time], ignore_index=True)
+                    tot_cuts[idx] = [0, 600]
 
-    return merged_data, merged_data_in_time
+            ## Selecting good hits with TDC cuts
+            tdc_cuts = {}
+            for idx in board_ids:
+                if idx == args.setTrigBoardID:
+                    tdc_cuts[idx] = [0, 1100, args.trigTOALower, args.trigTOAUpper, tot_cuts[idx][0], tot_cuts[idx][1]]
+                else:
+                    tdc_cuts[idx] = [0, 1100, 0, 1100, tot_cuts[idx][0], tot_cuts[idx][1]]
 
-# final_dict = defaultdict(list)
-files = natsorted(list(Path(args.dirname).glob('run*pickle')))
+            interest_df = tdc_event_selection_pivot(data_dict[key], tdc_cuts_dict=tdc_cuts)
 
-# Merge the dataframes
-merged_track, merged_track_in_time = merge_dataframes(files)
+            df_in_time = pd.DataFrame()
+            for idx in board_ids:
+                bins = 3.125/interest_df['cal'][idx].mean()
+                df_in_time[f'toa_b{str(idx)}'] = (12.5 - interest_df['toa'][idx] * bins)*1e3
+                df_in_time[f'tot_b{str(idx)}'] = ((2*interest_df['tot'][idx] - np.floor(interest_df['tot'][idx]/32)) * bins)*1e3
 
-for ikey in tqdm(merged_track.keys()):
-    board_ids = merged_track[ikey].columns.get_level_values('board').unique().tolist()
+            data_in_time[key] = df_in_time
+
+    return data_dict, data_in_time
+
+# files = natsorted(list(Path(args.dirname).glob('run*pickle')))
+files = natsorted(list(Path(args.dirname).glob('run4_loop_[0..1].pickle')))
+
+if len(files) == 0:
+    print('No input files')
+    sys.exit()
+
+print('====== Code to Time Conversion is started ======')
+
+results = []
+with tqdm(files) as pbar:
+    with ProcessPoolExecutor() as process_executor:
+        with ThreadPoolExecutor(10) as thread_executor:
+            # Each input results in multiple threading jobs being created:print(len(results))
+#print(results[0][0])
+            futures = [
+                thread_executor.submit(convert_to_time_df, process_executor, ifile)
+                    for ifile in files
+            ]
+            for future in as_completed(futures):
+                pbar.update(1)
+                results.append(future.result())
+
+print('====== Code to Time Conversion is finished ======\n')
+
+## Structure of results array: nested three-level
+# First [] points output from each file
+# Second [0] is data in code, [1] is data in time
+# Third [] access singel dataframe of each track
+
+print('====== Merging is started ======')
+
+merged_data = {}
+merged_data_in_time = {}
+
+for idx in tqdm(range(len(results))):
+    keys = results[idx][0].keys()
+
+    for key in keys:
+        if key not in merged_data:
+            merged_data[key] = results[idx][0][key]
+            merged_data_in_time[key] = results[idx][1][key]
+        else:
+            merged_data[key] = pd.concat([merged_data[key], results[idx][0][key]], ignore_index=True)
+            merged_data_in_time[key] = pd.concat([merged_data_in_time[key], results[idx][1][key]], ignore_index=True)
+
+del results
+print('====== Merging is finished ======\n')
+
+print('====== Saving data by track ======')
+
+for ikey in tqdm(merged_data.keys()):
+    board_ids = merged_data[ikey].columns.get_level_values('board').unique().tolist()
     outname = f"track_{ikey}"
     for board_id in board_ids:
-        irow = merged_track[ikey]['row'][board_id].unique()[0]
-        icol = merged_track[ikey]['col'][board_id].unique()[0]
+        irow = merged_data[ikey]['row'][board_id].unique()[0]
+        icol = merged_data[ikey]['col'][board_id].unique()[0]
         outname += f"_R{irow}C{icol}"
 
-    merged_track[ikey].to_pickle(track_dir / f'{outname}.pkl')
-    merged_track_in_time[ikey].to_pickle(time_dir / f'{outname}.pkl')
+    merged_data[ikey].to_pickle(track_dir / f'{outname}.pkl')
+    merged_data_in_time[ikey].to_pickle(time_dir / f'{outname}.pkl')
