@@ -109,17 +109,23 @@ should_Transfer_Files = YES
 whenToTransferOutput  = ON_EXIT
 arguments             = $(name) $(path)
 transfer_Input_Files  = decoding.py, python_lib.tar
-TransferOutputRemaps = "$(name).feather={1}/$(name).feather"
+TransferOutputRemaps = "$(name).feather={1}/$(name).feather;filler_$(name).feather={1}/filler_$(name).feather"
 output                = {0}/$(ClusterId).$(ProcId).decoding.stdout
 error                 = {0}/$(ClusterId).$(ProcId).decoding.stderr
 log                   = {0}/$(ClusterId).$(ProcId).decoding.log
 MY.WantOS             = "el9"
-+JobFlavour           = "workday"
++JobFlavour           = "longlunch"
 Queue name, path from input_list_for_decoding.txt
 """.format(str(log_dir), str(outdir))
 
 with open(f'condor_decoding.jdl','w') as jdlfile:
     jdlfile.write(jdl)
 
-if not args.dryrun:
+if args.dryrun:
+    print('=========== Input text file ===========')
+    os.system('cat input_list_for_decoding.txt')
+    print()
+    print('=========== Bash file ===========')
+    os.system('cat run_decode.sh')
+else:
     os.system(f'condor_submit condor_decoding.jdl')
