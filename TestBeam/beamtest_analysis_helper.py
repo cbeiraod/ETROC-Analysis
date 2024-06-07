@@ -2568,7 +2568,7 @@ def plot_resolution_with_pulls(
             x_min = centers[0]
             x_max = centers[-1]
 
-            x_range = np.linspace(x_min, x_max, 200)
+            x_range = np.linspace(x_min, x_max, 500)
             popt = [par for name, par in fit_params[idx].best_values.items()]
             pcov = fit_params[idx].covar
 
