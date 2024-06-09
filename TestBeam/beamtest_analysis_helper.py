@@ -1566,68 +1566,68 @@ def plot_BL_and_NW(
     single_run_df = run_time_df.loc[run_time_df['Run'] == which_run, ["HV0", "HV1", "HV2", "HV3"]]
     HVs = single_run_df.iloc[0, 0:].to_numpy()
 
-    if selected_run_df.shape[0] == 1024:
-        for idx, iboard in enumerate(selected_run_df['chip_name'].unique()):
-            tmp_df = selected_run_df.loc[selected_run_df['chip_name']==iboard]
+    if selected_run_df.shape[0] != 1024:
+        selected_run_df = selected_run_df.loc[selected_run_df.groupby(['row', 'col', 'chip_name'])['timestamp'].idxmax()].reset_index(drop=True)
 
-            # Create a pivot table to reshape the data for plotting
-            pivot_table = tmp_df.pivot(index='row', columns='col', values=which_val)
+    for idx, iboard in enumerate(selected_run_df['chip_name'].unique()):
+        tmp_df = selected_run_df.loc[selected_run_df['chip_name']==iboard]
 
-            if pivot_table.empty:
-                continue
+        # Create a pivot table to reshape the data for plotting
+        pivot_table = tmp_df.pivot(index='row', columns='col', values=which_val)
 
-            if (pivot_table.shape[0] != 16) or (pivot_table.shape[1]!= 16):
-                pivot_table = pivot_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
-                pivot_table = pivot_table.reindex(columns=np.arange(0,16))
-                pivot_table = pivot_table.fillna(-1)
+        if pivot_table.empty:
+            continue
 
-            # # Create a heatmap to visualize the count of hits
-            fig, ax = plt.subplots(dpi=100, figsize=(12, 12))
+        if (pivot_table.shape[0] != 16) or (pivot_table.shape[1]!= 16):
+            pivot_table = pivot_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+            pivot_table = pivot_table.reindex(columns=np.arange(0,16))
+            pivot_table = pivot_table.fillna(-1)
 
-            if which_val == 'baseline':
-                if chip_types[idx] == "T":
-                    im = ax.imshow(pivot_table, interpolation="nearest", vmin=300, vmax=500)
-                elif chip_types[idx] == "F":
-                    im = ax.imshow(pivot_table, interpolation="nearest", vmin=50, vmax=250)
+        # # Create a heatmap to visualize the count of hits
+        fig, ax = plt.subplots(dpi=100, figsize=(12, 12))
 
-                # # Add color bar
-                cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, extend='both')
-                cbar.set_label('Baseline', fontsize=25)
-                cbar.ax.tick_params(labelsize=18)
+        if which_val == 'baseline':
+            if chip_types[idx] == "T":
+                im = ax.imshow(pivot_table, interpolation="nearest", vmin=300, vmax=500)
+            elif chip_types[idx] == "F":
+                im = ax.imshow(pivot_table, interpolation="nearest", vmin=50, vmax=250)
 
-            elif which_val == 'noise_width':
-                im = ax.imshow(pivot_table, interpolation="nearest", vmin=0, vmax=16)
+            # # Add color bar
+            cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, extend='both')
+            cbar.set_label('Baseline', fontsize=25)
+            cbar.ax.tick_params(labelsize=18)
 
-                # # Add color bar
-                cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-                cbar.set_label('Noise Width', fontsize=25)
-                cbar.ax.tick_params(labelsize=18)
+        elif which_val == 'noise_width':
+            im = ax.imshow(pivot_table, interpolation="nearest", vmin=0, vmax=16)
 
-            for i in range(16):
-                for j in range(16):
-                    value = pivot_table.iloc[i, j]
-                    if value == -1: continue
-                    text = str("{:.0f}".format(value))
-                    plt.text(j, i, text, va='center', ha='center', color='white', fontsize=14)
+            # # Add color bar
+            cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            cbar.set_label('Noise Width', fontsize=25)
+            cbar.ax.tick_params(labelsize=18)
 
-            hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-            ax.set_xlabel('Column', fontsize=25)
-            ax.set_ylabel('Row', fontsize=25)
-            ticks = range(0, 16)
-            ax.set_xticks(ticks)
-            ax.set_yticks(ticks)
-            ax.set_title(f"{board_names[idx].replace('_', ' ')} HV{HVs[idx]}V 24C", loc="right", size=16)
-            ax.tick_params(axis='x', which='both', length=5, labelsize=17)
-            ax.tick_params(axis='y', which='both', length=5, labelsize=17)
-            ax.invert_xaxis()
-            ax.invert_yaxis()
-            plt.minorticks_off()
-            plt.tight_layout()
+        for i in range(16):
+            for j in range(16):
+                value = pivot_table.iloc[i, j]
+                if value == -1: continue
+                text = str("{:.0f}".format(value))
+                plt.text(j, i, text, va='center', ha='center', color='white', fontsize=14)
 
-            if save_mother_dir is not None:
-                pass
-    else:
-        print('Choose different run!')
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+        ax.set_xlabel('Column', fontsize=25)
+        ax.set_ylabel('Row', fontsize=25)
+        ticks = range(0, 16)
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
+        ax.set_title(f"{board_names[idx].replace('_', ' ')} HV{HVs[idx]}V 24C", loc="right", size=16)
+        ax.tick_params(axis='x', which='both', length=5, labelsize=17)
+        ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+        ax.invert_xaxis()
+        ax.invert_yaxis()
+        plt.minorticks_off()
+        plt.tight_layout()
+
+        if save_mother_dir is not None:
+            pass
 
 ## --------------------------------------
 def plot_number_of_fired_board(
