@@ -1611,7 +1611,7 @@ def plot_BL_and_NW(
                     text = str("{:.0f}".format(value))
                     plt.text(j, i, text, va='center', ha='center', color='white', fontsize=14)
 
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+            hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
             ax.set_xlabel('Column (col)', fontsize=18)
             ax.set_ylabel('Row (row)', fontsize=18)
             ticks = range(0, 16)
@@ -1645,7 +1645,7 @@ def plot_number_of_fired_board(
     fig = plt.figure(dpi=50, figsize=(14,12))
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=25)
     ax.set_title(f"{fig_tag}", loc="right", size=25)
     h.plot1d(ax=ax, lw=2)
     ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
@@ -1689,7 +1689,7 @@ def plot_number_of_hits_per_event(
             continue
 
         ax = fig.add_subplot(plot_info)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=20)
         hists[i].plot1d(ax=ax, lw=2)
         ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
         ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
@@ -1729,7 +1729,7 @@ def plot_2d_nHits_nBoard(
             continue
 
         ax = fig.add_subplot(plot_info)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=20)
         hep.hist2dplot(hists[i], ax=ax, norm=colors.LogNorm())
         ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
 
@@ -1819,7 +1819,7 @@ def plot_occupany_map(
                 text = str("{:.0f}".format(value))
                 plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=12)
 
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
         ax.set_xlabel('Column (col)', fontsize=18)
         ax.set_ylabel('Row (row)', fontsize=18)
         ticks = range(0, 16)
@@ -1882,8 +1882,8 @@ def plot_TDC_summary_table(
         im1 = axes[0].imshow(table_mean, cmap=cmap, vmin=0)
         im2 = axes[1].imshow(table_std, cmap=cmap, vmin=0)
 
-        hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=25)
-        hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[0], text="ETL ETROC Test Beam", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[1], text="ETL ETROC Test Beam", fontsize=25)
 
         axes[0].set_title(f'{var.upper()} Mean', loc="right")
         axes[1].set_title(f'{var.upper()} Std', loc="right")
@@ -1960,7 +1960,7 @@ def plot_1d_TDC_histograms(
             try:
                 fig, ax = plt.subplots(figsize=(11, 10))
                 ax.set_title(plot_title, loc="right", size=18)
-                hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+                hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
                 input_hist[chip_name].project(ival)[:].plot1d(ax=ax, lw=2)
                 ax.xaxis.label.set_fontsize(18)
                 ax.yaxis.label.set_fontsize(18)
@@ -1987,7 +1987,7 @@ def plot_1d_TDC_histograms(
         ax.set_title(plot_title, loc="right", size=18)
         ax.xaxis.label.set_fontsize(18)
         ax.yaxis.label.set_fontsize(18)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
         hep.hist2dplot(input_hist[chip_name].project("TOA","TOT")[::2j,::2j], ax=ax)
 
         if fig_tag is not None:
@@ -2005,7 +2005,7 @@ def plot_1d_TDC_histograms(
         if event_hist is not None:
             fig, ax = plt.subplots(figsize=(11, 10))
             ax.set_title(plot_title, loc="right", size=18)
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+            hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
             event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
             ax.xaxis.label.set_fontsize(18)
             ax.yaxis.label.set_fontsize(18)
@@ -2031,7 +2031,7 @@ def plot_1d_TDC_histograms(
 
         for i, plot_info in enumerate(gs):
             ax = fig.add_subplot(plot_info)
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
+            hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=20)
             if i == 0:
                 ax.set_title(plot_title, loc="right", size=18)
                 input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
@@ -2082,7 +2082,7 @@ def plot_1d_event_CRC_histogram(
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
     ax.set_title(f"Event CRC Check{fig_tag}", loc="right", size=25)
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=25)
     input_hist.project("CRC_mismatch")[:].plot1d(ax=ax, lw=2)
     if do_logy:
         ax.set_yscale('log')
@@ -2108,7 +2108,7 @@ def plot_1d_CRC_histogram(
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
     ax.set_title(f"{fig_title}, CRC Check{fig_tag}", loc="right", size=25)
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=25)
     input_hist[chip_name].project("CRC_mismatch")[:].plot1d(ax=ax, lw=2)
     if do_logy:
         ax.set_yscale('log')
@@ -2169,7 +2169,7 @@ def plot_correlation_of_pixels(
     fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
     hep.hist2dplot(h_row, ax=ax[0], norm= colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=18)
+    hep.cms.text(loc=0, ax=ax[0], text="ETL ETROC Test Beam", fontsize=18)
     ax[0].set_title(plot_title, loc="right", size=18)
     ax[0].xaxis.label.set_fontsize(18)
     ax[0].yaxis.label.set_fontsize(18)
@@ -2182,7 +2182,7 @@ def plot_correlation_of_pixels(
     ax[0].tick_params(axis='both', which='major', length=0)
 
     hep.hist2dplot(h_col, ax=ax[1], norm= colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=18)
+    hep.cms.text(loc=0, ax=ax[1], text="ETL ETROC Test Beam", fontsize=18)
     ax[1].set_title(plot_title, loc="right", size=18)
     ax[1].xaxis.label.set_fontsize(18)
     ax[1].yaxis.label.set_fontsize(18)
@@ -2247,7 +2247,7 @@ def plot_difference_of_pixels(
     fig, ax = plt.subplots(dpi=100, figsize=(11, 11))
 
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
     ax.set_title(plot_title, loc="right", size=18)
     ax.xaxis.label.set_fontsize(18)
     ax.yaxis.label.set_fontsize(18)
@@ -2283,7 +2283,7 @@ def plot_distance(
 
     fig, ax = plt.subplots(dpi=100, figsize=(15, 8))
     hep.histplot(h_dis, ax=ax)
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=25)
     ax.set_title(f"{fig_title} {fig_tag}", loc="right", size=15)
 
     if do_logy:
@@ -2343,7 +2343,7 @@ def plot_TOA_correlation(
     distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
 
     fig, ax = plt.subplots(figsize=(10, 10))
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
     ax.set_title(plot_title, loc='right', fontsize=18)
     ax.xaxis.label.set_fontsize(18)
     ax.yaxis.label.set_fontsize(18)
@@ -2452,19 +2452,19 @@ def plot_TWC(
 
     fig, axes = plt.subplots(1, 3, figsize=(38, 10))
     hep.hist2dplot(h_twc1, ax=axes[0], norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=20)
+    hep.cms.text(loc=0, ax=axes[0], text="ETL ETROC Test Beam", fontsize=20)
     axes[0].plot(b1_xrange, poly_func_b0(b1_xrange), 'r-', lw=3, label=make_legend(coeff_b0, poly_order=poly_order))
     axes[0].set_xlabel('TOT1 [ps]', fontsize=18)
     axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1 [ps]', fontsize=18)
     axes[0].set_title(plot_title, fontsize=18, loc='right')
     hep.hist2dplot(h_twc2, ax=axes[1], norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=20)
+    hep.cms.text(loc=0, ax=axes[1], text="ETL ETROC Test Beam", fontsize=20)
     axes[1].plot(b2_xrange, poly_func_b1(b2_xrange), 'r-', lw=3, label=make_legend(coeff_b1, poly_order=poly_order))
     axes[1].set_xlabel('TOT2 [ps]', fontsize=18)
     axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2 [ps]', fontsize=18)
     axes[1].set_title(plot_title, fontsize=18, loc='right')
     hep.hist2dplot(h_twc3, ax=axes[2], norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=axes[2], text="Phase-2 Preliminary", fontsize=20)
+    hep.cms.text(loc=0, ax=axes[2], text="ETL ETROC Test Beam", fontsize=20)
     axes[2].plot(b3_xrange, poly_func_b2(b3_xrange), 'r-', lw=3, label=make_legend(coeff_b2, poly_order=poly_order))
     axes[2].set_xlabel('TOT3 [ps]', fontsize=18)
     axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3 [ps]', fontsize=18)
@@ -2582,7 +2582,7 @@ def plot_resolution_with_pulls(
                 continue
 
             centers = hists[i].axes[0].centers
-            hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
+            hep.cms.text(loc=0, ax=main_ax, text="ETL ETROC Test Beam", fontsize=20)
             main_ax.set_title(f'{plot_title} {fig_tag[i]}', loc="right", size=18)
 
             main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
@@ -2654,7 +2654,7 @@ def plot_resolution_with_pulls(
             plt.setp(main_ax.get_xticklabels(), visible=False)
 
             centers = hists[idx].axes[0].centers
-            hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=18)
+            hep.cms.text(loc=0, ax=main_ax, text="ETL ETROC Test Beam", fontsize=18)
             main_ax.set_title(f'{plot_title}', loc="right", size=18)
 
             main_ax.errorbar(centers, hists[idx].values(), np.sqrt(hists[idx].variances()),
@@ -2784,7 +2784,7 @@ def plot_resolution_table(
                         text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
                         plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=18, rotation=45)
 
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+            hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
             ax.set_xlabel('Column (col)', fontsize=18)
             ax.set_ylabel('Row (row)', fontsize=18)
             ticks = range(0, 16)
@@ -2835,7 +2835,7 @@ def plot_resolution_table(
                     text = str(rf"{float(missing_pixel_info[idx]['res'][jdx]):.1f}""\n"fr"$\pm$ {float(missing_pixel_info[idx]['err'][jdx]):.1f}")
                     plt.text(int(missing_pixel_info[idx]['col'][jdx]), int(missing_pixel_info[idx]['row'][jdx]), text, va='center', ha='center', color='black', fontsize=15 , rotation=45)
 
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+            hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
             ax.set_xlabel('Column (col)', fontsize=18)
             ax.set_ylabel('Row (row)', fontsize=18)
             ticks = range(0, 16)
@@ -3170,7 +3170,7 @@ def fwhm_based_on_gaussian_mixture_model(
     bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
     # Plot PDF of whole model
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
     ax.set_title(plot_title, loc="right", fontsize=18)
     ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{tag}}}$ [ps]', fontsize=18)
     ax.yaxis.label.set_fontsize(18)
