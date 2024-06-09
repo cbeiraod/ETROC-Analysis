@@ -1632,12 +1632,28 @@ def plot_BL_and_NW(
 ## --------------------------------------
 def plot_number_of_fired_board(
         input_df: pd.DataFrame,
+        tb_loc: str,
         fig_tag: str = '',
         do_logy: bool = False,
-        do_save_fig: bool = False,
-        save_fig_path: str = None,
+        save_mother_dir: Path | None = None,
     ):
+    """Make a plot of number of fired boards in events.
 
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Input dataframe.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fig_tag: str, optional
+        Additional figure tag to put in the title.
+    do_logy: str, optional
+        Log y-axis.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'misc'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     h = hist.Hist(hist.axis.Regular(5, 0, 5, name="nBoards", label="nBoards"))
     h.fill(input_df.groupby('evt')['board'].nunique())
 
@@ -1645,33 +1661,56 @@ def plot_number_of_fired_board(
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
     hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-    ax.set_title(f"{fig_tag}", loc="right", size=16)
+    ax.set_title(f"{plot_title} {fig_tag}", loc="right", size=16)
+    ax.xaxis.label.set_fontsize(25)
+    ax.yaxis.label.set_fontsize(25)
     h.plot1d(ax=ax, lw=2)
     ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
     if do_logy:
         ax.set_yscale('log')
     plt.tight_layout()
 
-    if do_save_fig:
-        if save_fig_path is None:
-            print('Please specify a path to save figure. Otherwise this figure will not be saved')
-            del h
-        else:
-            save_path = Path(save_fig_path)
-            # save_path = save_path / ''
-            # fig.savefig()
-    else:
-        del h
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'misc'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"number_of_fired_board.png")
+        fig.savefig(save_dir / f"number_of_fired_board.pdf")
+        plt.close(fig)
 
 ## --------------------------------------
 def plot_number_of_hits_per_event(
         input_df: pd.DataFrame,
-        fig_titles: list[str],
+        tb_loc: str,
+        board_names: list[str],
         fig_tag: str = '',
         bins: int = 15,
         hist_range: tuple = (0, 15),
         do_logy: bool = False,
+        save_mother_dir: Path | None = None,
     ):
+    """Make a plot of number of hits per event.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Input dataframe.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal
+    board_names: list[str],
+        A list of board names.
+    fig_tag: str, optional
+        Additional figure tag to put in the title.
+    bins: int, optional
+        Recommend bins to be 1 hit per bin.
+    hist_range: tuple, optional
+        Histogram range.
+    do_logy: str, optional
+        Log y-axis.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'misc'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     hit_df = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
     hists = {}
 
@@ -1679,24 +1718,23 @@ def plot_number_of_hits_per_event(
         hists[key] = hist.Hist(hist.axis.Regular(bins, hist_range[0], hist_range[1], name="nHits", label='nHits'))
         hists[key].fill(hit_df[key])
 
-    fig = plt.figure(dpi=100, figsize=(30,13))
-    gs = fig.add_gridspec(2,2)
-
-    for i, plot_info in enumerate(gs):
-
-        if i not in hists.keys():
-            continue
-
-        ax = fig.add_subplot(plot_info)
-        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=20)
-        hists[i].plot1d(ax=ax, lw=2)
-        ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
+    for ikey, val in hists.items():
+        fig, ax = plt.subplots(figsize=(11, 10))
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+        val.plot1d(ax=ax, lw=2)
+        ax.set_title(f"{plot_title} {fig_tag}", loc="right", size=16)
         ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
+
         if do_logy:
             ax.set_yscale('log')
 
-    plt.tight_layout()
-    del hists, hit_df
+        plt.tight_layout()
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'misc'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"number_of_hits_{board_names[key]}.png")
+            fig.savefig(save_dir / f"number_of_hits_{board_names[key]}.pdf")
+            plt.close(fig)
 
 ## --------------------------------------
 def plot_2d_nHits_nBoard(
