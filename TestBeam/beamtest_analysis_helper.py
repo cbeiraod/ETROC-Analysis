@@ -1588,7 +1588,7 @@ def plot_BL_and_NW(
                 if chip_types[idx] == "T":
                     im = ax.imshow(pivot_table, interpolation="nearest", vmin=300, vmax=500)
                 elif chip_types[idx] == "F":
-                    im = ax.imshow(pivot_table, interpolation="nearest", vmin=0, vmax=200)
+                    im = ax.imshow(pivot_table, interpolation="nearest", vmin=50, vmax=250)
 
                 # # Add color bar
                 cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, extend='both')
