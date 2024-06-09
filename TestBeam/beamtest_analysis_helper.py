@@ -1530,6 +1530,107 @@ def return_hist_pivot(
     return h
 
 ## --------------------------------------
+def plot_BL_and_NW(
+        run_time_df: pd.DataFrame,
+        which_run: int,
+        baseline_df: pd.DataFrame,
+        board_names: list[str],
+        which_val: str,
+        chip_types: list[str] = ["T"]*4,
+        save_mother_dir: Path | None = None,
+    ):
+    """Make Basline of Noise Width 2d map.
+
+    Parameters
+    ----------
+    run_time_df: pd.DataFrame,
+        Include TB run information in csv. Check reading_history/tb_run_info.
+    which_run: int,
+        Run number.
+    baseline_df: pd.DataFrame,
+        Baseline and Noise Width dataframe. Saved in SQL format.
+    board_names: list[str],
+        A list of board names.
+    which_val: str,
+        Either which_val = 'baseline' or which_val = 'noise_width.
+    chip_types: list[str],
+        ETROC2 chip type. "T": typical, "F": FFF corner. This will determine the range of colorbar.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'occupancy_map'.
+    """
+
+    cut_time1 = run_time_df.loc[run_time_df['Run'] == which_run-1 ,'Start_Time'].values[0]
+    cut_time2 = run_time_df.loc[run_time_df['Run'] == which_run ,'Start_Time'].values[0]
+
+    selected_run_df = baseline_df.loc[(baseline_df['timestamp'] > cut_time1) & (baseline_df['timestamp'] < cut_time2)]
+
+    single_run_df = run_time_df.loc[run_time_df['Run'] == which_run, ["HV0", "HV1", "HV2", "HV3"]]
+    HVs = single_run_df.iloc[0, 0:].to_numpy()
+
+    if selected_run_df.shape[0] == 1024:
+        for idx, iboard in enumerate(selected_run_df['chip_name'].unique()):
+            tmp_df = selected_run_df.loc[selected_run_df['chip_name']==iboard]
+
+            # Create a pivot table to reshape the data for plotting
+            pivot_table = tmp_df.pivot(index='row', columns='col', values=which_val)
+
+            if pivot_table.empty:
+                continue
+
+            if (pivot_table.shape[0] != 16) or (pivot_table.shape[1]!= 16):
+                pivot_table = pivot_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+                pivot_table = pivot_table.reindex(columns=np.arange(0,16))
+                pivot_table = pivot_table.fillna(-1)
+
+            # # Create a heatmap to visualize the count of hits
+            fig, ax = plt.subplots(dpi=100, figsize=(12, 12))
+
+            if which_val == 'baseline':
+                if chip_types[idx] == "T":
+                    im = ax.imshow(pivot_table, interpolation="nearest", vmin=300, vmax=500)
+                elif chip_types[idx] == "F":
+                    im = ax.imshow(pivot_table, interpolation="nearest", vmin=0, vmax=200)
+
+                # # Add color bar
+                cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, extend='both')
+                cbar.set_label('Baseline', fontsize=18)
+                cbar.ax.tick_params(labelsize=18)
+
+            elif which_val == 'noise_width':
+                im = ax.imshow(pivot_table, interpolation="nearest", vmin=0, vmax=16)
+
+                # # Add color bar
+                cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+                cbar.set_label('Noise Width', fontsize=18)
+                cbar.ax.tick_params(labelsize=18)
+
+            for i in range(16):
+                for j in range(16):
+                    value = pivot_table.iloc[i, j]
+                    if value == -1: continue
+                    text = str("{:.0f}".format(value))
+                    plt.text(j, i, text, va='center', ha='center', color='white', fontsize=14)
+
+            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=18)
+            ax.set_xlabel('Column (col)', fontsize=18)
+            ax.set_ylabel('Row (row)', fontsize=18)
+            ticks = range(0, 16)
+            ax.set_xticks(ticks)
+            ax.set_yticks(ticks)
+            ax.set_title(f"{board_names[idx].replace('_', ' ')} HV{HVs[idx]}V 24C", loc="right", size=18)
+            ax.tick_params(axis='x', which='both', length=5, labelsize=17)
+            ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+            ax.invert_xaxis()
+            ax.invert_yaxis()
+            plt.minorticks_off()
+            plt.tight_layout()
+
+            if save_mother_dir is not None:
+                pass
+    else:
+        print('Choose different run!')
+
+## --------------------------------------
 def plot_number_of_fired_board(
         input_df: pd.DataFrame,
         fig_tag: str = '',
