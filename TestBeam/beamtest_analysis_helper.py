@@ -1533,7 +1533,7 @@ def plot_BL_and_NW(
         run_time_df: pd.DataFrame,
         which_run: int,
         baseline_df: pd.DataFrame,
-        board_names: list[str],
+        board_names: dict,
         which_val: str,
         chip_types: list[str] = ["T"]*4,
         save_mother_dir: Path | None = None,
@@ -1548,8 +1548,8 @@ def plot_BL_and_NW(
         Run number.
     baseline_df: pd.DataFrame,
         Baseline and Noise Width dataframe. Saved in SQL format.
-    board_names: list[str],
-        A list of board names.
+    board_names: dict,
+        A dictionary of board names.
     which_val: str,
         Either which_val = 'baseline' or which_val = 'noise_width.
     chip_types: list[str],
@@ -1618,7 +1618,7 @@ def plot_BL_and_NW(
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{board_names[idx].replace('_', ' ')} HV{HVs[idx]}V 24C", loc="right", size=16)
+        ax.set_title(f"{board_names[iboard].replace('_', ' ')} HV{HVs[idx]}V 24C", loc="right", size=16)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
