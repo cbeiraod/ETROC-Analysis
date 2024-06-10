@@ -1533,9 +1533,8 @@ def plot_BL_and_NW(
         run_time_df: pd.DataFrame,
         which_run: int,
         baseline_df: pd.DataFrame,
-        board_names: dict,
+        config_dict: dict,
         which_val: str,
-        chip_types: list[str] = ["T"]*4,
         save_mother_dir: Path | None = None,
     ):
     """Make Basline of Noise Width 2d map.
@@ -1548,12 +1547,10 @@ def plot_BL_and_NW(
         Run number.
     baseline_df: pd.DataFrame,
         Baseline and Noise Width dataframe. Saved in SQL format.
-    board_names: dict,
-        A dictionary of board names.
+    config_dict: dict,
+        A dictionary of user config. Should include title for plot, chip_type (determine the color range), and channel (determine HV value).
     which_val: str,
         Either which_val = 'baseline' or which_val = 'noise_width.
-    chip_types: list[str],
-        ETROC2 chip type. "T": typical, "F": FFF corner. This will determine the range of colorbar.
     save_mother_dir: Path, optional
         Plot will be saved at save_mother_dir/'occupancy_map'.
     """
@@ -1569,7 +1566,7 @@ def plot_BL_and_NW(
     if selected_run_df.shape[0] != 1024:
         selected_run_df = selected_run_df.loc[selected_run_df.groupby(['row', 'col', 'chip_name'])['timestamp'].idxmax()].reset_index(drop=True)
 
-    for idx, iboard in enumerate(selected_run_df['chip_name'].unique()):
+    for iboard in selected_run_df['chip_name'].unique():
         tmp_df = selected_run_df.loc[selected_run_df['chip_name']==iboard]
 
         # Create a pivot table to reshape the data for plotting
@@ -1587,9 +1584,9 @@ def plot_BL_and_NW(
         fig, ax = plt.subplots(dpi=100, figsize=(12, 12))
 
         if which_val == 'baseline':
-            if chip_types[idx] == "T":
+            if config_dict[iboard]['chip_type'] == "T":
                 im = ax.imshow(pivot_table, interpolation="nearest", vmin=300, vmax=500)
-            elif chip_types[idx] == "F":
+            elif config_dict[iboard]['chip_type'] == "F":
                 im = ax.imshow(pivot_table, interpolation="nearest", vmin=50, vmax=250)
 
             # # Add color bar
@@ -1618,7 +1615,7 @@ def plot_BL_and_NW(
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{board_names[iboard].replace('_', ' ')} HV{HVs[idx]}V 24C", loc="right", size=16)
+        ax.set_title(f"{config_dict[iboard]['plot_title'].replace('_', ' ')} HV{HVs[config_dict[iboard]['channel']]}V 24C", loc="right", size=16)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
