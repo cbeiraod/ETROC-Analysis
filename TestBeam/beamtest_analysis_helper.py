@@ -2493,42 +2493,53 @@ def plot_TWC(
     plot_title = load_fig_title(tb_loc)
 
     if corr_toas is not None:
-        del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
-        del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
-        del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+        del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_ids[1]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[0]}'])
+        del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[1]}'])
+        del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[1]}']) - corr_toas[f'toa_b{board_ids[2]}'])
     else:
-        del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
-        del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
-        del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
+        del_toa_b0 = (0.5*(input_df[f'toa_b{board_ids[1]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[0]}']).values
+        del_toa_b1 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[1]}']).values
+        del_toa_b2 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[1]}']) - input_df[f'toa_b{board_ids[2]}']).values
+
+    def roundup(x):
+        return int(np.ceil(x / 100.0)) * 100
+
+    tot_ranges = {}
+    for idx in board_ids:
+        min_value = roundup(input_df[f'tot_b{idx}'].min()) - 500
+        max_value = roundup(input_df[f'tot_b{idx}'].max()) + 500
+        if min_value < 0:
+            min_value = 0
+        tot_ranges[idx] = [min_value, max_value]
 
     h_twc1 = hist.Hist(
-        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[0]}', label=f'tot_b{board_list[0]}'),
-        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[0]}', label=f'delta_toa{board_list[0]}')
+        hist.axis.Regular(50, tot_ranges[board_ids[0]][0], tot_ranges[board_ids[0]][1], name=f'tot_b{board_ids[0]}', label=f'tot_b{board_ids[0]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_ids[0]}', label=f'delta_toa{board_ids[0]}')
     )
     h_twc2 = hist.Hist(
-        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[1]}', label=f'tot_b{board_list[1]}'),
-        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[1]}', label=f'delta_toa{board_list[1]}')
+        hist.axis.Regular(50, tot_ranges[board_ids[1]][0], tot_ranges[board_ids[1]][1], name=f'tot_b{board_ids[1]}', label=f'tot_b{board_ids[1]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_ids[1]}', label=f'delta_toa{board_ids[1]}')
     )
     h_twc3 = hist.Hist(
-        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[2]}', label=f'tot_b{board_list[2]}'),
-        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[2]}', label=f'delta_toa{board_list[2]}')
+        hist.axis.Regular(50, tot_ranges[board_ids[2]][0], tot_ranges[board_ids[2]][1], name=f'tot_b{board_ids[2]}', label=f'tot_b{board_ids[2]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_ids[2]}', label=f'delta_toa{board_ids[2]}')
     )
 
-    h_twc1.fill(input_df[f'tot_b{board_list[0]}'], del_toa_b0)
-    h_twc2.fill(input_df[f'tot_b{board_list[1]}'], del_toa_b1)
-    h_twc3.fill(input_df[f'tot_b{board_list[2]}'], del_toa_b2)
+    h_twc1.fill(input_df[f'tot_b{board_ids[0]}'], del_toa_b0)
+    h_twc2.fill(input_df[f'tot_b{board_ids[1]}'], del_toa_b1)
+    h_twc3.fill(input_df[f'tot_b{board_ids[2]}'], del_toa_b2)
 
-    b1_xrange = np.linspace(input_df[f'tot_b{board_list[0]}'].min(), input_df[f'tot_b{board_list[0]}'].max(), 100)
-    b2_xrange = np.linspace(input_df[f'tot_b{board_list[1]}'].min(), input_df[f'tot_b{board_list[1]}'].max(), 100)
-    b3_xrange = np.linspace(input_df[f'tot_b{board_list[2]}'].min(), input_df[f'tot_b{board_list[2]}'].max(), 100)
+    b1_xrange = np.linspace(input_df[f'tot_b{board_ids[0]}'].min(), input_df[f'tot_b{board_ids[0]}'].max(), 100)
+    b2_xrange = np.linspace(input_df[f'tot_b{board_ids[1]}'].min(), input_df[f'tot_b{board_ids[1]}'].max(), 100)
+    b3_xrange = np.linspace(input_df[f'tot_b{board_ids[2]}'].min(), input_df[f'tot_b{board_ids[2]}'].max(), 100)
 
-    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_ids[0]}'].values, del_toa_b0, poly_order)
     poly_func_b0 = np.poly1d(coeff_b0)
 
-    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_ids[1]}'].values, del_toa_b1, poly_order)
     poly_func_b1 = np.poly1d(coeff_b1)
 
-    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_ids[2]}'].values, del_toa_b2, poly_order)
     poly_func_b2 = np.poly1d(coeff_b2)
 
     def make_legend(coeff, poly_order):
@@ -2580,20 +2591,6 @@ def plot_TWC(
     axes[0].legend(loc='best')
     axes[1].legend(loc='best')
     axes[2].legend(loc='best')
-
-    if distance is not None:
-        axes[0].fill_between(b1_xrange, y1=poly_func_b0(b1_xrange)-boundary_cut*np.std(distance[0]), y2=poly_func_b0(b1_xrange)+boundary_cut*np.std(distance[0]),
-                        facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
-        axes[1].fill_between(b2_xrange, y1=poly_func_b1(b2_xrange)-boundary_cut*np.std(distance[1]), y2=poly_func_b1(b2_xrange)+boundary_cut*np.std(distance[1]),
-                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
-        axes[2].fill_between(b3_xrange, y1=poly_func_b2(b3_xrange)-boundary_cut*np.std(distance[2]), y2=poly_func_b2(b3_xrange)+boundary_cut*np.std(distance[2]),
-                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
-
-        axes[0].legend(['linear fit'], loc='best')
-        axes[1].legend(['linear fit'], loc='best')
-        axes[2].legend(['linear fit'], loc='best')
-
-    plt.tight_layout()
 
     if save_mother_dir is not None:
         save_dir = save_mother_dir / 'twc_fit'
