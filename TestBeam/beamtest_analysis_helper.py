@@ -1773,7 +1773,7 @@ def plot_2d_nHits_nBoard(
 ## --------------------------------------
 def plot_occupany_map(
         input_df: pd.DataFrame,
-        chipLabels: list[int],
+        board_ids: list[int],
         board_names: list[str],
         tb_loc: str,
         fname_tag: str = '',
@@ -1786,7 +1786,7 @@ def plot_occupany_map(
     ----------
     input_df: pd.DataFrame,
         Pandas dataframe of data.
-    chipLabels: list[int],
+    board_ids: list[int],
         A list of integer (board ID) that wants to make plots.
     board_names: list[str],
         A list of board name that will use for the file name.
@@ -1818,7 +1818,7 @@ def plot_occupany_map(
     # Rename the 'evt' column to 'hits'
     hits_count_by_col_row_board = hits_count_by_col_row_board.rename(columns={'evt': 'hits'})
 
-    for board_id in chipLabels:
+    for idx ,board_id in enumerate(board_ids):
         # Create a pivot table to reshape the data for plotting
         pivot_table = hits_count_by_col_row_board[hits_count_by_col_row_board['board'] == board_id].pivot_table(
             index='row',
@@ -1854,12 +1854,12 @@ def plot_occupany_map(
                 plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=12)
 
         hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-        ax.set_xlabel('Column (col)', fontsize=25)
-        ax.set_ylabel('Row (row)', fontsize=25)
+        ax.set_xlabel('Column', fontsize=25)
+        ax.set_ylabel('Row', fontsize=25)
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{plot_title} | {board_names[board_id].replace('_', ' ')}", loc="right", size=16)
+        ax.set_title(f"{plot_title} | {board_names[idx].replace('_', ' ')}", loc="right", size=16)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
@@ -1872,6 +1872,82 @@ def plot_occupany_map(
             save_dir.mkdir(exist_ok=True)
             fig.savefig(save_dir / f"occupancy_{board_names[board_id]}_{fname_tag}.png")
             fig.savefig(save_dir / f"occupancy_{board_names[board_id]}_{fname_tag}.pdf")
+            plt.close(fig)
+
+## --------------------------------------
+def plot_3d_occupany_map(
+        input_df: pd.DataFrame,
+        board_ids: list[int],
+        board_names: list[str],
+        tb_loc: str,
+        fname_tag: str = '',
+        save_mother_dir: Path | None = None,
+    ):
+    """Make 3D occupancy plot.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    board_ids: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_names: list[str],
+        A list of board name that will use for the file name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional
+        Draw boundary cut in the plot.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'occupancy_map'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
+    hits_count_by_col_row_board = input_df.groupby(['col', 'row', 'board'])['evt'].count().reset_index()
+
+    # Rename the 'evt' column to 'hits'
+    hits_count_by_col_row_board = hits_count_by_col_row_board.rename(columns={'evt': 'hits'})
+
+    for idx ,board_id in enumerate(board_ids):
+        # Create a pivot table to reshape the data for plotting
+        pivot_table = hits_count_by_col_row_board[hits_count_by_col_row_board['board'] == board_id].pivot_table(
+            index='row',
+            columns='col',
+            values='hits',
+            fill_value=0  # Fill missing values with 0 (if any)
+        )
+        fig = plt.figure(figsize=(11, 10))
+        ax = fig.add_subplot(111, projection='3d')
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+
+        # Create a meshgrid for the 3D surface
+        x, y = np.meshgrid(np.arange(16), np.arange(16))
+        z = pivot_table.values
+        dx = dy = 0.75  # Width and depth of the bars
+
+        # Create a 3D surface plot
+        ax.bar3d(x.flatten(), y.flatten(), np.zeros_like(z).flatten(), dx, dy, z.flatten(), shade=True)
+
+        # Customize the 3D plot settings as needed
+        ax.set_xlabel('COL', fontsize=15, labelpad=15)
+        ax.set_ylabel('ROW', fontsize=15, labelpad=15)
+        ax.set_zlabel('Hits', fontsize=15, labelpad=-35)
+        ax.invert_xaxis()
+        ticks = range(0, 16)
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
+        ax.set_xticks(ticks=range(16), labels=[], minor=True)
+        ax.set_yticks(ticks=range(16), labels=[], minor=True)
+        ax.tick_params(axis='x', labelsize=8)  # You can adjust the 'pad' value
+        ax.tick_params(axis='y', labelsize=8)
+        ax.tick_params(axis='z', labelsize=8)
+        ax.set_title(f"{plot_title} | {board_names[idx]}", fontsize=14, loc='right')
+        plt.tight_layout()
+
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'occupancy_map'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"3D_occupancy_{board_names[board_id]}_{fname_tag}.png")
+            fig.savefig(save_dir / f"3D_occupancy_{board_names[board_id]}_{fname_tag}.pdf")
             plt.close(fig)
 
 ## --------------------------------------
