@@ -1424,23 +1424,23 @@ def return_TOA_correlation_param(
 def return_TWC_param(
         corr_toas: dict,
         input_df: pd.DataFrame,
-        board_list: list[int],
+        board_ids: list[int],
     ):
 
     results = {}
 
-    del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
-    del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
-    del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+    del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_ids[1]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[0]}'])
+    del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[1]}'])
+    del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[1]}']) - corr_toas[f'toa_b{board_ids[2]}'])
 
-    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, 1)
-    results[0] = (input_df[f'tot_b{board_list[0]}'].values*coeff_b0[0] - del_toa_b0 + coeff_b0[1])/(np.sqrt(coeff_b0[0]**2 + 1))
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_ids[0]}'].values, del_toa_b0, 1)
+    results[0] = (input_df[f'tot_b{board_ids[0]}'].values*coeff_b0[0] - del_toa_b0 + coeff_b0[1])/(np.sqrt(coeff_b0[0]**2 + 1))
 
-    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, 1)
-    results[1] = (input_df[f'tot_b{board_list[1]}'].values*coeff_b1[0] - del_toa_b1 + coeff_b1[1])/(np.sqrt(coeff_b1[0]**2 + 1))
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_ids[1]}'].values, del_toa_b1, 1)
+    results[1] = (input_df[f'tot_b{board_ids[1]}'].values*coeff_b1[0] - del_toa_b1 + coeff_b1[1])/(np.sqrt(coeff_b1[0]**2 + 1))
 
-    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, 1)
-    results[2] = (input_df[f'tot_b{board_list[2]}'].values*coeff_b2[0] - del_toa_b2 + coeff_b2[1])/(np.sqrt(coeff_b2[0]**2 + 1))
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_ids[2]}'].values, del_toa_b2, 1)
+    results[2] = (input_df[f'tot_b{board_ids[2]}'].values*coeff_b2[0] - del_toa_b2 + coeff_b2[1])/(np.sqrt(coeff_b2[0]**2 + 1))
 
     return results
 
@@ -2029,7 +2029,7 @@ def plot_TDC_summary_table(
 ## --------------------------------------
 def plot_1d_TDC_histograms(
         input_hist: dict,
-        chip_name: str,
+        board_name: str,
         tb_loc: str,
         fig_tag: str | None = None,
         slide_friendly: bool = False,
@@ -2044,7 +2044,7 @@ def plot_1d_TDC_histograms(
     ----------
     input_hist: dict,
         A dictionary of TDC histograms, which returns from return_hist, return_hist_pivot
-    chip_name: str,
+    board_name: str,
         Board name.
     tb_loc: str,
         Test Beam location for the title. Available argument: desy, cern, fnal.
@@ -2071,7 +2071,7 @@ def plot_1d_TDC_histograms(
                 fig, ax = plt.subplots(figsize=(11, 10))
                 ax.set_title(plot_title, loc="right", size=16)
                 hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-                input_hist[chip_name].project(ival)[:].plot1d(ax=ax, lw=2)
+                input_hist[board_name].project(ival)[:].plot1d(ax=ax, lw=2)
                 ax.xaxis.label.set_fontsize(25)
                 ax.yaxis.label.set_fontsize(25)
 
@@ -2085,8 +2085,8 @@ def plot_1d_TDC_histograms(
                 if save_mother_dir is not None:
                     save_dir = save_mother_dir / '1d_tdc_hists'
                     save_dir.mkdir(exist_ok=True)
-                    fig.savefig(save_dir / f'{chip_name}_{ival}_{tag}.png')
-                    fig.savefig(save_dir / f'{chip_name}_{ival}_{tag}.pdf')
+                    fig.savefig(save_dir / f'{board_name}_{ival}_{tag}.png')
+                    fig.savefig(save_dir / f'{board_name}_{ival}_{tag}.pdf')
                     plt.close(fig)
             except Exception as e:
                 plt.close(fig)
@@ -2098,7 +2098,7 @@ def plot_1d_TDC_histograms(
         ax.xaxis.label.set_fontsize(25)
         ax.yaxis.label.set_fontsize(25)
         hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-        hep.hist2dplot(input_hist[chip_name].project("TOA","TOT")[::2j,::2j], ax=ax)
+        hep.hist2dplot(input_hist[board_name].project("TOA","TOT")[::2j,::2j], ax=ax)
 
         if fig_tag is not None:
             ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right', bbox=dict(facecolor='white'))
@@ -2108,8 +2108,8 @@ def plot_1d_TDC_histograms(
         if save_mother_dir is not None:
             save_dir = save_mother_dir / '1d_tdc_hists'
             save_dir.mkdir(exist_ok=True)
-            fig.savefig(save_dir / f'{chip_name}_TOA_TOT_{tag}.png')
-            fig.savefig(save_dir / f'{chip_name}_TOA_TOT_{tag}.pdf')
+            fig.savefig(save_dir / f'{board_name}_TOA_TOT_{tag}.png')
+            fig.savefig(save_dir / f'{board_name}_TOA_TOT_{tag}.pdf')
             plt.close(fig)
 
         if event_hist is not None:
@@ -2131,8 +2131,8 @@ def plot_1d_TDC_histograms(
             if save_mother_dir is not None:
                 save_dir = save_mother_dir / '1d_tdc_hists'
                 save_dir.mkdir(exist_ok=True)
-                fig.savefig(save_dir / f'{chip_name}_Hamming_Count_{tag}.png')
-                fig.savefig(save_dir / f'{chip_name}_Hamming_Count_{tag}.pdf')
+                fig.savefig(save_dir / f'{board_name}_Hamming_Count_{tag}.png')
+                fig.savefig(save_dir / f'{board_name}_Hamming_Count_{tag}.pdf')
                 plt.close(fig)
 
     else:
@@ -2144,23 +2144,23 @@ def plot_1d_TDC_histograms(
             hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
             if i == 0:
                 ax.set_title(plot_title, loc="right", size=16)
-                input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
+                input_hist[board_name].project("CAL")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 1:
                 ax.set_title(plot_title, loc="right", size=16)
-                input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+                input_hist[board_name].project("TOA")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 2:
                 ax.set_title(plot_title, loc="right", size=16)
-                input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+                input_hist[board_name].project("TOT")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 3:
                 if event_hist is None:
                     ax.set_title(plot_title, loc="right", size=16)
-                    input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+                    input_hist[board_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
                     if do_logy:
                         #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
                         #plt.colorbar(pcm)
@@ -2175,8 +2175,8 @@ def plot_1d_TDC_histograms(
         if save_mother_dir is not None:
             save_dir = save_mother_dir / '1d_tdc_hists'
             save_dir.mkdir(exist_ok=True)
-            fig.savefig(save_dir / f'{chip_name}_combined_{tag}.png')
-            fig.savefig(save_dir / f'{chip_name}_combined_{tag}.pdf')
+            fig.savefig(save_dir / f'{board_name}_combined_{tag}.png')
+            fig.savefig(save_dir / f'{board_name}_combined_{tag}.pdf')
             plt.close(fig)
 
 ## --------------------------------------
@@ -2482,13 +2482,10 @@ def plot_TOA_correlation(
 ## --------------------------------------
 def plot_TWC(
         input_df: pd.DataFrame,
-        board_list: list[int],
-        tot_range: list[int],
+        board_ids: list[int],
         tb_loc: str,
         poly_order: int = 2,
         corr_toas: dict | None = None,
-        boundary_cut: float = 0,
-        distance: dict | None = None,
         save_mother_dir: Path | None = None,
         print_func: bool = False,
     ):
@@ -2496,42 +2493,53 @@ def plot_TWC(
     plot_title = load_fig_title(tb_loc)
 
     if corr_toas is not None:
-        del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
-        del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
-        del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+        del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_ids[1]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[0]}'])
+        del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[1]}'])
+        del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[1]}']) - corr_toas[f'toa_b{board_ids[2]}'])
     else:
-        del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
-        del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
-        del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
+        del_toa_b0 = (0.5*(input_df[f'toa_b{board_ids[1]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[0]}']).values
+        del_toa_b1 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[1]}']).values
+        del_toa_b2 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[1]}']) - input_df[f'toa_b{board_ids[2]}']).values
+
+    def roundup(x):
+        return int(np.ceil(x / 100.0)) * 100
+
+    tot_ranges = {}
+    for idx in board_ids:
+        min_value = roundup(input_df[f'tot_b{idx}'].min()) - 500
+        max_value = roundup(input_df[f'tot_b{idx}'].max()) + 500
+        if min_value < 0:
+            min_value = 0
+        tot_ranges[idx] = [min_value, max_value]
 
     h_twc1 = hist.Hist(
-        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[0]}', label=f'tot_b{board_list[0]}'),
-        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[0]}', label=f'delta_toa{board_list[0]}')
+        hist.axis.Regular(50, tot_ranges[board_ids[0]][0], tot_ranges[board_ids[0]][1], name=f'tot_b{board_ids[0]}', label=f'tot_b{board_ids[0]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_ids[0]}', label=f'delta_toa{board_ids[0]}')
     )
     h_twc2 = hist.Hist(
-        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[1]}', label=f'tot_b{board_list[1]}'),
-        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[1]}', label=f'delta_toa{board_list[1]}')
+        hist.axis.Regular(50, tot_ranges[board_ids[1]][0], tot_ranges[board_ids[1]][1], name=f'tot_b{board_ids[1]}', label=f'tot_b{board_ids[1]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_ids[1]}', label=f'delta_toa{board_ids[1]}')
     )
     h_twc3 = hist.Hist(
-        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[2]}', label=f'tot_b{board_list[2]}'),
-        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[2]}', label=f'delta_toa{board_list[2]}')
+        hist.axis.Regular(50, tot_ranges[board_ids[2]][0], tot_ranges[board_ids[2]][1], name=f'tot_b{board_ids[2]}', label=f'tot_b{board_ids[2]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_ids[2]}', label=f'delta_toa{board_ids[2]}')
     )
 
-    h_twc1.fill(input_df[f'tot_b{board_list[0]}'], del_toa_b0)
-    h_twc2.fill(input_df[f'tot_b{board_list[1]}'], del_toa_b1)
-    h_twc3.fill(input_df[f'tot_b{board_list[2]}'], del_toa_b2)
+    h_twc1.fill(input_df[f'tot_b{board_ids[0]}'], del_toa_b0)
+    h_twc2.fill(input_df[f'tot_b{board_ids[1]}'], del_toa_b1)
+    h_twc3.fill(input_df[f'tot_b{board_ids[2]}'], del_toa_b2)
 
-    b1_xrange = np.linspace(input_df[f'tot_b{board_list[0]}'].min(), input_df[f'tot_b{board_list[0]}'].max(), 100)
-    b2_xrange = np.linspace(input_df[f'tot_b{board_list[1]}'].min(), input_df[f'tot_b{board_list[1]}'].max(), 100)
-    b3_xrange = np.linspace(input_df[f'tot_b{board_list[2]}'].min(), input_df[f'tot_b{board_list[2]}'].max(), 100)
+    b1_xrange = np.linspace(input_df[f'tot_b{board_ids[0]}'].min(), input_df[f'tot_b{board_ids[0]}'].max(), 100)
+    b2_xrange = np.linspace(input_df[f'tot_b{board_ids[1]}'].min(), input_df[f'tot_b{board_ids[1]}'].max(), 100)
+    b3_xrange = np.linspace(input_df[f'tot_b{board_ids[2]}'].min(), input_df[f'tot_b{board_ids[2]}'].max(), 100)
 
-    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_ids[0]}'].values, del_toa_b0, poly_order)
     poly_func_b0 = np.poly1d(coeff_b0)
 
-    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_ids[1]}'].values, del_toa_b1, poly_order)
     poly_func_b1 = np.poly1d(coeff_b1)
 
-    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_ids[2]}'].values, del_toa_b2, poly_order)
     poly_func_b2 = np.poly1d(coeff_b2)
 
     def make_legend(coeff, poly_order):
@@ -2583,20 +2591,6 @@ def plot_TWC(
     axes[0].legend(loc='best')
     axes[1].legend(loc='best')
     axes[2].legend(loc='best')
-
-    if distance is not None:
-        axes[0].fill_between(b1_xrange, y1=poly_func_b0(b1_xrange)-boundary_cut*np.std(distance[0]), y2=poly_func_b0(b1_xrange)+boundary_cut*np.std(distance[0]),
-                        facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
-        axes[1].fill_between(b2_xrange, y1=poly_func_b1(b2_xrange)-boundary_cut*np.std(distance[1]), y2=poly_func_b1(b2_xrange)+boundary_cut*np.std(distance[1]),
-                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
-        axes[2].fill_between(b3_xrange, y1=poly_func_b2(b3_xrange)-boundary_cut*np.std(distance[2]), y2=poly_func_b2(b3_xrange)+boundary_cut*np.std(distance[2]),
-                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
-
-        axes[0].legend(['linear fit'], loc='best')
-        axes[1].legend(['linear fit'], loc='best')
-        axes[2].legend(['linear fit'], loc='best')
-
-    plt.tight_layout()
 
     if save_mother_dir is not None:
         save_dir = save_mother_dir / 'twc_fit'
@@ -3116,40 +3110,40 @@ def three_board_iterative_timewalk_correction(
     input_df: pd.DataFrame,
     iterative_cnt: int,
     poly_order: int,
-    board_list: list,
+    board_ids: list,
 ):
 
     corr_toas = {}
-    corr_b0 = input_df[f'toa_b{board_list[0]}'].values
-    corr_b1 = input_df[f'toa_b{board_list[1]}'].values
-    corr_b2 = input_df[f'toa_b{board_list[2]}'].values
+    corr_b0 = input_df[f'toa_b{board_ids[0]}'].values
+    corr_b1 = input_df[f'toa_b{board_ids[1]}'].values
+    corr_b2 = input_df[f'toa_b{board_ids[2]}'].values
 
-    del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
-    del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
-    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
+    del_toa_b0 = (0.5*(input_df[f'toa_b{board_ids[1]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[0]}']).values
+    del_toa_b1 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[1]}']).values
+    del_toa_b2 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[1]}']) - input_df[f'toa_b{board_ids[2]}']).values
 
     for i in range(iterative_cnt):
-        coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+        coeff_b0 = np.polyfit(input_df[f'tot_b{board_ids[0]}'].values, del_toa_b0, poly_order)
         poly_func_b0 = np.poly1d(coeff_b0)
 
-        coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+        coeff_b1 = np.polyfit(input_df[f'tot_b{board_ids[1]}'].values, del_toa_b1, poly_order)
         poly_func_b1 = np.poly1d(coeff_b1)
 
-        coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+        coeff_b2 = np.polyfit(input_df[f'tot_b{board_ids[2]}'].values, del_toa_b2, poly_order)
         poly_func_b2 = np.poly1d(coeff_b2)
 
-        corr_b0 = corr_b0 + poly_func_b0(input_df[f'tot_b{board_list[0]}'].values)
-        corr_b1 = corr_b1 + poly_func_b1(input_df[f'tot_b{board_list[1]}'].values)
-        corr_b2 = corr_b2 + poly_func_b2(input_df[f'tot_b{board_list[2]}'].values)
+        corr_b0 = corr_b0 + poly_func_b0(input_df[f'tot_b{board_ids[0]}'].values)
+        corr_b1 = corr_b1 + poly_func_b1(input_df[f'tot_b{board_ids[1]}'].values)
+        corr_b2 = corr_b2 + poly_func_b2(input_df[f'tot_b{board_ids[2]}'].values)
 
         del_toa_b0 = (0.5*(corr_b1 + corr_b2) - corr_b0)
         del_toa_b1 = (0.5*(corr_b0 + corr_b2) - corr_b1)
         del_toa_b2 = (0.5*(corr_b0 + corr_b1) - corr_b2)
 
         if i == iterative_cnt-1:
-            corr_toas[f'toa_b{board_list[0]}'] = corr_b0
-            corr_toas[f'toa_b{board_list[1]}'] = corr_b1
-            corr_toas[f'toa_b{board_list[2]}'] = corr_b2
+            corr_toas[f'toa_b{board_ids[0]}'] = corr_b0
+            corr_toas[f'toa_b{board_ids[1]}'] = corr_b1
+            corr_toas[f'toa_b{board_ids[2]}'] = corr_b2
 
     return corr_toas
 
@@ -3208,6 +3202,7 @@ def fwhm_based_on_gaussian_mixture_model(
         tb_loc: str,
         tag: str,
         n_components: int = 3,
+        show_plot: bool = False,
         show_sub_gaussian: bool = False,
         show_fwhm_guideline: bool = False,
         show_number: bool = False,
@@ -3268,47 +3263,47 @@ def fwhm_based_on_gaussian_mixture_model(
 
     xval = x_range[np.argmax(pdf)][0]
 
-    ### Draw plot
     if show_sub_gaussian:
         # Compute PDF for each component
         responsibilities = models.predict_proba(x_range)
         pdf_individual = responsibilities * pdf[:, np.newaxis]
 
-    fig, ax = plt.subplots(figsize=(11,10))
+    if show_plot:
+        fig, ax = plt.subplots(figsize=(11,10))
 
-    # Plot data histogram
-    bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
+        # Plot data histogram
+        bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
-    # Plot PDF of whole model
-    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-    ax.set_title(plot_title, loc="right", fontsize=16)
-    ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{tag}}}$ [ps]', fontsize=25)
-    ax.yaxis.label.set_fontsize(25)
-    if show_number:
-        ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
-        ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
-    else:
-        ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
+        # Plot PDF of whole model
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+        ax.set_title(plot_title, loc="right", fontsize=16)
+        ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{tag}}}$ [ps]', fontsize=25)
+        ax.yaxis.label.set_fontsize(25)
+        if show_number:
+            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
+            ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
+        else:
+            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
 
-    if show_sub_gaussian:
-        # Plot PDF of each component
-        ax.plot(x_range, pdf_individual, '--', label='Component PDF')
+        if show_sub_gaussian:
+            # Plot PDF of each component
+            ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
-    if show_fwhm_guideline:
-        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-        ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-        ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
-        ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
+        if show_fwhm_guideline:
+            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+            ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+            ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
+            ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
 
-    ax.legend(loc='best', fontsize=14)
-    plt.tight_layout()
+        ax.legend(loc='best', fontsize=14)
+        plt.tight_layout()
 
-    if save_mother_dir is not None:
-        save_dir = save_mother_dir / 'fwhm'
-        save_dir.mkdir(exist_ok=True)
-        fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.png")
-        fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.pdf")
-        plt.close(fig)
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'fwhm'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.png")
+            fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.pdf")
+            plt.close(fig)
 
     return fwhm, [silhouette_eval_score, jensenshannon_score]
 
@@ -3321,13 +3316,13 @@ def fwhm_based_on_gaussian_mixture_model(
 def return_resolution_three_board(
         fit_params: dict,
         var: list,
-        board_list:list,
+        board_ids:list,
     ):
 
     results = {
-        board_list[0]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
-        board_list[1]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
-        board_list[2]: np.sqrt(0.5*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
+        board_ids[0]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
+        board_ids[1]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
+        board_ids[2]: np.sqrt(0.5*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
     }
 
     return results
@@ -3336,13 +3331,13 @@ def return_resolution_three_board(
 def return_resolution_three_board_fromFWHM(
         fit_params: dict,
         var: list,
-        board_list:list,
+        board_ids:list,
     ):
 
     results = {
-        board_list[0]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[1]]**2 - fit_params[var[2]]**2)),
-        board_list[1]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[2]]**2 - fit_params[var[1]]**2)),
-        board_list[2]: np.sqrt(0.5*(fit_params[var[1]]**2 + fit_params[var[2]]**2 - fit_params[var[0]]**2)),
+        board_ids[0]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[1]]**2 - fit_params[var[2]]**2)),
+        board_ids[1]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[2]]**2 - fit_params[var[1]]**2)),
+        board_ids[2]: np.sqrt(0.5*(fit_params[var[1]]**2 + fit_params[var[2]]**2 - fit_params[var[0]]**2)),
     }
 
     return results
