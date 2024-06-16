@@ -1424,23 +1424,23 @@ def return_TOA_correlation_param(
 def return_TWC_param(
         corr_toas: dict,
         input_df: pd.DataFrame,
-        board_list: list[int],
+        board_ids: list[int],
     ):
 
     results = {}
 
-    del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
-    del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
-    del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+    del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_ids[1]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[0]}'])
+    del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[1]}'])
+    del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[1]}']) - corr_toas[f'toa_b{board_ids[2]}'])
 
-    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, 1)
-    results[0] = (input_df[f'tot_b{board_list[0]}'].values*coeff_b0[0] - del_toa_b0 + coeff_b0[1])/(np.sqrt(coeff_b0[0]**2 + 1))
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_ids[0]}'].values, del_toa_b0, 1)
+    results[0] = (input_df[f'tot_b{board_ids[0]}'].values*coeff_b0[0] - del_toa_b0 + coeff_b0[1])/(np.sqrt(coeff_b0[0]**2 + 1))
 
-    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, 1)
-    results[1] = (input_df[f'tot_b{board_list[1]}'].values*coeff_b1[0] - del_toa_b1 + coeff_b1[1])/(np.sqrt(coeff_b1[0]**2 + 1))
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_ids[1]}'].values, del_toa_b1, 1)
+    results[1] = (input_df[f'tot_b{board_ids[1]}'].values*coeff_b1[0] - del_toa_b1 + coeff_b1[1])/(np.sqrt(coeff_b1[0]**2 + 1))
 
-    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, 1)
-    results[2] = (input_df[f'tot_b{board_list[2]}'].values*coeff_b2[0] - del_toa_b2 + coeff_b2[1])/(np.sqrt(coeff_b2[0]**2 + 1))
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_ids[2]}'].values, del_toa_b2, 1)
+    results[2] = (input_df[f'tot_b{board_ids[2]}'].values*coeff_b2[0] - del_toa_b2 + coeff_b2[1])/(np.sqrt(coeff_b2[0]**2 + 1))
 
     return results
 
@@ -2482,13 +2482,10 @@ def plot_TOA_correlation(
 ## --------------------------------------
 def plot_TWC(
         input_df: pd.DataFrame,
-        board_list: list[int],
-        tot_range: list[int],
+        board_ids: list[int],
         tb_loc: str,
         poly_order: int = 2,
         corr_toas: dict | None = None,
-        boundary_cut: float = 0,
-        distance: dict | None = None,
         save_mother_dir: Path | None = None,
         print_func: bool = False,
     ):
@@ -3116,40 +3113,40 @@ def three_board_iterative_timewalk_correction(
     input_df: pd.DataFrame,
     iterative_cnt: int,
     poly_order: int,
-    board_list: list,
+    board_ids: list,
 ):
 
     corr_toas = {}
-    corr_b0 = input_df[f'toa_b{board_list[0]}'].values
-    corr_b1 = input_df[f'toa_b{board_list[1]}'].values
-    corr_b2 = input_df[f'toa_b{board_list[2]}'].values
+    corr_b0 = input_df[f'toa_b{board_ids[0]}'].values
+    corr_b1 = input_df[f'toa_b{board_ids[1]}'].values
+    corr_b2 = input_df[f'toa_b{board_ids[2]}'].values
 
-    del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
-    del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
-    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
+    del_toa_b0 = (0.5*(input_df[f'toa_b{board_ids[1]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[0]}']).values
+    del_toa_b1 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[1]}']).values
+    del_toa_b2 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[1]}']) - input_df[f'toa_b{board_ids[2]}']).values
 
     for i in range(iterative_cnt):
-        coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+        coeff_b0 = np.polyfit(input_df[f'tot_b{board_ids[0]}'].values, del_toa_b0, poly_order)
         poly_func_b0 = np.poly1d(coeff_b0)
 
-        coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+        coeff_b1 = np.polyfit(input_df[f'tot_b{board_ids[1]}'].values, del_toa_b1, poly_order)
         poly_func_b1 = np.poly1d(coeff_b1)
 
-        coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+        coeff_b2 = np.polyfit(input_df[f'tot_b{board_ids[2]}'].values, del_toa_b2, poly_order)
         poly_func_b2 = np.poly1d(coeff_b2)
 
-        corr_b0 = corr_b0 + poly_func_b0(input_df[f'tot_b{board_list[0]}'].values)
-        corr_b1 = corr_b1 + poly_func_b1(input_df[f'tot_b{board_list[1]}'].values)
-        corr_b2 = corr_b2 + poly_func_b2(input_df[f'tot_b{board_list[2]}'].values)
+        corr_b0 = corr_b0 + poly_func_b0(input_df[f'tot_b{board_ids[0]}'].values)
+        corr_b1 = corr_b1 + poly_func_b1(input_df[f'tot_b{board_ids[1]}'].values)
+        corr_b2 = corr_b2 + poly_func_b2(input_df[f'tot_b{board_ids[2]}'].values)
 
         del_toa_b0 = (0.5*(corr_b1 + corr_b2) - corr_b0)
         del_toa_b1 = (0.5*(corr_b0 + corr_b2) - corr_b1)
         del_toa_b2 = (0.5*(corr_b0 + corr_b1) - corr_b2)
 
         if i == iterative_cnt-1:
-            corr_toas[f'toa_b{board_list[0]}'] = corr_b0
-            corr_toas[f'toa_b{board_list[1]}'] = corr_b1
-            corr_toas[f'toa_b{board_list[2]}'] = corr_b2
+            corr_toas[f'toa_b{board_ids[0]}'] = corr_b0
+            corr_toas[f'toa_b{board_ids[1]}'] = corr_b1
+            corr_toas[f'toa_b{board_ids[2]}'] = corr_b2
 
     return corr_toas
 
@@ -3321,13 +3318,13 @@ def fwhm_based_on_gaussian_mixture_model(
 def return_resolution_three_board(
         fit_params: dict,
         var: list,
-        board_list:list,
+        board_ids:list,
     ):
 
     results = {
-        board_list[0]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
-        board_list[1]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
-        board_list[2]: np.sqrt(0.5*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
+        board_ids[0]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
+        board_ids[1]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
+        board_ids[2]: np.sqrt(0.5*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
     }
 
     return results
@@ -3336,13 +3333,13 @@ def return_resolution_three_board(
 def return_resolution_three_board_fromFWHM(
         fit_params: dict,
         var: list,
-        board_list:list,
+        board_ids:list,
     ):
 
     results = {
-        board_list[0]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[1]]**2 - fit_params[var[2]]**2)),
-        board_list[1]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[2]]**2 - fit_params[var[1]]**2)),
-        board_list[2]: np.sqrt(0.5*(fit_params[var[1]]**2 + fit_params[var[2]]**2 - fit_params[var[0]]**2)),
+        board_ids[0]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[1]]**2 - fit_params[var[2]]**2)),
+        board_ids[1]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[2]]**2 - fit_params[var[1]]**2)),
+        board_ids[2]: np.sqrt(0.5*(fit_params[var[1]]**2 + fit_params[var[2]]**2 - fit_params[var[0]]**2)),
     }
 
     return results
