@@ -1463,20 +1463,20 @@ def load_fig_title(
 ## --------------------------------------
 def return_hist(
         input_df: pd.DataFrame,
-        chipNames: list[str],
-        chipLabels: list[int],
+        board_ids: list[int],
+        board_names: list[str],
         hist_bins: list = [50, 64, 64]
 ):
-    h = {chipNames[board_idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
+    h = {board_names[board_idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
                 hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
                 hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
                 hist.axis.Regular(4, 0, 3, name="EA", label="EA"),
         )
-    for board_idx in range(len(chipLabels))}
+    for board_idx in range(len(board_ids))}
 
-    for board_idx in range(len(chipLabels)):
-        tmp_df = input_df.loc[input_df['board'] == chipLabels[board_idx]]
-        h[chipNames[board_idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values, tmp_df['ea'].values)
+    for board_idx in range(len(board_ids)):
+        tmp_df = input_df.loc[input_df['board'] == board_ids[board_idx]]
+        h[board_names[board_idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values, tmp_df['ea'].values)
 
     return h
 
@@ -1513,18 +1513,18 @@ def return_crc_hist(
 ## --------------------------------------
 def return_hist_pivot(
         input_df: pd.DataFrame,
-        chipNames: list[str],
-        board_id_to_analyze: list[int],
+        board_ids: list[int],
+        board_names: list[str],
         hist_bins: list = [50, 64, 64]
 ):
-    h = {chipNames[boardID]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
+    h = {board_names[board_idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
                 hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
                 hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
         )
-    for boardID in board_id_to_analyze}
+    for board_idx in range(len(board_ids))}
 
-    for boardID in board_id_to_analyze:
-        h[chipNames[boardID]].fill(input_df['cal'][boardID].values, input_df['tot'][boardID].values, input_df['toa'][boardID].values)
+    for idx, board_id in enumerate(board_ids):
+        h[board_names[idx]].fill(input_df['cal'][board_id].values, input_df['tot'][board_id].values, input_df['toa'][board_id].values)
 
     return h
 
