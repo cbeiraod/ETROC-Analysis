@@ -2029,7 +2029,7 @@ def plot_TDC_summary_table(
 ## --------------------------------------
 def plot_1d_TDC_histograms(
         input_hist: dict,
-        chip_name: str,
+        board_name: str,
         tb_loc: str,
         fig_tag: str | None = None,
         slide_friendly: bool = False,
@@ -2044,7 +2044,7 @@ def plot_1d_TDC_histograms(
     ----------
     input_hist: dict,
         A dictionary of TDC histograms, which returns from return_hist, return_hist_pivot
-    chip_name: str,
+    board_name: str,
         Board name.
     tb_loc: str,
         Test Beam location for the title. Available argument: desy, cern, fnal.
@@ -2071,7 +2071,7 @@ def plot_1d_TDC_histograms(
                 fig, ax = plt.subplots(figsize=(11, 10))
                 ax.set_title(plot_title, loc="right", size=16)
                 hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-                input_hist[chip_name].project(ival)[:].plot1d(ax=ax, lw=2)
+                input_hist[board_name].project(ival)[:].plot1d(ax=ax, lw=2)
                 ax.xaxis.label.set_fontsize(25)
                 ax.yaxis.label.set_fontsize(25)
 
@@ -2085,8 +2085,8 @@ def plot_1d_TDC_histograms(
                 if save_mother_dir is not None:
                     save_dir = save_mother_dir / '1d_tdc_hists'
                     save_dir.mkdir(exist_ok=True)
-                    fig.savefig(save_dir / f'{chip_name}_{ival}_{tag}.png')
-                    fig.savefig(save_dir / f'{chip_name}_{ival}_{tag}.pdf')
+                    fig.savefig(save_dir / f'{board_name}_{ival}_{tag}.png')
+                    fig.savefig(save_dir / f'{board_name}_{ival}_{tag}.pdf')
                     plt.close(fig)
             except Exception as e:
                 plt.close(fig)
@@ -2098,7 +2098,7 @@ def plot_1d_TDC_histograms(
         ax.xaxis.label.set_fontsize(25)
         ax.yaxis.label.set_fontsize(25)
         hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-        hep.hist2dplot(input_hist[chip_name].project("TOA","TOT")[::2j,::2j], ax=ax)
+        hep.hist2dplot(input_hist[board_name].project("TOA","TOT")[::2j,::2j], ax=ax)
 
         if fig_tag is not None:
             ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right', bbox=dict(facecolor='white'))
@@ -2108,8 +2108,8 @@ def plot_1d_TDC_histograms(
         if save_mother_dir is not None:
             save_dir = save_mother_dir / '1d_tdc_hists'
             save_dir.mkdir(exist_ok=True)
-            fig.savefig(save_dir / f'{chip_name}_TOA_TOT_{tag}.png')
-            fig.savefig(save_dir / f'{chip_name}_TOA_TOT_{tag}.pdf')
+            fig.savefig(save_dir / f'{board_name}_TOA_TOT_{tag}.png')
+            fig.savefig(save_dir / f'{board_name}_TOA_TOT_{tag}.pdf')
             plt.close(fig)
 
         if event_hist is not None:
@@ -2131,8 +2131,8 @@ def plot_1d_TDC_histograms(
             if save_mother_dir is not None:
                 save_dir = save_mother_dir / '1d_tdc_hists'
                 save_dir.mkdir(exist_ok=True)
-                fig.savefig(save_dir / f'{chip_name}_Hamming_Count_{tag}.png')
-                fig.savefig(save_dir / f'{chip_name}_Hamming_Count_{tag}.pdf')
+                fig.savefig(save_dir / f'{board_name}_Hamming_Count_{tag}.png')
+                fig.savefig(save_dir / f'{board_name}_Hamming_Count_{tag}.pdf')
                 plt.close(fig)
 
     else:
@@ -2144,23 +2144,23 @@ def plot_1d_TDC_histograms(
             hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
             if i == 0:
                 ax.set_title(plot_title, loc="right", size=16)
-                input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
+                input_hist[board_name].project("CAL")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 1:
                 ax.set_title(plot_title, loc="right", size=16)
-                input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+                input_hist[board_name].project("TOA")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 2:
                 ax.set_title(plot_title, loc="right", size=16)
-                input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+                input_hist[board_name].project("TOT")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 3:
                 if event_hist is None:
                     ax.set_title(plot_title, loc="right", size=16)
-                    input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+                    input_hist[board_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
                     if do_logy:
                         #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
                         #plt.colorbar(pcm)
@@ -2175,8 +2175,8 @@ def plot_1d_TDC_histograms(
         if save_mother_dir is not None:
             save_dir = save_mother_dir / '1d_tdc_hists'
             save_dir.mkdir(exist_ok=True)
-            fig.savefig(save_dir / f'{chip_name}_combined_{tag}.png')
-            fig.savefig(save_dir / f'{chip_name}_combined_{tag}.pdf')
+            fig.savefig(save_dir / f'{board_name}_combined_{tag}.png')
+            fig.savefig(save_dir / f'{board_name}_combined_{tag}.pdf')
             plt.close(fig)
 
 ## --------------------------------------
