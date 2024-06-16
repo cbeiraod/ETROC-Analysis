@@ -64,6 +64,15 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--distance_factor',
+    metavar = 'NUM',
+    type = float,
+    help = 'A factor to set boundary cut size. e.g. factor*nan.std(distance)',
+    default = 3.0,
+    dest = 'distance_factor',
+)
+
+parser.add_argument(
     '--trigTOALower',
     metavar = 'NUM',
     type = int,
@@ -118,6 +127,21 @@ def tdc_event_selection_pivot(
     return input_df[combined_mask].reset_index(drop=True)
 
 ## --------------------------------------
+def return_TOA_correlation_param(
+        input_df: pd.DataFrame,
+        board_id1: int,
+        board_id2: int,
+    ):
+
+    x = input_df['toa'][board_id1]
+    y = input_df['toa'][board_id2]
+
+    params = np.polyfit(x, y, 1)
+    distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
+
+    return params, distance
+
+## --------------------------------------
 def convert_to_time_df(input_file):
 
     data_in_time = {}
@@ -130,6 +154,7 @@ def convert_to_time_df(input_file):
                 data_in_time[key] = pd.DataFrame()
                 continue
 
+            ### Apply TDC cut
             tot_cuts = {
                 idx: (
                     [round(data_dict[key]['tot'][idx].quantile(0.01)), round(data_dict[key]['tot'][idx].quantile(0.96))]
@@ -148,11 +173,22 @@ def convert_to_time_df(input_file):
 
             interest_df = tdc_event_selection_pivot(data_dict[key], tdc_cuts_dict=tdc_cuts)
 
+            ### Apply TOA correlation cut
+            _, distance1 = return_TOA_correlation_param(interest_df, board_id1=board_ids[0], board_id2=board_ids[1])
+            _, distance2 = return_TOA_correlation_param(interest_df, board_id1=board_ids[0], board_id2=board_ids[2])
+            _, distance3 = return_TOA_correlation_param(interest_df, board_id1=board_ids[1], board_id2=board_ids[2])
+
+            dist_cut = (distance1 < args.distance_factor*np.nanstd(distance1)) \
+                     & (distance2 < args.distance_factor*np.nanstd(distance2)) \
+                     & (distance3 < args.distance_factor*np.nanstd(distance3))
+
+            interest_df = interest_df[dist_cut]
+
             df_in_time = pd.DataFrame()
             for idx in board_ids:
                 bins = 3.125/interest_df['cal'][idx].mean()
                 df_in_time[f'toa_b{str(idx)}'] = (12.5 - interest_df['toa'][idx] * bins)*1e3
-                df_in_time[f'tot_b{str(idx)}'] = ((2*interest_df['tot'][idx] - np.floor(interest_df['tot'][idx]/32)) * bins)*1e3
+                df_in_time[f'tot_b{str(idx)}'] = ((2*interest_df['tot'][idx] - np.floor(interest_df['tot'][idx]/32.)) * bins)*1e3
 
             data_in_time[key] = df_in_time
 
