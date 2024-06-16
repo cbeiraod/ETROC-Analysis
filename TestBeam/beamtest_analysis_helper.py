@@ -3202,6 +3202,7 @@ def fwhm_based_on_gaussian_mixture_model(
         tb_loc: str,
         tag: str,
         n_components: int = 3,
+        show_plot: bool = False,
         show_sub_gaussian: bool = False,
         show_fwhm_guideline: bool = False,
         show_number: bool = False,
@@ -3262,47 +3263,47 @@ def fwhm_based_on_gaussian_mixture_model(
 
     xval = x_range[np.argmax(pdf)][0]
 
-    ### Draw plot
     if show_sub_gaussian:
         # Compute PDF for each component
         responsibilities = models.predict_proba(x_range)
         pdf_individual = responsibilities * pdf[:, np.newaxis]
 
-    fig, ax = plt.subplots(figsize=(11,10))
+    if show_plot:
+        fig, ax = plt.subplots(figsize=(11,10))
 
-    # Plot data histogram
-    bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
+        # Plot data histogram
+        bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
-    # Plot PDF of whole model
-    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-    ax.set_title(plot_title, loc="right", fontsize=16)
-    ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{tag}}}$ [ps]', fontsize=25)
-    ax.yaxis.label.set_fontsize(25)
-    if show_number:
-        ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
-        ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
-    else:
-        ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
+        # Plot PDF of whole model
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+        ax.set_title(plot_title, loc="right", fontsize=16)
+        ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{tag}}}$ [ps]', fontsize=25)
+        ax.yaxis.label.set_fontsize(25)
+        if show_number:
+            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
+            ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
+        else:
+            ax.plot(x_range, pdf, '-k', label=f'Mixture PDF')
 
-    if show_sub_gaussian:
-        # Plot PDF of each component
-        ax.plot(x_range, pdf_individual, '--', label='Component PDF')
+        if show_sub_gaussian:
+            # Plot PDF of each component
+            ax.plot(x_range, pdf_individual, '--', label='Component PDF')
 
-    if show_fwhm_guideline:
-        ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-        ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
-        ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
-        ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
+        if show_fwhm_guideline:
+            ax.vlines(x_range[half_max_indices[0]],  ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+            ax.vlines(x_range[half_max_indices[-1]], ymin=0, ymax=np.max(bins)*0.75, lw=1.5, colors='red')
+            ax.hlines(y=peak_height, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='crimson', label='Max')
+            ax.hlines(y=half_max, xmin=x_range[0], xmax=x_range[-1], lw=1.5, colors='deeppink', label='Half Max')
 
-    ax.legend(loc='best', fontsize=14)
-    plt.tight_layout()
+        ax.legend(loc='best', fontsize=14)
+        plt.tight_layout()
 
-    if save_mother_dir is not None:
-        save_dir = save_mother_dir / 'fwhm'
-        save_dir.mkdir(exist_ok=True)
-        fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.png")
-        fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.pdf")
-        plt.close(fig)
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'fwhm'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.png")
+            fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.pdf")
+            plt.close(fig)
 
     return fwhm, [silhouette_eval_score, jensenshannon_score]
 
