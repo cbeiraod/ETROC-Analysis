@@ -1654,7 +1654,7 @@ def plot_number_of_fired_board(
     h = hist.Hist(hist.axis.Regular(5, 0, 5, name="nBoards", label="nBoards"))
     h.fill(input_df.groupby('evt')['board'].nunique())
 
-    fig = plt.figure(dpi=50, figsize=(11,10))
+    fig = plt.figure(figsize=(11,10))
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
     hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
@@ -1679,9 +1679,6 @@ def plot_number_of_hits_per_event(
         input_df: pd.DataFrame,
         tb_loc: str,
         board_names: list[str],
-        fig_tag: str = '',
-        bins: int = 15,
-        hist_range: tuple = (0, 15),
         do_logy: bool = False,
         save_mother_dir: Path | None = None,
     ):
@@ -1695,12 +1692,6 @@ def plot_number_of_hits_per_event(
         Test Beam location for the title. Available argument: desy, cern, fnal
     board_names: list[str],
         A list of board names.
-    fig_tag: str, optional
-        Additional figure tag to put in the title.
-    bins: int, optional
-        Recommend bins to be 1 hit per bin.
-    hist_range: tuple, optional
-        Histogram range.
     do_logy: str, optional
         Log y-axis.
     save_mother_dir: Path, optional
@@ -1712,14 +1703,15 @@ def plot_number_of_hits_per_event(
     hists = {}
 
     for key in hit_df.columns:
-        hists[key] = hist.Hist(hist.axis.Regular(bins, hist_range[0], hist_range[1], name="nHits", label='nHits'))
+        max_hit = hit_df[key].unique().max()
+        hists[key] = hist.Hist(hist.axis.Regular(max_hit, 0, max_hit, name="nHits", label='Number of Hits'))
         hists[key].fill(hit_df[key])
 
-    for ikey, val in hists.items():
+    for idx, ikey in enumerate(hists.keys()):
         fig, ax = plt.subplots(figsize=(11, 10))
         hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-        val.plot1d(ax=ax, lw=2)
-        ax.set_title(f"{plot_title} {fig_tag}", loc="right", size=16)
+        hists[ikey].plot1d(ax=ax, lw=2)
+        ax.set_title(f"{plot_title} | {board_names[idx]}", loc="right", size=16)
         ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
 
         if do_logy:
@@ -1729,8 +1721,8 @@ def plot_number_of_hits_per_event(
         if save_mother_dir is not None:
             save_dir = save_mother_dir / 'misc'
             save_dir.mkdir(exist_ok=True)
-            fig.savefig(save_dir / f"number_of_hits_{board_names[key]}.png")
-            fig.savefig(save_dir / f"number_of_hits_{board_names[key]}.pdf")
+            fig.savefig(save_dir / f"number_of_hits_{board_names[idx]}.png")
+            fig.savefig(save_dir / f"number_of_hits_{board_names[idx]}.pdf")
             plt.close(fig)
 
 ## --------------------------------------
