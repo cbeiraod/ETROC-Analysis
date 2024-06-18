@@ -254,5 +254,5 @@ def save_data(ikey, merged_data, merged_data_in_time, track_dir, time_dir):
     merged_data[ikey].to_pickle(track_dir / f'{outname}.pkl')
     merged_data_in_time[ikey].to_pickle(time_dir / f'{outname}.pkl')
 
-with ThreadPoolExecutor() as executor:
+with ThreadPoolExecutor(max_workers=6) as executor:
     list(tqdm(executor.map(lambda ikey: save_data(ikey, merged_data, merged_data_in_time, track_dir, time_dir), merged_data.keys()), total=len(merged_data)))
