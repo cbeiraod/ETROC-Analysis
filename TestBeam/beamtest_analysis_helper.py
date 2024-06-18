@@ -2600,6 +2600,8 @@ def plot_resolution_with_pulls(
         fig_tag: list[str],
         hist_bins: int = 15,
         slides_friendly: bool = False,
+        print_fit_results: bool = False,
+        constraint_ylim: bool = False,
         save_mother_dir: Path | None = None,
     ):
     """Make summary plot of the board resolution plot with a gaussian fit.
@@ -2649,6 +2651,10 @@ def plot_resolution_with_pulls(
         pars = mod.guess(fit_vals, x=fit_range)
         out = mod.fit(fit_vals, pars, x=fit_range, weights=1/np.sqrt(fit_vals))
         fit_params[key] = out
+
+        if print_fit_results:
+            print(key)
+            print(out.fit_report())
 
         ### Calculate pull
         pulls = (hists[key].values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
@@ -2716,7 +2722,7 @@ def plot_resolution_with_pulls(
                 fit_params[i].eval(x=x_range) + model_uncert,
                 color="hotpink",
                 alpha=0.2,
-                label='Uncertainty'
+                label='Fit Uncertainty'
             )
             main_ax.legend(fontsize=18, loc='best', title=fig_tag[i], title_fontsize=18)
 
@@ -2727,9 +2733,11 @@ def plot_resolution_with_pulls(
             sub_ax.bar(centers, pulls_dict[i], width=width, fc='royalblue')
             sub_ax.set_ylim(-2, 2)
             sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
-            sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
+            sub_ax.set_xlabel('Pixel Time Resolution [ps]', fontsize=20)
             sub_ax.tick_params(axis='x', which='both', labelsize=20)
             sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+
+        plt.tight_layout()
 
         if save_mother_dir is not None:
             save_dir = save_mother_dir / 'time_resolution_results'
@@ -2758,9 +2766,10 @@ def plot_resolution_with_pulls(
                             ms=6, capsize=1, capthick=2, alpha=0.8)
 
             main_ax.set_ylabel('Counts', fontsize=25)
-            main_ax.set_ylim(-5, 190)
             main_ax.tick_params(axis='x', labelsize=20)
             main_ax.tick_params(axis='y', labelsize=20)
+            if constraint_ylim:
+                main_ax.set_ylim(-5, 190)
 
             x_min = centers[0]
             x_max = centers[-1]
@@ -2788,7 +2797,7 @@ def plot_resolution_with_pulls(
                 fit_params[idx].eval(x=x_range) + model_uncert,
                 color="hotpink",
                 alpha=0.2,
-                label='Uncertainty'
+                label='Fit Uncertainty'
             )
             main_ax.legend(fontsize=18, loc='best', title=fig_tag[idx], title_fontsize=18)
 
@@ -2799,9 +2808,11 @@ def plot_resolution_with_pulls(
             sub_ax.bar(centers, pulls_dict[idx], width=width, fc='royalblue')
             sub_ax.set_ylim(-2, 2)
             sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
-            sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=25)
+            sub_ax.set_xlabel('Pixel Time Resolution [ps]', fontsize=25)
             sub_ax.tick_params(axis='x', which='both', labelsize=20)
             sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+
+            plt.tight_layout()
 
             if save_mother_dir is not None:
                 save_dir = save_mother_dir / 'time_resolution_results'
