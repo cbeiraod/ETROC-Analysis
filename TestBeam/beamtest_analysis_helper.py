@@ -1654,7 +1654,7 @@ def plot_number_of_fired_board(
     h = hist.Hist(hist.axis.Regular(5, 0, 5, name="nBoards", label="nBoards"))
     h.fill(input_df.groupby('evt')['board'].nunique())
 
-    fig = plt.figure(dpi=50, figsize=(11,10))
+    fig = plt.figure(figsize=(11,10))
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
     hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
@@ -1679,9 +1679,6 @@ def plot_number_of_hits_per_event(
         input_df: pd.DataFrame,
         tb_loc: str,
         board_names: list[str],
-        fig_tag: str = '',
-        bins: int = 15,
-        hist_range: tuple = (0, 15),
         do_logy: bool = False,
         save_mother_dir: Path | None = None,
     ):
@@ -1695,12 +1692,6 @@ def plot_number_of_hits_per_event(
         Test Beam location for the title. Available argument: desy, cern, fnal
     board_names: list[str],
         A list of board names.
-    fig_tag: str, optional
-        Additional figure tag to put in the title.
-    bins: int, optional
-        Recommend bins to be 1 hit per bin.
-    hist_range: tuple, optional
-        Histogram range.
     do_logy: str, optional
         Log y-axis.
     save_mother_dir: Path, optional
@@ -1712,14 +1703,15 @@ def plot_number_of_hits_per_event(
     hists = {}
 
     for key in hit_df.columns:
-        hists[key] = hist.Hist(hist.axis.Regular(bins, hist_range[0], hist_range[1], name="nHits", label='nHits'))
+        max_hit = hit_df[key].unique().max()
+        hists[key] = hist.Hist(hist.axis.Regular(max_hit, 0, max_hit, name="nHits", label='Number of Hits'))
         hists[key].fill(hit_df[key])
 
-    for ikey, val in hists.items():
+    for idx, ikey in enumerate(hists.keys()):
         fig, ax = plt.subplots(figsize=(11, 10))
         hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
-        val.plot1d(ax=ax, lw=2)
-        ax.set_title(f"{plot_title} {fig_tag}", loc="right", size=16)
+        hists[ikey].plot1d(ax=ax, lw=2)
+        ax.set_title(f"{plot_title} | {board_names[idx]}", loc="right", size=16)
         ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
 
         if do_logy:
@@ -1729,8 +1721,8 @@ def plot_number_of_hits_per_event(
         if save_mother_dir is not None:
             save_dir = save_mother_dir / 'misc'
             save_dir.mkdir(exist_ok=True)
-            fig.savefig(save_dir / f"number_of_hits_{board_names[key]}.png")
-            fig.savefig(save_dir / f"number_of_hits_{board_names[key]}.pdf")
+            fig.savefig(save_dir / f"number_of_hits_{board_names[idx]}.png")
+            fig.savefig(save_dir / f"number_of_hits_{board_names[idx]}.pdf")
             plt.close(fig)
 
 ## --------------------------------------
@@ -2441,12 +2433,12 @@ def plot_TOA_correlation(
     x = input_df['toa'][board_id1]
     y = input_df['toa'][board_id2]
 
-    axis_name1 = board_names[0].replace('_', ' ')
-    axis_name2 = board_names[1].replace('_', ' ')
+    axis_name1 = board_names[board_id1].replace('_', ' ')
+    axis_name2 = board_names[board_id2].replace('_', ' ')
 
     h = hist.Hist(
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[0]}', label=f'TOA of {axis_name1} [LSB]'),
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[1]}', label=f'TOA of {axis_name2} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'TOA of {axis_name1} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'TOA of {axis_name2} [LSB]'),
     )
     h.fill(x, y)
     params = np.polyfit(x, y, 1)
@@ -2608,6 +2600,8 @@ def plot_resolution_with_pulls(
         fig_tag: list[str],
         hist_bins: int = 15,
         slides_friendly: bool = False,
+        print_fit_results: bool = False,
+        constraint_ylim: bool = False,
         save_mother_dir: Path | None = None,
     ):
     """Make summary plot of the board resolution plot with a gaussian fit.
@@ -2657,6 +2651,10 @@ def plot_resolution_with_pulls(
         pars = mod.guess(fit_vals, x=fit_range)
         out = mod.fit(fit_vals, pars, x=fit_range, weights=1/np.sqrt(fit_vals))
         fit_params[key] = out
+
+        if print_fit_results:
+            print(key)
+            print(out.fit_report())
 
         ### Calculate pull
         pulls = (hists[key].values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
@@ -2724,7 +2722,7 @@ def plot_resolution_with_pulls(
                 fit_params[i].eval(x=x_range) + model_uncert,
                 color="hotpink",
                 alpha=0.2,
-                label='Uncertainty'
+                label='Fit Uncertainty'
             )
             main_ax.legend(fontsize=18, loc='best', title=fig_tag[i], title_fontsize=18)
 
@@ -2735,9 +2733,11 @@ def plot_resolution_with_pulls(
             sub_ax.bar(centers, pulls_dict[i], width=width, fc='royalblue')
             sub_ax.set_ylim(-2, 2)
             sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
-            sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
+            sub_ax.set_xlabel('Pixel Time Resolution [ps]', fontsize=20)
             sub_ax.tick_params(axis='x', which='both', labelsize=20)
             sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+
+        plt.tight_layout()
 
         if save_mother_dir is not None:
             save_dir = save_mother_dir / 'time_resolution_results'
@@ -2766,9 +2766,10 @@ def plot_resolution_with_pulls(
                             ms=6, capsize=1, capthick=2, alpha=0.8)
 
             main_ax.set_ylabel('Counts', fontsize=25)
-            main_ax.set_ylim(-5, 190)
             main_ax.tick_params(axis='x', labelsize=20)
             main_ax.tick_params(axis='y', labelsize=20)
+            if constraint_ylim:
+                main_ax.set_ylim(-5, 190)
 
             x_min = centers[0]
             x_max = centers[-1]
@@ -2796,7 +2797,7 @@ def plot_resolution_with_pulls(
                 fit_params[idx].eval(x=x_range) + model_uncert,
                 color="hotpink",
                 alpha=0.2,
-                label='Uncertainty'
+                label='Fit Uncertainty'
             )
             main_ax.legend(fontsize=18, loc='best', title=fig_tag[idx], title_fontsize=18)
 
@@ -2807,9 +2808,11 @@ def plot_resolution_with_pulls(
             sub_ax.bar(centers, pulls_dict[idx], width=width, fc='royalblue')
             sub_ax.set_ylim(-2, 2)
             sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
-            sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=25)
+            sub_ax.set_xlabel('Pixel Time Resolution [ps]', fontsize=25)
             sub_ax.tick_params(axis='x', which='both', labelsize=20)
             sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+
+            plt.tight_layout()
 
             if save_mother_dir is not None:
                 save_dir = save_mother_dir / 'time_resolution_results'
@@ -3201,6 +3204,7 @@ def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
         tb_loc: str,
         tag: str,
+        hist_bins: int = 30,
         n_components: int = 3,
         show_plot: bool = False,
         show_sub_gaussian: bool = False,
@@ -3219,6 +3223,8 @@ def fwhm_based_on_gaussian_mixture_model(
         Test Beam location for the title. Available argument: desy, cern, fnal.
     tag: str,
         Additional string to show which boards are used for delta TOA calculation.
+    hist_bins: int
+        Bins for histogram.
     n_components: int
         Number of sub-gaussian to be considered for the Gaussian Mixture Model
     show_sub_gaussian: bool, optional
@@ -3240,7 +3246,7 @@ def fwhm_based_on_gaussian_mixture_model(
     plot_title = load_fig_title(tb_loc)
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
-    bins, edges = np.histogram(input_data, bins=30, density=True)
+    bins, edges = np.histogram(input_data, bins=hist_bins, density=True)
     centers = 0.5*(edges[1:] + edges[:-1])
     models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
 
@@ -3272,7 +3278,7 @@ def fwhm_based_on_gaussian_mixture_model(
         fig, ax = plt.subplots(figsize=(11,10))
 
         # Plot data histogram
-        bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
+        bins, _, _ = ax.hist(input_data, bins=hist_bins, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
         # Plot PDF of whole model
         hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
