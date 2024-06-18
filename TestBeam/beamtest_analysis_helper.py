@@ -2433,12 +2433,12 @@ def plot_TOA_correlation(
     x = input_df['toa'][board_id1]
     y = input_df['toa'][board_id2]
 
-    axis_name1 = board_names[0].replace('_', ' ')
-    axis_name2 = board_names[1].replace('_', ' ')
+    axis_name1 = board_names[board_id1].replace('_', ' ')
+    axis_name2 = board_names[board_id2].replace('_', ' ')
 
     h = hist.Hist(
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[0]}', label=f'TOA of {axis_name1} [LSB]'),
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[1]}', label=f'TOA of {axis_name2} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'TOA of {axis_name1} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'TOA of {axis_name2} [LSB]'),
     )
     h.fill(x, y)
     params = np.polyfit(x, y, 1)
