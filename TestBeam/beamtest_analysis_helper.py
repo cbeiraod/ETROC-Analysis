@@ -3201,6 +3201,7 @@ def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
         tb_loc: str,
         tag: str,
+        hist_bins: int = 30,
         n_components: int = 3,
         show_plot: bool = False,
         show_sub_gaussian: bool = False,
@@ -3219,6 +3220,8 @@ def fwhm_based_on_gaussian_mixture_model(
         Test Beam location for the title. Available argument: desy, cern, fnal.
     tag: str,
         Additional string to show which boards are used for delta TOA calculation.
+    hist_bins: int
+        Bins for histogram.
     n_components: int
         Number of sub-gaussian to be considered for the Gaussian Mixture Model
     show_sub_gaussian: bool, optional
@@ -3240,7 +3243,7 @@ def fwhm_based_on_gaussian_mixture_model(
     plot_title = load_fig_title(tb_loc)
 
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
-    bins, edges = np.histogram(input_data, bins=30, density=True)
+    bins, edges = np.histogram(input_data, bins=hist_bins, density=True)
     centers = 0.5*(edges[1:] + edges[:-1])
     models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
 
@@ -3272,7 +3275,7 @@ def fwhm_based_on_gaussian_mixture_model(
         fig, ax = plt.subplots(figsize=(11,10))
 
         # Plot data histogram
-        bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
+        bins, _, _ = ax.hist(input_data, bins=hist_bins, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
         # Plot PDF of whole model
         hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
