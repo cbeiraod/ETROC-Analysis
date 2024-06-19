@@ -229,7 +229,7 @@ if log_dir.exists():
     os.system('ls condor_logs/*trackSelection*log | wc -l')
 
 out_dir = current_dir / 'dataSelection_outputs'
-out_dir.mkdir(exist_ok=True)
+out_dir.mkdir(exist_ok=False)
 
 if args.load_from_eos:
     jdl = """universe              = vanilla
