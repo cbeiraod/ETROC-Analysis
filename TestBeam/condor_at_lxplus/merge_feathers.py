@@ -36,14 +36,17 @@ files = natsorted(list(Path(args.input_dir).glob('loop*feather')))
 merge_size = args.number_of_merge
 
 base_dir = Path('./')
-outdir = base_dir / f'merged_{args.input_dir}'
+outdir = base_dir / f'output_merged_{args.input_dir}'
 outdir.mkdir(exist_ok=True)
 
 groups = []
 
+print(f'Number of input files: {len(files)}')
+print(f'How many output files: Either {len(files)//merge_size} or {len(files)//merge_size + 1}')
+
 for i in range(0, len(files), merge_size):
 
-    chunk = files[i:i + 10]
+    chunk = files[i:i + merge_size]
 
     if len(chunk) == merge_size:
         groups.append(chunk)
