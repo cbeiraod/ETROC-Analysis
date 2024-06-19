@@ -69,7 +69,7 @@ for ifile in tqdm(files):
         x_min = df[val].min()-5
         x_max = df[val].max()+5
 
-        h_temp = hist.Hist(hist.axis.Regular(100, x_min, x_max, name="time_resolution", label=r'Time Resolution [ps]'))
+        h_temp = hist.Hist(hist.axis.Regular(35, x_min, x_max, name="time_resolution", label=r'Time Resolution [ps]'))
         h_temp.fill(df[val])
         centers = h_temp.axes[0].centers
 
