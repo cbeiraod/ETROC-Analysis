@@ -200,7 +200,7 @@ bash_script = Template(bash_template).render(options)
 
 print('\n========= Run option =========')
 print(f'Input dataset: {args.dirname}')
-print(f'Output direcotry: {args.outputdir}')
+print(f'Output direcotry: resolution_{args.outputdir}')
 print(f'Bootstrap iteration: {args.iteration}')
 print(f'{args.sampling}% of random sampling')
 print(f'Consider board IDs: {args.board_ids}')
