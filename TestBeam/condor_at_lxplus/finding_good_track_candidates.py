@@ -192,12 +192,14 @@ def finding_tracks(
             if red_2nd_id == -1:
                 trig_selection = (event_board_counts[trig_id] == 1)
                 ref_selection = (event_board_counts[ref_id] == 1)
-                event_selection_col = trig_selection & ref_selection
+                dut_selection = (event_board_counts[dut_id] == 1)
+                event_selection_col = trig_selection & ref_selection & dut_selection
             else:
                 trig_selection = (event_board_counts[trig_id] == 1)
                 ref_selection = (event_board_counts[ref_id] == 1)
                 ref_2nd_selection = (event_board_counts[red_2nd_id] == 1)
-                event_selection_col = trig_selection & ref_selection & ref_2nd_selection
+                dut_selection = (event_board_counts[dut_id] == 1)
+                event_selection_col = trig_selection & ref_selection & ref_2nd_selection & dut_selection
 
             selected_event_numbers = event_board_counts[event_selection_col].index
             selected_subset_df = filtered_df.loc[filtered_df['evt'].isin(selected_event_numbers)]
