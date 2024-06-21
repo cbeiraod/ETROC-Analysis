@@ -501,7 +501,7 @@ if __name__ == "__main__":
             with ProcessPoolExecutor() as process_executor:
                 # Each input results in multiple threading jobs being created:
                 futures = [
-                    process_executor.submit(making_clean_track_df, ifile, columns_to_read, args.trigId, args.dutID, args.refID, args.ignoreID, args.four_board)
+                    process_executor.submit(making_clean_track_df, ifile, columns_to_read, args.trigID, args.dutID, args.refID, args.ignoreID, args.four_board)
                         for ifile in files
                 ]
                 for future in as_completed(futures):
