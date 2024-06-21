@@ -451,7 +451,47 @@ if __name__ == "__main__":
         print('No input files.')
         sys.exit()
 
+    if not args.four_board:
+
+        list_of_ignore_boards = [args.ignoreID]
+        columns_want_to_drop = [f'toa_{i}' for i in set([0, 1, 2, 3])-set(list_of_ignore_boards)]
+
+        columns_want_to_group = []
+        for i in set([0, 1, 2, 3])-set(list_of_ignore_boards):
+            columns_want_to_group.append(f'row_{i}')
+            columns_want_to_group.append(f'col_{i}')
+
+        print('*************** 3-board track finding ********************')
+        print(f'Output csv file name is: {args.outfilename}')
+        print(f'Number track finding iteration: {args.iteration}')
+        print(f'Sampling fraction is: {args.sampling*0.01}')
+        print(f'Minimum number of track for selection is: {args.track}')
+        print(f'Trigger board ID is: {args.trigID}')
+        print(f'Reference board ID is: {args.refID}')
+        print(f'Device Under Test board ID is: {args.dutID}')
+        print(f'Board ID {args.ignoreID} will be ignored')
+        print('*************** 3-board track finding ********************')
+    else:
+        columns_want_to_drop = [f'toa_{i}' for i in [0,1,2,3]]
+
+        columns_want_to_group = []
+        for i in [0, 1, 2, 3]:
+            columns_want_to_group.append(f'row_{i}')
+            columns_want_to_group.append(f'col_{i}')
+
+        print('*************** 4-board track finding ********************')
+        print(f'Output csv file name is: {args.outfilename}')
+        print(f'Number track finding iteration: {args.iteration}')
+        print(f'Sampling fraction is: {args.sampling*0.01}')
+        print(f'Minimum number of track for selection is: {args.track}')
+        print(f'Trigger board ID is: {args.trigID}')
+        print(f'Reference board ID is: {args.refID}')
+        print(f'2nd reference board ID is: {args.ignoreID}')
+        print(f'Device Under Test board ID is: {args.dutID}')
+        print('*************** 4-board track finding ********************')
+
     sampling_fraction = args.sampling * 0.01
+    final_list = []
 
     for isampling in tqdm(range(args.iteration)):
         files = random.sample(input_files, k=int(sampling_fraction*len(input_files)))
@@ -470,94 +510,47 @@ if __name__ == "__main__":
 
         print(results)
 
-        # selected_subset_df['evt'] += nevt
-        # nevt += selected_subset_df['evt'].nunique()
+        df = pd.concat(results)
+        df.reset_index(inplace=True, drop=True)
+        df['evt'], _ = pd.factorize(df['evt'])
+        del results
 
-        # dataframes.append(selected_subset_df)
-        # del event_board_counts, selected_event_numbers, selected_subset_df, event_selection_col
+        if args.ignoreID == -1:
+            ignore_board_ids = list(set([0, 1, 2, 3]) - set([args.trigID, args.dutID, args.refID]))
+        else:
+            ignore_board_ids = None
 
-        # df = pd.concat(dataframes)
-        # df.reset_index(inplace=True, drop=True)
-        # del dataframes
+        pivot_data_df = making_pivot(df, 'evt', 'board', set({'board', 'evt', 'cal', 'tot'}), ignore_boards=ignore_board_ids)
+        del df
 
-        # pivot_data_df = making_pivot(df, 'evt', 'board', set({'board', 'evt', 'cal', 'tot'}), ignore_boards=ignore_board_ids)
-        # del df
+        min_hit_counter = args.track*(len(files)/len(input_files))
+        combinations_df = pivot_data_df.groupby(columns_want_to_group).count()
+        combinations_df['count'] = combinations_df[f'toa_{args.trigID}']
+        combinations_df.drop(columns_want_to_drop, axis=1, inplace=True)
+        track_df = combinations_df.loc[combinations_df['count'] > min_hit_counter]
+        track_df.reset_index(inplace=True)
+        del pivot_data_df, combinations_df
 
-        # min_hit_counter = minimum_number_of_tracks*(len(files)-num_failed_files)/len(input_files)
-        # combinations_df = pivot_data_df.groupby(group_for_pivot).count()
-        # combinations_df['count'] = combinations_df[f'toa_{trig_id}']
-        # combinations_df.drop(drop_for_pivot, axis=1, inplace=True)
-        # track_df = combinations_df.loc[combinations_df['count'] > min_hit_counter]
-        # track_df.reset_index(inplace=True)
-        # del pivot_data_df, combinations_df
+        if args.ignoreID == -1:
+            row_delta_TR = np.abs(track_df[f'row_{args.trigID}'] - track_df[f'row_{args.refID}']) <= 1
+            row_delta_TD = np.abs(track_df[f'row_{args.trigID}'] - track_df[f'row_{args.dutID}']) <= 1
+            col_delta_TR = np.abs(track_df[f'col_{args.trigID}'] - track_df[f'col_{args.refID}']) <= 1
+            col_delta_TD = np.abs(track_df[f'col_{args.trigID}'] - track_df[f'col_{args.dutID}']) <= 1
+            track_condition = (row_delta_TR) & (col_delta_TR) & (row_delta_TD) & (col_delta_TD)
 
-        # if red_2nd_id == -1:
-        #     row_delta_TR = np.abs(track_df[f'row_{trig_id}'] - track_df[f'row_{ref_id}']) <= 1
-        #     row_delta_TD = np.abs(track_df[f'row_{trig_id}'] - track_df[f'row_{dut_id}']) <= 1
-        #     col_delta_TR = np.abs(track_df[f'col_{trig_id}'] - track_df[f'col_{ref_id}']) <= 1
-        #     col_delta_TD = np.abs(track_df[f'col_{trig_id}'] - track_df[f'col_{dut_id}']) <= 1
+        else:
+            row_delta_TR  = np.abs(track_df[f'row_{args.trigID}'] - track_df[f'row_{args.refID}']) <= 1
+            row_delta_TR2 = np.abs(track_df[f'row_{args.trigID}'] - track_df[f'row_{args.ignoreID}']) <= 1
+            row_delta_TD  = np.abs(track_df[f'row_{args.trigID}'] - track_df[f'row_{args.dutID}']) <= 1
+            col_delta_TR  = np.abs(track_df[f'col_{args.trigID}'] - track_df[f'col_{args.refID}']) <= 1
+            col_delta_TR2 = np.abs(track_df[f'col_{args.trigID}'] - track_df[f'col_{args.ignoreID}']) <= 1
+            col_delta_TD  = np.abs(track_df[f'col_{args.trigID}'] - track_df[f'col_{args.dutID}']) <= 1
+            track_condition = (row_delta_TR) & (col_delta_TR) & (row_delta_TD) & (col_delta_TD) & (row_delta_TR2) & (col_delta_TR2)
 
-        #     track_condition = (row_delta_TR) & (col_delta_TR) & (row_delta_TD) & (col_delta_TD)
+        track_df = track_df[track_condition]
+        final_list.append(track_df)
 
-        # else:
-        #     row_delta_TR  = np.abs(track_df[f'row_{trig_id}'] - track_df[f'row_{ref_id}']) <= 1
-        #     row_delta_TR2 = np.abs(track_df[f'row_{trig_id}'] - track_df[f'row_{red_2nd_id}']) <= 1
-        #     row_delta_TD  = np.abs(track_df[f'row_{trig_id}'] - track_df[f'row_{dut_id}']) <= 1
-        #     col_delta_TR  = np.abs(track_df[f'col_{trig_id}'] - track_df[f'col_{ref_id}']) <= 1
-        #     col_delta_TR2 = np.abs(track_df[f'col_{trig_id}'] - track_df[f'col_{red_2nd_id}']) <= 1
-        #     col_delta_TD  = np.abs(track_df[f'col_{trig_id}'] - track_df[f'col_{dut_id}']) <= 1
-
-        #     track_condition = (row_delta_TR) & (col_delta_TR) & (row_delta_TD) & (col_delta_TD) & (row_delta_TR2) & (col_delta_TR2)
-
-        # track_df = track_df[track_condition]
-
-
-
-    # if not args.four_board:
-
-    #     list_of_ignore_boards = [args.ignoreID]
-    #     columns_want_to_drop = [f'toa_{i}' for i in set([0, 1, 2, 3])-set(list_of_ignore_boards)]
-
-    #     columns_want_to_group = []
-    #     for i in set([0, 1, 2, 3])-set(list_of_ignore_boards):
-    #         columns_want_to_group.append(f'row_{i}')
-    #         columns_want_to_group.append(f'col_{i}')
-
-    #     print('*************** 3-board track finding ********************')
-    #     print(f'Output csv file name is: {args.outfilename}')
-    #     print(f'Number track finding iteration: {args.iteration}')
-    #     print(f'Sampling fraction is: {args.sampling*0.01}')
-    #     print(f'Minimum number of track for selection is: {args.track}')
-    #     print(f'Trigger board ID is: {args.trigID}')
-    #     print(f'Reference board ID is: {args.refID}')
-    #     print(f'Device Under Test board ID is: {args.dutID}')
-    #     print(f'Board ID {args.ignoreID} will be ignored')
-    #     print('*************** 3-board track finding ********************')
-
-    #     finding_tracks(input_files=input_files, columns_to_read=columns_to_read, ignore_board_ids=list_of_ignore_boards,
-    #                 outfile_name=args.outfilename, iteration=args.iteration, sampling_fraction=args.sampling, minimum_number_of_tracks=args.track,
-    #                 dut_id=args.dutID, ref_id=args.refID, group_for_pivot=columns_want_to_group, drop_for_pivot=columns_want_to_drop, four_board_track=False)
-    # else:
-
-    #     columns_want_to_drop = [f'toa_{i}' for i in [0,1,2,3]]
-
-    #     columns_want_to_group = []
-    #     for i in [0, 1, 2, 3]:
-    #         columns_want_to_group.append(f'row_{i}')
-    #         columns_want_to_group.append(f'col_{i}')
-
-    #     print('*************** 4-board track finding ********************')
-    #     print(f'Output csv file name is: {args.outfilename}')
-    #     print(f'Number track finding iteration: {args.iteration}')
-    #     print(f'Sampling fraction is: {args.sampling*0.01}')
-    #     print(f'Minimum number of track for selection is: {args.track}')
-    #     print(f'Trigger board ID is: {args.trigID}')
-    #     print(f'Reference board ID is: {args.refID}')
-    #     print(f'2nd reference board ID is: {args.ignoreID}')
-    #     print(f'Device Under Test board ID is: {args.dutID}')
-    #     print('*************** 4-board track finding ********************')
-
-    #     finding_tracks(input_files=input_files, columns_to_read=columns_to_read, ignore_board_ids=None,
-    #                 outfile_name=args.outfilename, iteration=args.iteration, sampling_fraction=args.sampling, minimum_number_of_tracks=args.track,
-    #                 dut_id=args.dutID, ref_id=args.refID, group_for_pivot=columns_want_to_group,
-    #                 drop_for_pivot=columns_want_to_drop, red_2nd_id=args.ignoreID, four_board_track=True)
+    final_df = pd.concat(final_list)
+    final_df.drop(columns=['count'], inplace=True)
+    final_df = final_df.drop_duplicates(subset=columns_want_to_group, keep='first')
+    final_df.to_csv(f'{args.outfilename}.csv', index=False)
