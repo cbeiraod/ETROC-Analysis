@@ -508,12 +508,18 @@ if __name__ == "__main__":
                     pbar.update(1)
                     results.append(future.result())
 
-        print(results)
+        dfs = []
+        nevt = 0
+        for iframe in results:
+            iframe['evt'] += nevt
+            nevt += iframe['evt'].nunique()
+            dfs.append(iframe)
 
-        df = pd.concat(results)
+        df = pd.concat(dfs)
         df.reset_index(inplace=True, drop=True)
-        df['evt'], _ = pd.factorize(df['evt'])
-        del results
+        del results, dfs
+
+        print(df)
 
         if args.ignoreID == -1:
             ignore_board_ids = list(set([0, 1, 2, 3]) - set([args.trigID, args.dutID, args.refID]))
