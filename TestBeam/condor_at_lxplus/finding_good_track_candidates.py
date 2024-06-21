@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
-from glob import glob
 import random
 from tqdm import tqdm
 from pathlib import Path
+import warnings
+warnings.filterwarnings("ignore")
 
 ## --------------------------------------
 def tdc_event_selection(
@@ -147,13 +148,13 @@ def finding_tracks(
                 continue
 
             ### CAL code filtering
-            df['identifier'] = tmp_df.groupby(['evt', 'board']).cumcount().astype(np.uint8)
-            cal_table = df.pivot_table(index=["row", "col"], columns=["board"], values=["cal"], aggfunc=lambda x: x.mode().iat[0])
+            tmp_df['identifier'] = tmp_df.groupby(['evt', 'board']).cumcount().astype(np.uint8)
+            cal_table = tmp_df.pivot_table(index=["row", "col"], columns=["board"], values=["cal"], aggfunc=lambda x: x.mode().iat[0])
 
             cal_table = cal_table.reset_index().set_index([('row', ''), ('col', '')]).stack().reset_index()
             cal_table.columns = ['row', 'col', 'board', 'cal_mode']
 
-            merged_df = pd.merge(df, cal_table, on=['board', 'row', 'col'])
+            merged_df = pd.merge(tmp_df, cal_table, on=['board', 'row', 'col'])
             del tmp_df, cal_table
             cal_condition = abs(merged_df['cal'] - merged_df['cal_mode']) <= 3
             merged_df = merged_df[cal_condition].drop(columns=['cal_mode'])
@@ -201,7 +202,15 @@ def finding_tracks(
             selected_event_numbers = event_board_counts[event_selection_col].index
             selected_subset_df = filtered_df.loc[filtered_df['evt'].isin(selected_event_numbers)]
             selected_subset_df.reset_index(inplace=True, drop=True)
-            selected_subset_df['evt'], _ = pd.factorize(selected_subset_df['evt'])
+
+            try:
+                selected_subset_df['evt'], _ = pd.factorize(selected_subset_df['evt'])
+            except:
+                unique_evt_values = selected_subset_df['evt'].unique()
+                evt_mapping = {old: new for new, old in enumerate(unique_evt_values)}
+                # Apply the mapping to the evt column
+                selected_subset_df['evt'] = selected_subset_df['evt'].map(evt_mapping)
+
             del filtered_df
 
             if idx > 0:
@@ -360,7 +369,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    input_files = list(Path(f'{args.path}').glob('*/*feather'))
+    input_files = list(Path(f'{args.path}').glob('*/loop*feather'))
     columns_to_read = ['evt', 'board', 'row', 'col', 'toa', 'tot', 'cal']
 
     if not args.four_board:
