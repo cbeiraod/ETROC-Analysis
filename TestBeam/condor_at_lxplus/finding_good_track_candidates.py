@@ -111,6 +111,7 @@ def finding_tracks(
         iteration: int = 10,
         sampling_fraction: int = 20,
         minimum_number_of_tracks: int = 1000,
+        trig_id: int = 0,
         dut_id: int = 1,
         ref_id: int = 3,
         red_2nd_id: int = -1,
@@ -123,7 +124,7 @@ def finding_tracks(
     for isampling in tqdm(range(iteration)):
         files = random.sample(input_files, k=int(sampling_fraction*len(input_files)))
 
-        last_evt = 0
+        nevt = 0
         dataframes = []
         num_failed_files = 0
 
@@ -145,29 +146,23 @@ def finding_tracks(
                 print('This file does not have data including at least three boards. Move on to the next file')
                 continue
 
-            event_board_counts = tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-            event_selection_col = None
+            ### CAL code filtering
+            df['identifier'] = tmp_df.groupby(['evt', 'board']).cumcount().astype(np.uint8)
+            cal_table = df.pivot_table(index=["row", "col"], columns=["board"], values=["cal"], aggfunc=lambda x: x.mode().iat[0])
 
-            if red_2nd_id == -1:
-                trig_selection = (event_board_counts[0] >= 1)
-                ref_selection = (event_board_counts[ref_id] >= 1)
-                event_selection_col = trig_selection & ref_selection
-            else:
-                trig_selection = (event_board_counts[0] >= 1)
-                ref_selection = (event_board_counts[ref_id] >= 1)
-                ref_2nd_selection = (event_board_counts[red_2nd_id] >= 1)
-                event_selection_col = trig_selection & ref_selection & ref_2nd_selection
+            cal_table = cal_table.reset_index().set_index([('row', ''), ('col', '')]).stack().reset_index()
+            cal_table.columns = ['row', 'col', 'board', 'cal_mode']
 
-            selected_event_numbers = event_board_counts[event_selection_col].index
-            tmp_df = tmp_df.loc[tmp_df['evt'].isin(selected_event_numbers)]
-            tmp_df.reset_index(inplace=True, drop=True)
+            merged_df = pd.merge(df, cal_table, on=['board', 'row', 'col'])
+            del tmp_df, cal_table
+            cal_condition = abs(merged_df['cal'] - merged_df['cal_mode']) <= 3
+            merged_df = merged_df[cal_condition].drop(columns=['cal_mode'])
+            merged_df = merged_df.sort_values(['evt', 'board', 'identifier']).reset_index(drop=True)
+            cal_filtered_df = merged_df.reset_index(drop=True)
+            cal_filtered_df['board'] = cal_filtered_df['board'].astype(np.uint8)
+            del merged_df, cal_condition
 
-            if idx > 0:
-                tmp_df['evt'] += last_evt
-                tmp_df['evt'] = tmp_df['evt'].astype('uint64')
-            last_evt += np.uint64(tmp_df['evt'].nunique())
-
-            ## Selecting good hits
+            ## A wide TDC cuts
             tdc_cuts = {}
             if ignore_board_ids is None:
                 ids_to_loop = [0, 1, 2, 3]
@@ -177,14 +172,14 @@ def finding_tracks(
             for idx in ids_to_loop:
                 # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
                 if idx == 0:
-                    tdc_cuts[idx] = [tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]-50, tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]+50,  100, 500, 50, 250]
+                    tdc_cuts[idx] = [0, 1100,  100, 500, 50, 250]
                 elif idx == ref_id:
-                    tdc_cuts[idx] = [tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]-50, tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]+50,  0, 1100, 50, 250]
+                    tdc_cuts[idx] = [0, 1100,  0, 1100, 50, 250]
                 else:
-                    tdc_cuts[idx] = [tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]-50, tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]+50,  0, 1100, 0, 600]
+                    tdc_cuts[idx] = [0, 1100,  0, 1100, 0, 600]
 
-            filtered_df = tdc_event_selection(tmp_df, tdc_cuts_dict=tdc_cuts)
-            del tmp_df
+            filtered_df = tdc_event_selection(cal_filtered_df, tdc_cuts_dict=tdc_cuts)
+            del cal_filtered_df
 
             if filtered_df.empty:
                 num_failed_files += 1
@@ -194,18 +189,24 @@ def finding_tracks(
             event_selection_col = None
 
             if red_2nd_id == -1:
-                trig_selection = (event_board_counts[0] == 1)
+                trig_selection = (event_board_counts[trig_id] == 1)
                 ref_selection = (event_board_counts[ref_id] == 1)
                 event_selection_col = trig_selection & ref_selection
             else:
-                trig_selection = (event_board_counts[0] == 1)
+                trig_selection = (event_board_counts[trig_id] == 1)
                 ref_selection = (event_board_counts[ref_id] == 1)
                 ref_2nd_selection = (event_board_counts[red_2nd_id] == 1)
                 event_selection_col = trig_selection & ref_selection & ref_2nd_selection
 
             selected_event_numbers = event_board_counts[event_selection_col].index
-            selected_subset_df = filtered_df[filtered_df['evt'].isin(selected_event_numbers)]
+            selected_subset_df = filtered_df.loc[filtered_df['evt'].isin(selected_event_numbers)]
             selected_subset_df.reset_index(inplace=True, drop=True)
+            selected_subset_df['evt'], _ = pd.factorize(selected_subset_df['evt'])
+            del filtered_df
+
+            if idx > 0:
+                selected_subset_df['evt'] += nevt
+            nevt += selected_subset_df['evt'].nunique()
 
             dataframes.append(selected_subset_df)
             del event_board_counts, selected_event_numbers, selected_subset_df, event_selection_col
@@ -214,33 +215,32 @@ def finding_tracks(
         df.reset_index(inplace=True, drop=True)
         del dataframes
 
-        single_filtered_df = singlehit_event_clear(df, ignore_boards=ignore_board_ids)
-        pivot_data_df = making_pivot(single_filtered_df, 'evt', 'board', set({'board', 'evt', 'cal', 'tot'}), ignore_boards=ignore_board_ids)
-        del single_filtered_df
+        pivot_data_df = making_pivot(df, 'evt', 'board', set({'board', 'evt', 'cal', 'tot'}), ignore_boards=ignore_board_ids)
+        del df
 
         min_hit_counter = minimum_number_of_tracks*(len(files)-num_failed_files)/len(input_files)
         combinations_df = pivot_data_df.groupby(group_for_pivot).count()
-        combinations_df['count'] = combinations_df['toa_0']
+        combinations_df['count'] = combinations_df[f'toa_{trig_id}']
         combinations_df.drop(drop_for_pivot, axis=1, inplace=True)
         track_df = combinations_df.loc[combinations_df['count'] > min_hit_counter]
         track_df.reset_index(inplace=True)
         del pivot_data_df, combinations_df
 
         if red_2nd_id == -1:
-            row_delta_TR = np.abs(track_df['row_0'] - track_df[f'row_{ref_id}']) <= 1
-            row_delta_TD = np.abs(track_df['row_0'] - track_df[f'row_{dut_id}']) <= 1
-            col_delta_TR = np.abs(track_df['col_0'] - track_df[f'col_{ref_id}']) <= 1
-            col_delta_TD = np.abs(track_df['col_0'] - track_df[f'col_{dut_id}']) <= 1
+            row_delta_TR = np.abs(track_df[f'row_{trig_id}'] - track_df[f'row_{ref_id}']) <= 1
+            row_delta_TD = np.abs(track_df[f'row_{trig_id}'] - track_df[f'row_{dut_id}']) <= 1
+            col_delta_TR = np.abs(track_df[f'col_{trig_id}'] - track_df[f'col_{ref_id}']) <= 1
+            col_delta_TD = np.abs(track_df[f'col_{trig_id}'] - track_df[f'col_{dut_id}']) <= 1
 
             track_condition = (row_delta_TR) & (col_delta_TR) & (row_delta_TD) & (col_delta_TD)
 
         else:
-            row_delta_TR = np.abs(track_df['row_0'] - track_df[f'row_{ref_id}']) <= 1
-            row_delta_TR2 = np.abs(track_df['row_0'] - track_df[f'row_{red_2nd_id}']) <= 1
-            row_delta_TD = np.abs(track_df['row_0'] - track_df[f'row_{dut_id}']) <= 1
-            col_delta_TR = np.abs(track_df['col_0'] - track_df[f'col_{ref_id}']) <= 1
-            col_delta_TR2 = np.abs(track_df['col_0'] - track_df[f'col_{red_2nd_id}']) <= 1
-            col_delta_TD = np.abs(track_df['col_0'] - track_df[f'col_{dut_id}']) <= 1
+            row_delta_TR  = np.abs(track_df[f'row_{trig_id}'] - track_df[f'row_{ref_id}']) <= 1
+            row_delta_TR2 = np.abs(track_df[f'row_{trig_id}'] - track_df[f'row_{red_2nd_id}']) <= 1
+            row_delta_TD  = np.abs(track_df[f'row_{trig_id}'] - track_df[f'row_{dut_id}']) <= 1
+            col_delta_TR  = np.abs(track_df[f'col_{trig_id}'] - track_df[f'col_{ref_id}']) <= 1
+            col_delta_TR2 = np.abs(track_df[f'col_{trig_id}'] - track_df[f'col_{red_2nd_id}']) <= 1
+            col_delta_TD  = np.abs(track_df[f'col_{trig_id}'] - track_df[f'col_{dut_id}']) <= 1
 
             track_condition = (row_delta_TR) & (col_delta_TR) & (row_delta_TD) & (col_delta_TD) & (row_delta_TR2) & (col_delta_TR2)
 
@@ -316,6 +316,15 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '--trigID',
+        metavar = 'ID',
+        type = int,
+        help = 'trigger board ID',
+        default = 0,
+        dest = 'trigID',
+    )
+
+    parser.add_argument(
         '--refID',
         metavar = 'ID',
         type = int,
@@ -369,6 +378,7 @@ if __name__ == "__main__":
         print(f'Number track finding iteration: {args.iteration}')
         print(f'Sampling fraction is: {args.sampling*0.01}')
         print(f'Minimum number of track for selection is: {args.track}')
+        print(f'Trigger board ID is: {args.trigID}')
         print(f'Reference board ID is: {args.refID}')
         print(f'Device Under Test board ID is: {args.dutID}')
         print(f'Board ID {args.ignoreID} will be ignored')
@@ -391,6 +401,7 @@ if __name__ == "__main__":
         print(f'Number track finding iteration: {args.iteration}')
         print(f'Sampling fraction is: {args.sampling*0.01}')
         print(f'Minimum number of track for selection is: {args.track}')
+        print(f'Trigger board ID is: {args.trigID}')
         print(f'Reference board ID is: {args.refID}')
         print(f'2nd reference board ID is: {args.ignoreID}')
         print(f'Device Under Test board ID is: {args.dutID}')
