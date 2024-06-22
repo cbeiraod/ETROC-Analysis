@@ -1588,12 +1588,10 @@ def plot_BL_and_NW(
                 im = ax.imshow(pivot_table, interpolation="nearest", vmin=300, vmax=500)
             elif config_dict[iboard]['chip_type'] == "F":
                 im = ax.imshow(pivot_table, interpolation="nearest", vmin=50, vmax=250)
-
             # # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, extend='both')
             cbar.set_label('Baseline', fontsize=25)
             cbar.ax.tick_params(labelsize=18)
-
         elif which_val == 'noise_width':
             im = ax.imshow(pivot_table, interpolation="nearest", vmin=0, vmax=16)
 
@@ -1615,7 +1613,7 @@ def plot_BL_and_NW(
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{config_dict[iboard]['plot_title'].replace('_', ' ')} HV{HVs[config_dict[iboard]['channel']]}V 24C", loc="right", size=16)
+        ax.set_title(f"{config_dict[iboard]['plot_title'].replace('_', ' ')} HV{HVs[config_dict[iboard]['channel']]}V", loc="right", size=16)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
