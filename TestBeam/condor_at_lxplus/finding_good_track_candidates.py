@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
-from glob import glob
 import random
 from tqdm import tqdm
 from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import warnings
+warnings.filterwarnings("ignore")
 
 ## --------------------------------------
 def tdc_event_selection(
@@ -53,33 +55,6 @@ def tdc_event_selection(
         return tdc_filtered_df
 
 ## --------------------------------------
-def singlehit_event_clear(
-        input_df: pd.DataFrame,
-        ignore_boards: list[int] = None
-    ):
-
-    ana_df = input_df
-    if ignore_boards is not None:
-        for board in ignore_boards:
-            ana_df = ana_df.loc[ana_df['board'] != board].copy()
-
-    ## event has one hit from each board
-    event_board_counts = ana_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-    event_selection_col = None
-    for board in event_board_counts:
-        if event_selection_col is None:
-            event_selection_col = (event_board_counts[board] == 1)
-        else:
-            event_selection_col = event_selection_col & (event_board_counts[board] == 1)
-    selected_event_numbers = event_board_counts[event_selection_col].index
-    selected_subset_df = ana_df[ana_df['evt'].isin(selected_event_numbers)]
-    selected_subset_df.reset_index(inplace=True, drop=True)
-
-    del ana_df, event_board_counts, event_selection_col
-
-    return selected_subset_df
-
-## --------------------------------------
 def making_pivot(
         input_df: pd.DataFrame,
         index: str,
@@ -101,160 +76,101 @@ def making_pivot(
         return pivot_data_df
 
 ## --------------------------------------
-def finding_tracks(
-        input_files: list[Path],
+def making_clean_track_df(
+        input_file: Path,
         columns_to_read: list[str],
-        ignore_board_ids: list[int],
-        outfile_name: str,
-        group_for_pivot: list[str],
-        drop_for_pivot: list[str],
-        iteration: int = 10,
-        sampling_fraction: int = 20,
-        minimum_number_of_tracks: int = 1000,
+        trig_id: int = 0,
         dut_id: int = 1,
         ref_id: int = 3,
         red_2nd_id: int = -1,
         four_board_track: bool = False,
     ):
+    df = pd.read_feather(input_file, columns=columns_to_read)
 
-    final_list = []
-    sampling_fraction = sampling_fraction * 0.01
+    if df.empty:
+        num_failed_files += 1
+        print('file is empty. Move on to the next file')
+        return pd.DataFrame()
 
-    for isampling in tqdm(range(iteration)):
-        files = random.sample(input_files, k=int(sampling_fraction*len(input_files)))
+    if (four_board_track) and (df['board'].unique().size != 4):
+        num_failed_files += 1
+        print('This file does not have a full data including all four boards. Move on to the next file')
+        return pd.DataFrame()
 
-        last_evt = 0
-        dataframes = []
-        num_failed_files = 0
+    if (~four_board_track) and (df['board'].unique().size < 3):
+        num_failed_files += 1
+        print('This file does not have data including at least three boards. Move on to the next file')
+        return pd.DataFrame()
 
-        for idx, ifile in enumerate(files):
-            tmp_df = pd.read_feather(ifile, columns=columns_to_read)
+    ### CAL code filtering
+    df['identifier'] = df.groupby(['evt', 'board']).cumcount().astype(np.uint8)
+    cal_table = df.pivot_table(index=["row", "col"], columns=["board"], values=["cal"], aggfunc=lambda x: x.mode().iat[0])
 
-            if tmp_df.empty:
-                num_failed_files += 1
-                print('file is empty. Move on to the next file')
-                continue
+    cal_table = cal_table.reset_index().set_index([('row', ''), ('col', '')]).stack().reset_index()
+    cal_table.columns = ['row', 'col', 'board', 'cal_mode']
 
-            if (four_board_track) and (tmp_df['board'].unique().size != 4):
-                num_failed_files += 1
-                print('This file does not have a full data including all four boards. Move on to the next file')
-                continue
+    merged_df = pd.merge(df, cal_table, on=['board', 'row', 'col'])
+    del df, cal_table
+    cal_condition = abs(merged_df['cal'] - merged_df['cal_mode']) <= 3
+    merged_df = merged_df[cal_condition].drop(columns=['cal_mode'])
+    merged_df = merged_df.sort_values(['evt', 'board', 'identifier']).reset_index(drop=True)
+    cal_filtered_df = merged_df.reset_index(drop=True)
+    cal_filtered_df['board'] = cal_filtered_df['board'].astype(np.uint8)
+    cal_filtered_df.drop(columns=['identifier'], inplace=True)
+    del merged_df, cal_condition
 
-            if (~four_board_track) and (tmp_df['board'].unique().size < 3):
-                num_failed_files += 1
-                print('This file does not have data including at least three boards. Move on to the next file')
-                continue
+    ## A wide TDC cuts
+    tdc_cuts = {}
+    if red_2nd_id == -1:
+        ids_to_loop = sorted([trig_id, dut_id, ref_id])
+    else:
+        ids_to_loop = [0, 1, 2, 3]
 
-            event_board_counts = tmp_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-            event_selection_col = None
-
-            if red_2nd_id == -1:
-                trig_selection = (event_board_counts[0] >= 1)
-                ref_selection = (event_board_counts[ref_id] >= 1)
-                event_selection_col = trig_selection & ref_selection
-            else:
-                trig_selection = (event_board_counts[0] >= 1)
-                ref_selection = (event_board_counts[ref_id] >= 1)
-                ref_2nd_selection = (event_board_counts[red_2nd_id] >= 1)
-                event_selection_col = trig_selection & ref_selection & ref_2nd_selection
-
-            selected_event_numbers = event_board_counts[event_selection_col].index
-            tmp_df = tmp_df.loc[tmp_df['evt'].isin(selected_event_numbers)]
-            tmp_df.reset_index(inplace=True, drop=True)
-
-            if idx > 0:
-                tmp_df['evt'] += last_evt
-                tmp_df['evt'] = tmp_df['evt'].astype('uint64')
-            last_evt += np.uint64(tmp_df['evt'].nunique())
-
-            ## Selecting good hits
-            tdc_cuts = {}
-            if ignore_board_ids is None:
-                ids_to_loop = [0, 1, 2, 3]
-            else:
-                ids_to_loop = set([0, 1, 2, 3])-set(ignore_board_ids)
-
-            for idx in ids_to_loop:
-                # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
-                if idx == 0:
-                    tdc_cuts[idx] = [tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]-50, tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]+50,  100, 500, 50, 250]
-                elif idx == ref_id:
-                    tdc_cuts[idx] = [tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]-50, tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]+50,  0, 1100, 50, 250]
-                else:
-                    tdc_cuts[idx] = [tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]-50, tmp_df.loc[tmp_df['board'] == idx]['cal'].mode()[0]+50,  0, 1100, 0, 600]
-
-            filtered_df = tdc_event_selection(tmp_df, tdc_cuts_dict=tdc_cuts)
-            del tmp_df
-
-            if filtered_df.empty:
-                num_failed_files += 1
-                continue
-
-            event_board_counts = filtered_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
-            event_selection_col = None
-
-            if red_2nd_id == -1:
-                trig_selection = (event_board_counts[0] == 1)
-                ref_selection = (event_board_counts[ref_id] == 1)
-                event_selection_col = trig_selection & ref_selection
-            else:
-                trig_selection = (event_board_counts[0] == 1)
-                ref_selection = (event_board_counts[ref_id] == 1)
-                ref_2nd_selection = (event_board_counts[red_2nd_id] == 1)
-                event_selection_col = trig_selection & ref_selection & ref_2nd_selection
-
-            selected_event_numbers = event_board_counts[event_selection_col].index
-            selected_subset_df = filtered_df[filtered_df['evt'].isin(selected_event_numbers)]
-            selected_subset_df.reset_index(inplace=True, drop=True)
-
-            dataframes.append(selected_subset_df)
-            del event_board_counts, selected_event_numbers, selected_subset_df, event_selection_col
-
-        df = pd.concat(dataframes)
-        df.reset_index(inplace=True, drop=True)
-        del dataframes
-
-        single_filtered_df = singlehit_event_clear(df, ignore_boards=ignore_board_ids)
-        pivot_data_df = making_pivot(single_filtered_df, 'evt', 'board', set({'board', 'evt', 'cal', 'tot'}), ignore_boards=ignore_board_ids)
-        del single_filtered_df
-
-        min_hit_counter = minimum_number_of_tracks*(len(files)-num_failed_files)/len(input_files)
-        combinations_df = pivot_data_df.groupby(group_for_pivot).count()
-        combinations_df['count'] = combinations_df['toa_0']
-        combinations_df.drop(drop_for_pivot, axis=1, inplace=True)
-        track_df = combinations_df.loc[combinations_df['count'] > min_hit_counter]
-        track_df.reset_index(inplace=True)
-        del pivot_data_df, combinations_df
-
-        if red_2nd_id == -1:
-            row_delta_TR = np.abs(track_df['row_0'] - track_df[f'row_{ref_id}']) <= 1
-            row_delta_TD = np.abs(track_df['row_0'] - track_df[f'row_{dut_id}']) <= 1
-            col_delta_TR = np.abs(track_df['col_0'] - track_df[f'col_{ref_id}']) <= 1
-            col_delta_TD = np.abs(track_df['col_0'] - track_df[f'col_{dut_id}']) <= 1
-
-            track_condition = (row_delta_TR) & (col_delta_TR) & (row_delta_TD) & (col_delta_TD)
-
+    for idx in ids_to_loop:
+        # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
+        if idx == 0:
+            tdc_cuts[idx] = [0, 1100,  100, 500, 50, 250]
+        elif idx == ref_id:
+            tdc_cuts[idx] = [0, 1100,  0, 1100, 50, 250]
         else:
-            row_delta_TR = np.abs(track_df['row_0'] - track_df[f'row_{ref_id}']) <= 1
-            row_delta_TR2 = np.abs(track_df['row_0'] - track_df[f'row_{red_2nd_id}']) <= 1
-            row_delta_TD = np.abs(track_df['row_0'] - track_df[f'row_{dut_id}']) <= 1
-            col_delta_TR = np.abs(track_df['col_0'] - track_df[f'col_{ref_id}']) <= 1
-            col_delta_TR2 = np.abs(track_df['col_0'] - track_df[f'col_{red_2nd_id}']) <= 1
-            col_delta_TD = np.abs(track_df['col_0'] - track_df[f'col_{dut_id}']) <= 1
+            tdc_cuts[idx] = [0, 1100,  0, 1100, 0, 600]
 
-            track_condition = (row_delta_TR) & (col_delta_TR) & (row_delta_TD) & (col_delta_TD) & (row_delta_TR2) & (col_delta_TR2)
+    filtered_df = tdc_event_selection(cal_filtered_df, tdc_cuts_dict=tdc_cuts)
+    del cal_filtered_df
 
-        track_df = track_df[track_condition]
+    if filtered_df.empty:
+        num_failed_files += 1
+        return pd.DataFrame()
 
-        final_list.append(track_df)
-        del track_condition, track_df
+    event_board_counts = filtered_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
+    event_selection_col = None
 
-    final_df = pd.concat(final_list)
+    if red_2nd_id == -1:
+        trig_selection = (event_board_counts[trig_id] == 1)
+        ref_selection = (event_board_counts[ref_id] == 1)
+        dut_selection = (event_board_counts[dut_id] == 1)
+        event_selection_col = trig_selection & ref_selection & dut_selection
+    else:
+        trig_selection = (event_board_counts[trig_id] == 1)
+        ref_selection = (event_board_counts[ref_id] == 1)
+        ref_2nd_selection = (event_board_counts[red_2nd_id] == 1)
+        dut_selection = (event_board_counts[dut_id] == 1)
+        event_selection_col = trig_selection & ref_selection & ref_2nd_selection & dut_selection
 
-    final_df.drop(columns=['count'], inplace=True)
-    final_df = final_df.drop_duplicates(subset=columns_want_to_group, keep='first')
-    final_df.to_csv(f'{outfile_name}.csv', index=False)
+    selected_event_numbers = event_board_counts[event_selection_col].index
+    selected_subset_df = filtered_df.loc[filtered_df['evt'].isin(selected_event_numbers)]
+    selected_subset_df.reset_index(inplace=True, drop=True)
 
+    try:
+        selected_subset_df['evt'], _ = pd.factorize(selected_subset_df['evt'])
+    except:
+        unique_evt_values = selected_subset_df['evt'].unique()
+        evt_mapping = {old: new for new, old in enumerate(unique_evt_values)}
+        # Apply the mapping to the evt column
+        selected_subset_df['evt'] = selected_subset_df['evt'].map(evt_mapping)
+
+    del filtered_df
+    return selected_subset_df
 
 ## --------------------------------------
 if __name__ == "__main__":
@@ -316,6 +232,15 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        '--trigID',
+        metavar = 'ID',
+        type = int,
+        help = 'trigger board ID',
+        default = 0,
+        dest = 'trigID',
+    )
+
+    parser.add_argument(
         '--refID',
         metavar = 'ID',
         type = int,
@@ -351,8 +276,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    input_files = list(Path(f'{args.path}').glob('*/*feather'))
+    input_files = list(Path(f'{args.path}').glob('*/loop*feather'))
     columns_to_read = ['evt', 'board', 'row', 'col', 'toa', 'tot', 'cal']
+
+    if len(input_files) == 0:
+        import sys
+        print('No input files.')
+        sys.exit()
 
     if not args.four_board:
 
@@ -369,16 +299,12 @@ if __name__ == "__main__":
         print(f'Number track finding iteration: {args.iteration}')
         print(f'Sampling fraction is: {args.sampling*0.01}')
         print(f'Minimum number of track for selection is: {args.track}')
+        print(f'Trigger board ID is: {args.trigID}')
         print(f'Reference board ID is: {args.refID}')
         print(f'Device Under Test board ID is: {args.dutID}')
         print(f'Board ID {args.ignoreID} will be ignored')
         print('*************** 3-board track finding ********************')
-
-        finding_tracks(input_files=input_files, columns_to_read=columns_to_read, ignore_board_ids=list_of_ignore_boards,
-                    outfile_name=args.outfilename, iteration=args.iteration, sampling_fraction=args.sampling, minimum_number_of_tracks=args.track,
-                    dut_id=args.dutID, ref_id=args.refID, group_for_pivot=columns_want_to_group, drop_for_pivot=columns_want_to_drop, four_board_track=False)
     else:
-
         columns_want_to_drop = [f'toa_{i}' for i in [0,1,2,3]]
 
         columns_want_to_group = []
@@ -391,12 +317,77 @@ if __name__ == "__main__":
         print(f'Number track finding iteration: {args.iteration}')
         print(f'Sampling fraction is: {args.sampling*0.01}')
         print(f'Minimum number of track for selection is: {args.track}')
+        print(f'Trigger board ID is: {args.trigID}')
         print(f'Reference board ID is: {args.refID}')
         print(f'2nd reference board ID is: {args.ignoreID}')
         print(f'Device Under Test board ID is: {args.dutID}')
         print('*************** 4-board track finding ********************')
 
-        finding_tracks(input_files=input_files, columns_to_read=columns_to_read, ignore_board_ids=None,
-                    outfile_name=args.outfilename, iteration=args.iteration, sampling_fraction=args.sampling, minimum_number_of_tracks=args.track,
-                    dut_id=args.dutID, ref_id=args.refID, group_for_pivot=columns_want_to_group,
-                    drop_for_pivot=columns_want_to_drop, red_2nd_id=args.ignoreID, four_board_track=True)
+    sampling_fraction = args.sampling * 0.01
+    final_list = []
+
+    for isampling in tqdm(range(args.iteration)):
+        files = random.sample(input_files, k=int(sampling_fraction*len(input_files)))
+
+        results = []
+        with tqdm(files) as pbar:
+            with ProcessPoolExecutor() as process_executor:
+                # Each input results in multiple threading jobs being created:
+                futures = [
+                    process_executor.submit(making_clean_track_df, ifile, columns_to_read, args.trigID, args.dutID, args.refID, args.ignoreID, args.four_board)
+                        for ifile in files
+                ]
+                for future in as_completed(futures):
+                    pbar.update(1)
+                    results.append(future.result())
+
+        dfs = []
+        nevt = 0
+        for iframe in results:
+            iframe['evt'] += nevt
+            nevt += iframe['evt'].nunique()
+            dfs.append(iframe)
+
+        df = pd.concat(dfs)
+        df.reset_index(inplace=True, drop=True)
+        del results, dfs
+
+        if args.ignoreID == -1:
+            ignore_board_ids = list(set([0, 1, 2, 3]) - set([args.trigID, args.dutID, args.refID]))
+        else:
+            ignore_board_ids = None
+
+        pivot_data_df = making_pivot(df, 'evt', 'board', set({'board', 'evt', 'cal', 'tot'}), ignore_boards=ignore_board_ids)
+        del df
+
+        min_hit_counter = args.track*(len(files)/len(input_files))
+        combinations_df = pivot_data_df.groupby(columns_want_to_group).count()
+        combinations_df['count'] = combinations_df[f'toa_{args.trigID}']
+        combinations_df.drop(columns_want_to_drop, axis=1, inplace=True)
+        track_df = combinations_df.loc[combinations_df['count'] > min_hit_counter]
+        track_df.reset_index(inplace=True)
+        del pivot_data_df, combinations_df
+
+        if args.ignoreID == -1:
+            row_delta_TR = np.abs(track_df[f'row_{args.trigID}'] - track_df[f'row_{args.refID}']) <= 1
+            row_delta_TD = np.abs(track_df[f'row_{args.trigID}'] - track_df[f'row_{args.dutID}']) <= 1
+            col_delta_TR = np.abs(track_df[f'col_{args.trigID}'] - track_df[f'col_{args.refID}']) <= 1
+            col_delta_TD = np.abs(track_df[f'col_{args.trigID}'] - track_df[f'col_{args.dutID}']) <= 1
+            track_condition = (row_delta_TR) & (col_delta_TR) & (row_delta_TD) & (col_delta_TD)
+
+        else:
+            row_delta_TR  = np.abs(track_df[f'row_{args.trigID}'] - track_df[f'row_{args.refID}']) <= 1
+            row_delta_TR2 = np.abs(track_df[f'row_{args.trigID}'] - track_df[f'row_{args.ignoreID}']) <= 1
+            row_delta_TD  = np.abs(track_df[f'row_{args.trigID}'] - track_df[f'row_{args.dutID}']) <= 1
+            col_delta_TR  = np.abs(track_df[f'col_{args.trigID}'] - track_df[f'col_{args.refID}']) <= 1
+            col_delta_TR2 = np.abs(track_df[f'col_{args.trigID}'] - track_df[f'col_{args.ignoreID}']) <= 1
+            col_delta_TD  = np.abs(track_df[f'col_{args.trigID}'] - track_df[f'col_{args.dutID}']) <= 1
+            track_condition = (row_delta_TR) & (col_delta_TR) & (row_delta_TD) & (col_delta_TD) & (row_delta_TR2) & (col_delta_TR2)
+
+        track_df = track_df[track_condition]
+        final_list.append(track_df)
+
+    final_df = pd.concat(final_list)
+    final_df.drop(columns=['count'], inplace=True)
+    final_df = final_df.drop_duplicates(subset=columns_want_to_group, keep='first')
+    final_df.to_csv(f'{args.outfilename}.csv', index=False)

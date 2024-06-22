@@ -50,9 +50,9 @@ for i in range(0, len(files), merge_size):
 
     if len(chunk) == merge_size:
         groups.append(chunk)
-    elif len(chunk) > 5:
+    elif len(chunk) > 4:
         groups.append(chunk)
-    elif len(chunk) <= 5:
+    elif len(chunk) <= 4:
         groups[-1].extend(chunk)
 
 for idx, igroup in enumerate(tqdm(groups)):
