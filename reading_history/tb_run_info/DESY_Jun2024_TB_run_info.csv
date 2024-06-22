@@ -95,3 +95,5 @@ Run,Start_Time,Duration,Loop Time,HV0,HV1,HV2,HV3,offset0,offset1,offset2,offset
 93,"June 22, 12:08 AM",3 hour,30 sec,260,120,120,200,20,20,20,10
 94,"June 22, 3:36 AM",3 hour,30 sec,260,120,120,180,20,20,20,10
 95,"June 22, 8:13 AM",3 hour,30 sec,260,120,120,160,20,20,20,10
+96,"June 22, 11:44 AM",3 hour,30 sec,260,120,120,200,20,20,20,6
+97,"June 22, 3:50 PM",1.5 hour,30 sec,260,120,120,220,20,20,20,10
