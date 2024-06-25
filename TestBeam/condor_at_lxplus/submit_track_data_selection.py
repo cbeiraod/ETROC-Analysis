@@ -109,7 +109,7 @@ if listfile.is_file():
 
 with open(listfile, 'a') as listfile:
     for idir in dirs:
-        files = glob(f'{idir}/*feather')
+        files = glob(f'{idir}/loop*feather')
         for ifile in files:
             pattern = r'Run_(\d+)'
             fname = ifile.split('/')[-1]
@@ -201,6 +201,21 @@ echo ""
 # Render the template with the data
 bash_script = Template(bash_template).render(options)
 
+print('\n========= Run option =========')
+print(f'Input dataset: {args.dirname}')
+print(f'Track csv file: {args.track}')
+print(f'Trigger board ID: {args.trigID}')
+print(f'DUT board ID: {args.dutID}')
+print(f'Reference board ID: {args.refID}')
+print(f'Second reference (or will be ignored) board ID: {args.ignoreID}')
+print(f"TOT cut is {args.trigTOTLower}-{args.trigTOTUpper} on board ID={args.trigID}")
+if args.load_from_eos:
+    print('Feather files will be load from EOS')
+else:
+    print('Feather files will be load from local area')
+print('========= Run option =========\n')
+
+
 with open('run_track_data_selection.sh','w') as bashfile:
     bashfile.write(bash_script)
 
@@ -214,7 +229,7 @@ if log_dir.exists():
     os.system('ls condor_logs/*trackSelection*log | wc -l')
 
 out_dir = current_dir / 'dataSelection_outputs'
-out_dir.mkdir(exist_ok=True)
+out_dir.mkdir(exist_ok=False)
 
 if args.load_from_eos:
     jdl = """universe              = vanilla
@@ -252,5 +267,11 @@ Queue run,fname,loop,path from input_list_for_dataSelection.txt
 with open(f'condor_track_data_selection.jdl','w') as jdlfile:
     jdlfile.write(jdl)
 
-if not args.dryrun:
+if args.dryrun:
+    print('=========== Input text file ===========')
+    os.system('cat input_list_for_dataSelection.txt')
+    print()
+    print('=========== Bash file ===========')
+    os.system('cat run_track_data_selection.sh')
+else:
     os.system(f'condor_submit condor_track_data_selection.jdl')

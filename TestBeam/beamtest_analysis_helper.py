@@ -240,7 +240,7 @@ class DecodeBinary:
                  board_id: list[int],
                  file_list: list[Path],
                  save_nem: Path | None = None,
-                 skip_filler: bool = False,
+                 skip_fw_filler: bool = False,
                  skip_event_df: bool = False,
                  skip_crc_df: bool = False,
                  ):
@@ -257,7 +257,7 @@ class DecodeBinary:
         self.files_to_process        = file_list
         self.save_nem                = save_nem
         self.nem_file                = None
-        self.skip_filler             = skip_filler
+        self.skip_fw_filler          = skip_fw_filler
         self.skip_event_df           = skip_event_df
         self.skip_crc_df             = skip_crc_df
 
@@ -761,12 +761,12 @@ class DecodeBinary:
 
                     # If Firmware filler
                     elif (word >> 16) == self.firmware_filler_pattern:
-                        if self.nem_file is not None and not self.skip_filler:
+                        if self.nem_file is not None and not self.skip_fw_filler:
                             self.write_to_nem(f"Filler: 0b{word & 0xffff:016b}\n")
 
                     # New firmware filler
                     elif (word >> 20) == self.firmware_filler_pattern_new:
-                        if not self.skip_filler:
+                        if not self.skip_fw_filler:
                             self.filler_data['idx'].append(self.filler_idx)
                             self.filler_data['type'].append("FW")
                             self.filler_data['events'].append(self.event_in_filler_counter)
@@ -776,29 +776,27 @@ class DecodeBinary:
                             self.filler_idx += 1
                             self.event_in_filler_counter = 0
                             self.filler_prev_event = self.event_counter
-                        if self.nem_file is not None and not self.skip_filler:
+                        if self.nem_file is not None and not self.skip_fw_filler:
                             self.write_to_nem(f"FW Filler: 0b{word & 0xfffff:020b}\n")
 
                     # Check link filler
                     elif (word >> 20) == self.check_link_filler_pattern:
-                        if not self.skip_filler:
-                            self.filler_data['idx'].append(self.filler_40_idx)
-                            self.filler_data['type'].append("40")
-                            self.filler_data['events'].append(self.event_in_filler_40_counter)
-                            self.filler_data['prev_event'].append(self.filler_40_prev_event)
-                            self.filler_data['last_event'].append(self.event_counter)
-                            self.filler_data['filler_data'].append(f"0b{word & 0xfffff:020b}")
-                            self.filler_40_idx += 1
-                            self.event_in_filler_40_counter = 0
-                            self.filler_40_prev_event = self.event_counter
-                        if self.nem_file is not None and not self.skip_filler:
+                        self.filler_data['idx'].append(self.filler_40_idx)
+                        self.filler_data['type'].append("40")
+                        self.filler_data['events'].append(self.event_in_filler_40_counter)
+                        self.filler_data['prev_event'].append(self.filler_40_prev_event)
+                        self.filler_data['last_event'].append(self.event_counter)
+                        self.filler_data['filler_data'].append(f"0b{word & 0xfffff:020b}")
+                        self.filler_40_idx += 1
+                        self.event_in_filler_40_counter = 0
+                        self.filler_40_prev_event = self.event_counter
+                        if self.nem_file is not None:
                             self.write_to_nem(f"40Hz Filler: 0b{word & 0xfffff:020b}\n")
 
                     if len(self.filler_data['idx']) > 10000:
-                        if not self.skip_filler:
-                            self.set_filler_dtype()
-                            filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
-                            self.filler_data= self.copy_dict_by_json(self.filler_data_template)
+                        self.set_filler_dtype()
+                        filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
+                        self.filler_data= self.copy_dict_by_json(self.filler_data_template)
 
                     # Reset anyway!
                     self.reset_params()
@@ -821,10 +819,9 @@ class DecodeBinary:
                         self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
                 if len(self.filler_data['idx']) > 0:
-                    if not self.skip_filler:
-                        self.set_filler_dtype()
-                        filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
-                        self.filler_data= self.copy_dict_by_json(self.filler_data_template)
+                    self.set_filler_dtype()
+                    filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
+                    self.filler_data= self.copy_dict_by_json(self.filler_data_template)
 
         self.close_file()
         return df, event_df, crc_df, filler_df
@@ -1327,7 +1324,6 @@ def making_pivot(
 
         return pivot_data_df
 
-
 ## --------------------------------------
 def return_broadcast_dataframe(
         input_df: pd.DataFrame,
@@ -1425,23 +1421,23 @@ def return_TOA_correlation_param(
 def return_TWC_param(
         corr_toas: dict,
         input_df: pd.DataFrame,
-        board_list: list[int],
+        board_ids: list[int],
     ):
 
     results = {}
 
-    del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
-    del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
-    del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+    del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_ids[1]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[0]}'])
+    del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[1]}'])
+    del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[1]}']) - corr_toas[f'toa_b{board_ids[2]}'])
 
-    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, 1)
-    results[0] = (input_df[f'tot_b{board_list[0]}'].values*coeff_b0[0] - del_toa_b0 + coeff_b0[1])/(np.sqrt(coeff_b0[0]**2 + 1))
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_ids[0]}'].values, del_toa_b0, 1)
+    results[0] = (input_df[f'tot_b{board_ids[0]}'].values*coeff_b0[0] - del_toa_b0 + coeff_b0[1])/(np.sqrt(coeff_b0[0]**2 + 1))
 
-    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, 1)
-    results[1] = (input_df[f'tot_b{board_list[1]}'].values*coeff_b1[0] - del_toa_b1 + coeff_b1[1])/(np.sqrt(coeff_b1[0]**2 + 1))
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_ids[1]}'].values, del_toa_b1, 1)
+    results[1] = (input_df[f'tot_b{board_ids[1]}'].values*coeff_b1[0] - del_toa_b1 + coeff_b1[1])/(np.sqrt(coeff_b1[0]**2 + 1))
 
-    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, 1)
-    results[2] = (input_df[f'tot_b{board_list[2]}'].values*coeff_b2[0] - del_toa_b2 + coeff_b2[1])/(np.sqrt(coeff_b2[0]**2 + 1))
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_ids[2]}'].values, del_toa_b2, 1)
+    results[2] = (input_df[f'tot_b{board_ids[2]}'].values*coeff_b2[0] - del_toa_b2 + coeff_b2[1])/(np.sqrt(coeff_b2[0]**2 + 1))
 
     return results
 
@@ -1449,23 +1445,35 @@ def return_TWC_param(
 
 
 ## --------------- Plotting -----------------------
+def load_fig_title(
+    tb_loc:str
+):
+    if tb_loc == 'desy':
+        plot_title = r'4 GeV $e^{-}$ at DESY TB'
+    elif tb_loc == 'cern':
+        plot_title = r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at CERN SPS'
+    elif tb_loc == 'fnal':
+        plot_title = r'120 GeV p at Fermilab TB'
+
+    return plot_title
+
 ## --------------------------------------
 def return_hist(
         input_df: pd.DataFrame,
-        chipNames: list[str],
-        chipLabels: list[int],
+        board_ids: list[int],
+        board_names: list[str],
         hist_bins: list = [50, 64, 64]
 ):
-    h = {chipNames[board_idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
+    h = {board_names[board_idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
                 hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
                 hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
                 hist.axis.Regular(4, 0, 3, name="EA", label="EA"),
         )
-    for board_idx in range(len(chipLabels))}
+    for board_idx in range(len(board_ids))}
 
-    for board_idx in range(len(chipLabels)):
-        tmp_df = input_df.loc[input_df['board'] == chipLabels[board_idx]]
-        h[chipNames[board_idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values, tmp_df['ea'].values)
+    for board_idx in range(len(board_ids)):
+        tmp_df = input_df.loc[input_df['board'] == board_ids[board_idx]]
+        h[board_names[board_idx]].fill(tmp_df['cal'].values, tmp_df['tot'].values, tmp_df['toa'].values, tmp_df['ea'].values)
 
     return h
 
@@ -1502,89 +1510,215 @@ def return_crc_hist(
 ## --------------------------------------
 def return_hist_pivot(
         input_df: pd.DataFrame,
-        chipNames: list[str],
-        board_id_to_analyze: list[int],
+        board_ids: list[int],
+        board_names: list[str],
         hist_bins: list = [50, 64, 64]
 ):
-    h = {chipNames[boardID]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
+    h = {board_names[board_idx]: hist.Hist(hist.axis.Regular(hist_bins[0], 140, 240, name="CAL", label="CAL [LSB]"),
                 hist.axis.Regular(hist_bins[1], 0, 512,  name="TOT", label="TOT [LSB]"),
                 hist.axis.Regular(hist_bins[2], 0, 1024, name="TOA", label="TOA [LSB]"),
         )
-    for boardID in board_id_to_analyze}
+    for board_idx in range(len(board_ids))}
 
-    for boardID in board_id_to_analyze:
-        h[chipNames[boardID]].fill(input_df['cal'][boardID].values, input_df['tot'][boardID].values, input_df['toa'][boardID].values)
+    for idx, board_id in enumerate(board_ids):
+        h[board_names[idx]].fill(input_df['cal'][board_id].values, input_df['tot'][board_id].values, input_df['toa'][board_id].values)
 
     return h
 
 ## --------------------------------------
+def plot_BL_and_NW(
+        run_time_df: pd.DataFrame,
+        which_run: int,
+        baseline_df: pd.DataFrame,
+        config_dict: dict,
+        which_val: str,
+        save_mother_dir: Path | None = None,
+    ):
+    """Make Basline of Noise Width 2d map.
+
+    Parameters
+    ----------
+    run_time_df: pd.DataFrame,
+        Include TB run information in csv. Check reading_history/tb_run_info.
+    which_run: int,
+        Run number.
+    baseline_df: pd.DataFrame,
+        Baseline and Noise Width dataframe. Saved in SQL format.
+    config_dict: dict,
+        A dictionary of user config. Should include title for plot, chip_type (determine the color range), and channel (determine HV value).
+    which_val: str,
+        Either which_val = 'baseline' or which_val = 'noise_width.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'occupancy_map'.
+    """
+
+    cut_time1 = run_time_df.loc[run_time_df['Run'] == which_run-1 ,'Start_Time'].values[0]
+    cut_time2 = run_time_df.loc[run_time_df['Run'] == which_run ,'Start_Time'].values[0]
+
+    selected_run_df = baseline_df.loc[(baseline_df['timestamp'] > cut_time1) & (baseline_df['timestamp'] < cut_time2)]
+
+    single_run_df = run_time_df.loc[run_time_df['Run'] == which_run, ["HV0", "HV1", "HV2", "HV3"]]
+    HVs = single_run_df.iloc[0, 0:].to_numpy()
+
+    if selected_run_df.shape[0] != 1024:
+        selected_run_df = selected_run_df.loc[selected_run_df.groupby(['row', 'col', 'chip_name'])['timestamp'].idxmax()].reset_index(drop=True)
+
+    for iboard in selected_run_df['chip_name'].unique():
+        tmp_df = selected_run_df.loc[selected_run_df['chip_name']==iboard]
+
+        # Create a pivot table to reshape the data for plotting
+        pivot_table = tmp_df.pivot(index='row', columns='col', values=which_val)
+
+        if pivot_table.empty:
+            continue
+
+        if (pivot_table.shape[0] != 16) or (pivot_table.shape[1]!= 16):
+            pivot_table = pivot_table.reindex(pd.Index(np.arange(0,16), name='')).reset_index()
+            pivot_table = pivot_table.reindex(columns=np.arange(0,16))
+            pivot_table = pivot_table.fillna(-1)
+
+        # # Create a heatmap to visualize the count of hits
+        fig, ax = plt.subplots(dpi=100, figsize=(12, 12))
+
+        if which_val == 'baseline':
+            if config_dict[iboard]['chip_type'] == "T":
+                im = ax.imshow(pivot_table, interpolation="nearest", vmin=300, vmax=500)
+            elif config_dict[iboard]['chip_type'] == "F":
+                im = ax.imshow(pivot_table, interpolation="nearest", vmin=50, vmax=250)
+            # # Add color bar
+            cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, extend='both')
+            cbar.set_label('Baseline', fontsize=25)
+            cbar.ax.tick_params(labelsize=18)
+        elif which_val == 'noise_width':
+            im = ax.imshow(pivot_table, interpolation="nearest", vmin=0, vmax=16)
+
+            # # Add color bar
+            cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            cbar.set_label('Noise Width', fontsize=25)
+            cbar.ax.tick_params(labelsize=18)
+
+        for i in range(16):
+            for j in range(16):
+                value = pivot_table.iloc[i, j]
+                if value == -1: continue
+                text = str("{:.0f}".format(value))
+                plt.text(j, i, text, va='center', ha='center', color='white', fontsize=14)
+
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+        ax.set_xlabel('Column', fontsize=25)
+        ax.set_ylabel('Row', fontsize=25)
+        ticks = range(0, 16)
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
+        ax.set_title(f"{config_dict[iboard]['plot_title'].replace('_', ' ')} HV{HVs[config_dict[iboard]['channel']]}V", loc="right", size=16)
+        ax.tick_params(axis='x', which='both', length=5, labelsize=17)
+        ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+        ax.invert_xaxis()
+        ax.invert_yaxis()
+        plt.minorticks_off()
+        plt.tight_layout()
+
+        if save_mother_dir is not None:
+            pass
+
+## --------------------------------------
 def plot_number_of_fired_board(
         input_df: pd.DataFrame,
+        tb_loc: str,
         fig_tag: str = '',
         do_logy: bool = False,
-        do_save_fig: bool = False,
-        save_fig_path: str = None,
+        save_mother_dir: Path | None = None,
     ):
+    """Make a plot of number of fired boards in events.
 
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Input dataframe.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fig_tag: str, optional
+        Additional figure tag to put in the title.
+    do_logy: str, optional
+        Log y-axis.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'misc'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     h = hist.Hist(hist.axis.Regular(5, 0, 5, name="nBoards", label="nBoards"))
     h.fill(input_df.groupby('evt')['board'].nunique())
 
-    fig = plt.figure(dpi=50, figsize=(14,12))
+    fig = plt.figure(figsize=(11,10))
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-    ax.set_title(f"{fig_tag}", loc="right", size=25)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+    ax.set_title(f"{plot_title} {fig_tag}", loc="right", size=16)
+    ax.xaxis.label.set_fontsize(25)
+    ax.yaxis.label.set_fontsize(25)
     h.plot1d(ax=ax, lw=2)
     ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
     if do_logy:
         ax.set_yscale('log')
     plt.tight_layout()
 
-    if do_save_fig:
-        if save_fig_path is None:
-            print('Please specify a path to save figure. Otherwise this figure will not be saved')
-            del h
-        else:
-            save_path = Path(save_fig_path)
-            # save_path = save_path / ''
-            # fig.savefig()
-    else:
-        del h
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'misc'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"number_of_fired_board.png")
+        fig.savefig(save_dir / f"number_of_fired_board.pdf")
+        plt.close(fig)
 
 ## --------------------------------------
 def plot_number_of_hits_per_event(
         input_df: pd.DataFrame,
-        fig_titles: list[str],
-        fig_tag: str = '',
-        bins: int = 15,
-        hist_range: tuple = (0, 15),
+        tb_loc: str,
+        board_names: list[str],
         do_logy: bool = False,
+        save_mother_dir: Path | None = None,
     ):
+    """Make a plot of number of hits per event.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Input dataframe.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal
+    board_names: list[str],
+        A list of board names.
+    do_logy: str, optional
+        Log y-axis.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'misc'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     hit_df = input_df.groupby(['evt', 'board']).size().unstack(fill_value=0)
     hists = {}
 
     for key in hit_df.columns:
-        hists[key] = hist.Hist(hist.axis.Regular(bins, hist_range[0], hist_range[1], name="nHits", label='nHits'))
+        max_hit = hit_df[key].unique().max()
+        hists[key] = hist.Hist(hist.axis.Regular(max_hit, 0, max_hit, name="nHits", label='Number of Hits'))
         hists[key].fill(hit_df[key])
 
-    fig = plt.figure(dpi=100, figsize=(30,13))
-    gs = fig.add_gridspec(2,2)
-
-    for i, plot_info in enumerate(gs):
-
-        if i not in hists.keys():
-            continue
-
-        ax = fig.add_subplot(plot_info)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
-        hists[i].plot1d(ax=ax, lw=2)
-        ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
+    for idx, ikey in enumerate(hists.keys()):
+        fig, ax = plt.subplots(figsize=(11, 10))
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+        hists[ikey].plot1d(ax=ax, lw=2)
+        ax.set_title(f"{plot_title} | {board_names[idx]}", loc="right", size=16)
         ax.get_yaxis().get_offset_text().set_position((-0.05, 0))
+
         if do_logy:
             ax.set_yscale('log')
 
-    plt.tight_layout()
-    del hists, hit_df
+        plt.tight_layout()
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'misc'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"number_of_hits_{board_names[idx]}.png")
+            fig.savefig(save_dir / f"number_of_hits_{board_names[idx]}.pdf")
+            plt.close(fig)
 
 ## --------------------------------------
 def plot_2d_nHits_nBoard(
@@ -1616,7 +1750,7 @@ def plot_2d_nHits_nBoard(
             continue
 
         ax = fig.add_subplot(plot_info)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=20)
         hep.hist2dplot(hists[i], ax=ax, norm=colors.LogNorm())
         ax.set_title(f"{fig_titles[i]} {fig_tag}", loc="right", size=18)
 
@@ -1626,19 +1760,38 @@ def plot_2d_nHits_nBoard(
 ## --------------------------------------
 def plot_occupany_map(
         input_df: pd.DataFrame,
-        chipLabels: list[int],
-        chipNames: list[str],
-        fig_title: list[str],
-        fig_path: str = './',
-        fig_tag: str = '',
+        board_ids: list[int],
+        board_names: list[str],
+        tb_loc: str,
         fname_tag: str = '',
         exclude_noise: bool = False,
-        save: bool = False,
+        save_mother_dir: Path | None = None,
     ):
+    """Make occupancy plot.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    board_ids: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_names: list[str],
+        A list of board name that will use for the file name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional
+        Draw boundary cut in the plot.
+    exclude_noise: bool, optional
+        Remove hits when TOT < 10 before plotting.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'occupancy_map'.
+    """
 
     from matplotlib import colormaps
     cmap = colormaps['viridis']
     cmap.set_under(color='lightgrey')
+
+    plot_title = load_fig_title(tb_loc)
 
     if exclude_noise:
         ana_df = input_df.loc[input_df['tot'] > 10].copy()
@@ -1652,7 +1805,7 @@ def plot_occupany_map(
     # Rename the 'evt' column to 'hits'
     hits_count_by_col_row_board = hits_count_by_col_row_board.rename(columns={'evt': 'hits'})
 
-    for board_id in chipLabels:
+    for idx ,board_id in enumerate(board_ids):
         # Create a pivot table to reshape the data for plotting
         pivot_table = hits_count_by_col_row_board[hits_count_by_col_row_board['board'] == board_id].pivot_table(
             index='row',
@@ -1670,14 +1823,14 @@ def plot_occupany_map(
             pivot_table = pivot_table.fillna(-1)
 
         # Create a heatmap to visualize the count of hits
-        fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
+        fig, ax = plt.subplots(dpi=100, figsize=(12, 12))
         ax.cla()
         im = ax.imshow(pivot_table, cmap=cmap, interpolation="nearest", vmin=0)
 
         # Add color bar
         cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        cbar.set_label('Hits', fontsize=20)
-        cbar.ax.tick_params(labelsize=20)
+        cbar.set_label('Hits', fontsize=25)
+        cbar.ax.tick_params(labelsize=18)
 
         for i in range(16):
             for j in range(16):
@@ -1685,23 +1838,103 @@ def plot_occupany_map(
                 if value == -1: continue
                 text_color = 'black' if value > 0.5*(pivot_table.values.max() + pivot_table.values.min()) else 'white'
                 text = str("{:.0f}".format(value))
-                plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=17)
+                plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=12)
 
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        ax.set_xlabel('Column (col)', fontsize=20)
-        ax.set_ylabel('Row (row)', fontsize=20)
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+        ax.set_xlabel('Column', fontsize=25)
+        ax.set_ylabel('Row', fontsize=25)
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{fig_title[board_id]}, Occupancy map {fig_tag}", loc="right", size=20)
+        ax.set_title(f"{plot_title} | {board_names[idx].replace('_', ' ')}", loc="right", size=16)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
         ax.invert_yaxis()
         plt.minorticks_off()
+        plt.tight_layout()
 
-        if (save):
-            fig.savefig(f"{fig_path}/occupancy_{chipNames[board_id]}_{fname_tag}.png")
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'occupancy_map'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"occupancy_{board_names[board_id]}_{fname_tag}.png")
+            fig.savefig(save_dir / f"occupancy_{board_names[board_id]}_{fname_tag}.pdf")
+            plt.close(fig)
+
+## --------------------------------------
+def plot_3d_occupany_map(
+        input_df: pd.DataFrame,
+        board_ids: list[int],
+        board_names: list[str],
+        tb_loc: str,
+        fname_tag: str = '',
+        save_mother_dir: Path | None = None,
+    ):
+    """Make 3D occupancy plot.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    board_ids: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_names: list[str],
+        A list of board name that will use for the file name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional
+        Draw boundary cut in the plot.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'occupancy_map'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
+    hits_count_by_col_row_board = input_df.groupby(['col', 'row', 'board'])['evt'].count().reset_index()
+
+    # Rename the 'evt' column to 'hits'
+    hits_count_by_col_row_board = hits_count_by_col_row_board.rename(columns={'evt': 'hits'})
+
+    for idx ,board_id in enumerate(board_ids):
+        # Create a pivot table to reshape the data for plotting
+        pivot_table = hits_count_by_col_row_board[hits_count_by_col_row_board['board'] == board_id].pivot_table(
+            index='row',
+            columns='col',
+            values='hits',
+            fill_value=0  # Fill missing values with 0 (if any)
+        )
+        fig = plt.figure(figsize=(11, 10))
+        ax = fig.add_subplot(111, projection='3d')
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+
+        # Create a meshgrid for the 3D surface
+        x, y = np.meshgrid(np.arange(16), np.arange(16))
+        z = pivot_table.values
+        dx = dy = 0.75  # Width and depth of the bars
+
+        # Create a 3D surface plot
+        ax.bar3d(x.flatten(), y.flatten(), np.zeros_like(z).flatten(), dx, dy, z.flatten(), shade=True)
+
+        # Customize the 3D plot settings as needed
+        ax.set_xlabel('COL', fontsize=15, labelpad=15)
+        ax.set_ylabel('ROW', fontsize=15, labelpad=15)
+        ax.set_zlabel('Hits', fontsize=15, labelpad=-35)
+        ax.invert_xaxis()
+        ticks = range(0, 16)
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
+        ax.set_xticks(ticks=range(16), labels=[], minor=True)
+        ax.set_yticks(ticks=range(16), labels=[], minor=True)
+        ax.tick_params(axis='x', labelsize=8)  # You can adjust the 'pad' value
+        ax.tick_params(axis='y', labelsize=8)
+        ax.tick_params(axis='z', labelsize=8)
+        ax.set_title(f"{plot_title} | {board_names[idx]}", fontsize=14, loc='right')
+        plt.tight_layout()
+
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'occupancy_map'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"3D_occupancy_{board_names[board_id]}_{fname_tag}.png")
+            fig.savefig(save_dir / f"3D_occupancy_{board_names[board_id]}_{fname_tag}.pdf")
             plt.close(fig)
 
 ## --------------------------------------
@@ -1746,8 +1979,8 @@ def plot_TDC_summary_table(
         im1 = axes[0].imshow(table_mean, cmap=cmap, vmin=0)
         im2 = axes[1].imshow(table_std, cmap=cmap, vmin=0)
 
-        hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=25)
-        hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[0], text="ETL ETROC Test Beam", fontsize=25)
+        hep.cms.text(loc=0, ax=axes[1], text="ETL ETROC Test Beam", fontsize=25)
 
         axes[0].set_title(f'{var.upper()} Mean', loc="right")
         axes[1].set_title(f'{var.upper()} Std', loc="right")
@@ -1782,105 +2015,111 @@ def plot_TDC_summary_table(
 
 ## --------------------------------------
 def plot_1d_TDC_histograms(
-        input_hist: hist.Hist,
-        chip_name: str,
-        chip_figname: str,
-        fig_title: str,
-        fig_path: Path = Path('./'),
-        save: bool = False,
-        tag: str = '',
-        fig_tag: str = '',
+        input_hist: dict,
+        board_name: str,
+        tb_loc: str,
+        fig_tag: str | None = None,
         slide_friendly: bool = False,
         do_logy: bool = False,
         event_hist: hist.Hist | None = None,
+        save_mother_dir: Path | None = None,
+        tag: str = '',
     ):
+    """Make plots of 1D TDC histograms.
 
+    Parameters
+    ----------
+    input_hist: dict,
+        A dictionary of TDC histograms, which returns from return_hist, return_hist_pivot
+    board_name: str,
+        Board name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fig_tag: str, optional
+        Additional board information to show in the plot.
+    slide_friendly: bool, optional
+        If it is True, draw plots in a single figure. Recommend this option, when you try to add plots on the slides.
+    do_logy: bool, optional
+        Set log y-axis on 1D histograms.
+    event_hist: hist.Hist, optional
+        A dictionary of TDC histograms, which returns from return_event_hist
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'1d_tdc_hists'.
+    tag: str, optional (recommend),
+        Additional tag for the file name.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     if not slide_friendly:
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_CAL_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
 
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_TOT_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
+        vals = ["CAL", "TOT", "TOA", "EA"]
+        for ival in vals:
+            try:
+                fig, ax = plt.subplots(figsize=(11, 10))
+                ax.set_title(plot_title, loc="right", size=16)
+                hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+                input_hist[board_name].project(ival)[:].plot1d(ax=ax, lw=2)
+                ax.xaxis.label.set_fontsize(25)
+                ax.yaxis.label.set_fontsize(25)
 
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_TOA_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
+                if fig_tag is not None:
+                    ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right')
 
-        fig = plt.figure(dpi=50, figsize=(20,10))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, EA{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("EA")[:].plot1d(ax=ax, lw=2)
-        if do_logy:
-            ax.set_yscale('log')
-        plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_EA_{tag}.pdf')
-            plt.clf()
-            plt.close(fig)
+                if do_logy:
+                    ax.set_yscale('log')
+                plt.tight_layout()
 
-        fig = plt.figure(dpi=50, figsize=(20,20))
-        gs = fig.add_gridspec(1,1)
-        ax = fig.add_subplot(gs[0,0])
-        ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=25)
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-        input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
-        if do_logy:
-            #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
-            #plt.colorbar(pcm)
-            pass
+                if save_mother_dir is not None:
+                    save_dir = save_mother_dir / '1d_tdc_hists'
+                    save_dir.mkdir(exist_ok=True)
+                    fig.savefig(save_dir / f'{board_name}_{ival}_{tag}.png')
+                    fig.savefig(save_dir / f'{board_name}_{ival}_{tag}.pdf')
+                    plt.close(fig)
+            except Exception as e:
+                plt.close(fig)
+                print(f'No {ival} histogram is found')
+
+        ## 2D TOA-TOT
+        fig, ax = plt.subplots(figsize=(11, 10))
+        ax.set_title(plot_title, loc="right", size=16)
+        ax.xaxis.label.set_fontsize(25)
+        ax.yaxis.label.set_fontsize(25)
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+        hep.hist2dplot(input_hist[board_name].project("TOA","TOT")[::2j,::2j], ax=ax)
+
+        if fig_tag is not None:
+            ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right', bbox=dict(facecolor='white'))
+
         plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_TOA_TOT_{tag}.pdf')
-            plt.clf()
+
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / '1d_tdc_hists'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f'{board_name}_TOA_TOT_{tag}.png')
+            fig.savefig(save_dir / f'{board_name}_TOA_TOT_{tag}.pdf')
             plt.close(fig)
 
         if event_hist is not None:
-            fig = plt.figure(dpi=50, figsize=(20,10))
-            gs = fig.add_gridspec(1,1)
-            ax = fig.add_subplot(gs[0,0])
-            ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=25)
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+            fig, ax = plt.subplots(figsize=(11, 10))
+            ax.set_title(plot_title, loc="right", size=16)
+            hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
             event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
+            ax.xaxis.label.set_fontsize(25)
+            ax.yaxis.label.set_fontsize(25)
+
+            if fig_tag is not None:
+                ax.text(0.98, 0.97, fig_tag, transform=ax.transAxes, fontsize=17, verticalalignment='top', horizontalalignment='right')
+
             if do_logy:
                 ax.set_yscale('log')
+
             plt.tight_layout()
-            if(save):
-                plt.savefig(fig_path/f'{chip_figname}_Hamming_Count_{tag}.pdf')
-                plt.clf()
+
+            if save_mother_dir is not None:
+                save_dir = save_mother_dir / '1d_tdc_hists'
+                save_dir.mkdir(exist_ok=True)
+                fig.savefig(save_dir / f'{board_name}_Hamming_Count_{tag}.png')
+                fig.savefig(save_dir / f'{board_name}_Hamming_Count_{tag}.pdf')
                 plt.close(fig)
 
     else:
@@ -1889,40 +2128,42 @@ def plot_1d_TDC_histograms(
 
         for i, plot_info in enumerate(gs):
             ax = fig.add_subplot(plot_info)
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
+            hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
             if i == 0:
-                ax.set_title(f"{fig_title}, CAL{fig_tag}", loc="right", size=15)
-                input_hist[chip_name].project("CAL")[:].plot1d(ax=ax, lw=2)
+                ax.set_title(plot_title, loc="right", size=16)
+                input_hist[board_name].project("CAL")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 1:
-                ax.set_title(f"{fig_title}, TOA{fig_tag}", loc="right", size=15)
-                input_hist[chip_name].project("TOA")[:].plot1d(ax=ax, lw=2)
+                ax.set_title(plot_title, loc="right", size=16)
+                input_hist[board_name].project("TOA")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 2:
-                ax.set_title(f"{fig_title}, TOT{fig_tag}", loc="right", size=15)
-                input_hist[chip_name].project("TOT")[:].plot1d(ax=ax, lw=2)
+                ax.set_title(plot_title, loc="right", size=16)
+                input_hist[board_name].project("TOT")[:].plot1d(ax=ax, lw=2)
                 if do_logy:
                     ax.set_yscale('log')
             elif i == 3:
                 if event_hist is None:
-                    ax.set_title(f"{fig_title}, TOA v TOT{fig_tag}", loc="right", size=14)
-                    input_hist[chip_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
+                    ax.set_title(plot_title, loc="right", size=16)
+                    input_hist[board_name].project("TOA","TOT")[::2j,::2j].plot2d(ax=ax)
                     if do_logy:
                         #pcm = plt.pcolor(self._data, norm = colors.LogNorm())
                         #plt.colorbar(pcm)
                         pass
                 else:
-                    ax.set_title(f"{fig_title}, Event Hamming Count{fig_tag}", loc="right", size=15)
+                    ax.set_title(plot_title, loc="right", size=16)
                     event_hist.project("HA")[:].plot1d(ax=ax, lw=2)
                     if do_logy:
                         ax.set_yscale('log')
 
         plt.tight_layout()
-        if(save):
-            plt.savefig(fig_path/f'{chip_figname}_combined_TDC_{tag}.pdf')
-            plt.clf()
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / '1d_tdc_hists'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f'{board_name}_combined_{tag}.png')
+            fig.savefig(save_dir / f'{board_name}_combined_{tag}.pdf')
             plt.close(fig)
 
 ## --------------------------------------
@@ -1937,8 +2178,8 @@ def plot_1d_event_CRC_histogram(
     fig = plt.figure(dpi=50, figsize=(20,10))
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
-    ax.set_title(f"Event CRC Check{fig_tag}", loc="right", size=25)
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    ax.set_title(f"Event CRC Check{fig_tag}", loc="right", size=16)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
     input_hist.project("CRC_mismatch")[:].plot1d(ax=ax, lw=2)
     if do_logy:
         ax.set_yscale('log')
@@ -1948,7 +2189,7 @@ def plot_1d_event_CRC_histogram(
         plt.clf()
         plt.close(fig)
 
-## --------------------------------------
+## ------------------------------------
 def plot_1d_CRC_histogram(
         input_hist: hist.Hist,
         chip_name: str,
@@ -1964,7 +2205,7 @@ def plot_1d_CRC_histogram(
     gs = fig.add_gridspec(1,1)
     ax = fig.add_subplot(gs[0,0])
     ax.set_title(f"{fig_title}, CRC Check{fig_tag}", loc="right", size=25)
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=25)
     input_hist[chip_name].project("CRC_mismatch")[:].plot1d(ax=ax, lw=2)
     if do_logy:
         ax.set_yscale('log')
@@ -1980,17 +2221,41 @@ def plot_correlation_of_pixels(
         board_ids: list[int],
         board_name1: str,
         board_name2: str,
-        fig_title: str,
-        fit_tag: str = '',
+        tb_loc: str,
+        fname_tag: str = '',
+        save_mother_dir: Path | None = None,
     ):
+    """Make pixel row-column correlation plot.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    board_ids: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_name1: str,
+        Board 1 name.
+    board_name2: str,
+        Board 2 name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional (recommend)
+        Additiional tag for the file name.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'spatial_correlation'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
+    axis_name1 = board_name1.replace('_', ' ')
+    axis_name2 = board_name2.replace('_', ' ')
 
     h_row = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='row1', label=f'Row of {board_name1}'),
-        hist.axis.Regular(16, 0, 16, name='row2', label=f'Row of {board_name2}'),
+        hist.axis.Regular(16, 0, 16, name='row1', label=f'Row of {axis_name1}'),
+        hist.axis.Regular(16, 0, 16, name='row2', label=f'Row of {axis_name2}'),
     )
     h_col = hist.Hist(
-        hist.axis.Regular(16, 0, 16, name='col1', label=f'Column of {board_name1}'),
-        hist.axis.Regular(16, 0, 16, name='col2', label=f'Column of {board_name2}'),
+        hist.axis.Regular(16, 0, 16, name='col1', label=f'Column of {axis_name1}'),
+        hist.axis.Regular(16, 0, 16, name='col2', label=f'Column of {axis_name2}'),
     )
 
     h_row.fill(input_df[f'row_{board_ids[0]}'].values, input_df[f'row_{board_ids[1]}'].values)
@@ -2001,8 +2266,10 @@ def plot_correlation_of_pixels(
     fig, ax = plt.subplots(1, 2, dpi=100, figsize=(23, 11))
 
     hep.hist2dplot(h_row, ax=ax[0], norm= colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[0], text="Phase-2 Preliminary", fontsize=22)
-    ax[0].set_title(f"{fig_title} {fit_tag}", loc="right", size=16)
+    hep.cms.text(loc=0, ax=ax[0], text="ETL ETROC Test Beam", fontsize=18)
+    ax[0].set_title(plot_title, loc="right", size=16)
+    ax[0].xaxis.label.set_fontsize(25)
+    ax[0].yaxis.label.set_fontsize(25)
     ax[0].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[0].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[0].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2012,8 +2279,10 @@ def plot_correlation_of_pixels(
     ax[0].tick_params(axis='both', which='major', length=0)
 
     hep.hist2dplot(h_col, ax=ax[1], norm= colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax[1], text="Phase-2 Preliminary", fontsize=22)
-    ax[1].set_title(f"{fig_title} {fit_tag}", loc="right", size=16)
+    hep.cms.text(loc=0, ax=ax[1], text="ETL ETROC Test Beam", fontsize=18)
+    ax[1].set_title(plot_title, loc="right", size=16)
+    ax[1].xaxis.label.set_fontsize(25)
+    ax[1].yaxis.label.set_fontsize(25)
     ax[1].xaxis.set_major_formatter(ticker.NullFormatter())
     ax[1].xaxis.set_minor_locator(ticker.FixedLocator(location))
     ax[1].xaxis.set_minor_formatter(ticker.FixedFormatter(tick_labels))
@@ -2024,14 +2293,44 @@ def plot_correlation_of_pixels(
 
     plt.tight_layout()
 
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'spatial_correlation'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fname_tag}.png")
+        fig.savefig(save_dir / f"spatial_correlation_{board_name1}_{board_name2}_{fname_tag}.pdf")
+        plt.close(fig)
+
 ## --------------------------------------
 def plot_difference_of_pixels(
         input_df: pd.DataFrame,
         board_ids: list[int],
-        fig_title: str,
-        fit_tag: str = '',
+        board_name1: str,
+        board_name2: str,
+        tb_loc: str,
+        fname_tag: str = '',
+        save_mother_dir: Path | None = None,
     ):
+    """Make 2D map of delta Row and delta Column.
 
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of data.
+    board_ids: list[int],
+        A list of integer (board ID) that wants to make plots.
+    board_name1: str,
+        Board 1 name.
+    board_name2: str,
+        Board 2 name.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fname_tag: str, optional (recommend)
+        Additiional tag for the file name.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'spatial_correlation'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     diff_row = (input_df[f'row_{board_ids[0]}'].astype(np.int8) - input_df[f'row_{board_ids[1]}'].astype(np.int8)).values
     diff_col = (input_df[f'col_{board_ids[0]}'].astype(np.int8) - input_df[f'col_{board_ids[1]}'].astype(np.int8)).values
 
@@ -2045,12 +2344,21 @@ def plot_difference_of_pixels(
     fig, ax = plt.subplots(dpi=100, figsize=(11, 11))
 
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=22)
-    ax.set_title(f"{fig_title} {fit_tag}", loc="right", size=18)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+    ax.set_title(plot_title, loc="right", size=16)
+    ax.xaxis.label.set_fontsize(25)
+    ax.yaxis.label.set_fontsize(25)
     ax.tick_params(axis='x', which='both', length=5, labelsize=17)
     ax.tick_params(axis='y', which='both', length=5, labelsize=17)
     plt.minorticks_off()
     plt.tight_layout()
+
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'spatial_correlation'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fname_tag}.png")
+        fig.savefig(save_dir / f"spatial_difference_{board_name1}_{board_name2}_{fname_tag}.pdf")
+        plt.close(fig)
 
 ## --------------------------------------
 def plot_distance(
@@ -2072,8 +2380,8 @@ def plot_distance(
 
     fig, ax = plt.subplots(dpi=100, figsize=(15, 8))
     hep.histplot(h_dis, ax=ax)
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-    ax.set_title(f"{fig_title} {fig_tag}", loc="right", size=15)
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+    ax.set_title(f"{fig_title} {fig_tag}", loc="right", size=16)
 
     if do_logy:
         ax.set_yscale('log')
@@ -2090,23 +2398,52 @@ def plot_TOA_correlation(
         board_id2: int,
         boundary_cut: float,
         board_names: list[str],
+        tb_loc: str,
         draw_boundary: bool = False,
+        save_mother_dir: Path | None = None,
     ):
+    """Make plot of TOA correlation between selected two boards.
 
+    Parameters
+    ----------
+    input_df: pd.DataFrame,
+        Pandas dataframe of a single track.
+    board_id1: int,
+        Board 1 ID.
+    board_id2: int,
+        Board 2 ID.
+    boundary_cut: float,
+        Size of boundary. boundary_cut * standard devition of distance arrays
+    board_names: list[str],
+        A string list including board names.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    draw_boundary: bool, optional
+        Draw boundary cut in the plot.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'temporal_correlation'.
+    """
+
+    plot_title = load_fig_title(tb_loc)
     x = input_df['toa'][board_id1]
     y = input_df['toa'][board_id2]
 
+    axis_name1 = board_names[board_id1].replace('_', ' ')
+    axis_name2 = board_names[board_id2].replace('_', ' ')
+
     h = hist.Hist(
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'TOA of {board_names[board_id1]} [LSB]'),
-        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'TOA of {board_names[board_id2]} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id1]}', label=f'TOA of {axis_name1} [LSB]'),
+        hist.axis.Regular(128, 0, 1024, name=f'{board_names[board_id2]}', label=f'TOA of {axis_name2} [LSB]'),
     )
     h.fill(x, y)
     params = np.polyfit(x, y, 1)
     distance = (x*params[0] - y + params[1])/(np.sqrt(params[0]**2 + 1))
 
-    fig, ax = plt.subplots(figsize=(10, 10))
-    hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-    ax.set_title(f"TOA correlation", loc="right", size=20)
+    fig, ax = plt.subplots(figsize=(11, 10))
+    hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+    ax.set_title(plot_title, loc='right', fontsize=16)
+    ax.xaxis.label.set_fontsize(25)
+    ax.yaxis.label.set_fontsize(25)
     hep.hist2dplot(h, ax=ax, norm=colors.LogNorm())
 
     # calculate the trendline
@@ -2116,60 +2453,102 @@ def plot_TOA_correlation(
     # plot the trend line
     ax.plot(x_range, trendpoly(x_range), 'r-', label='linear fit')
     if draw_boundary:
-        ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(distance), y2=trendpoly(x_range)+boundary_cut*np.std(distance),
-                        facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+        ax.plot(x_range, trendpoly(x_range)-boundary_cut*np.std(distance), 'r--', label=fr'{boundary_cut}$\sigma$ boundary')
+        ax.plot(x_range, trendpoly(x_range)+boundary_cut*np.std(distance), 'r--')
+        # ax.fill_between(x_range, y1=trendpoly(x_range)-boundary_cut*np.std(distance), y2=trendpoly(x_range)+boundary_cut*np.std(distance),
+        #                 facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
     ax.legend()
+
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'temporal_correlation'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"toa_correlation_{board_names[board_id1]}_{board_names[board_id2]}.png")
+        fig.savefig(save_dir / f"toa_correlation_{board_names[board_id1]}_{board_names[board_id2]}.pdf")
+        plt.close(fig)
 
 ## --------------------------------------
 def plot_TWC(
         input_df: pd.DataFrame,
-        board_list: list[int],
-        tot_range: list[int],
+        board_ids: list[int],
+        tb_loc: str,
         poly_order: int = 2,
         corr_toas: dict | None = None,
-        boundary_cut: float = 0,
-        distance: dict | None = None,
+        save_mother_dir: Path | None = None,
         print_func: bool = False,
     ):
 
+    plot_title = load_fig_title(tb_loc)
+
     if corr_toas is not None:
-        del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_list[1]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[0]}'])
-        del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[2]}']) - corr_toas[f'toa_b{board_list[1]}'])
-        del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_list[0]}'] + corr_toas[f'toa_b{board_list[1]}']) - corr_toas[f'toa_b{board_list[2]}'])
+        del_toa_b0 = (0.5*(corr_toas[f'toa_b{board_ids[1]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[0]}'])
+        del_toa_b1 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[2]}']) - corr_toas[f'toa_b{board_ids[1]}'])
+        del_toa_b2 = (0.5*(corr_toas[f'toa_b{board_ids[0]}'] + corr_toas[f'toa_b{board_ids[1]}']) - corr_toas[f'toa_b{board_ids[2]}'])
     else:
-        del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
-        del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
-        del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
+        del_toa_b0 = (0.5*(input_df[f'toa_b{board_ids[1]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[0]}']).values
+        del_toa_b1 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[1]}']).values
+        del_toa_b2 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[1]}']) - input_df[f'toa_b{board_ids[2]}']).values
+
+    def roundup(x):
+        return int(np.ceil(x / 100.0)) * 100
+
+    tot_ranges = {}
+    for idx in board_ids:
+        min_value = roundup(input_df[f'tot_b{idx}'].min()) - 500
+        max_value = roundup(input_df[f'tot_b{idx}'].max()) + 500
+        if min_value < 0:
+            min_value = 0
+        tot_ranges[idx] = [min_value, max_value]
 
     h_twc1 = hist.Hist(
-        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[0]}', label=f'tot_b{board_list[0]}'),
-        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[0]}', label=f'delta_toa{board_list[0]}')
+        hist.axis.Regular(50, tot_ranges[board_ids[0]][0], tot_ranges[board_ids[0]][1], name=f'tot_b{board_ids[0]}', label=f'tot_b{board_ids[0]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_ids[0]}', label=f'delta_toa{board_ids[0]}')
     )
     h_twc2 = hist.Hist(
-        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[1]}', label=f'tot_b{board_list[1]}'),
-        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[1]}', label=f'delta_toa{board_list[1]}')
+        hist.axis.Regular(50, tot_ranges[board_ids[1]][0], tot_ranges[board_ids[1]][1], name=f'tot_b{board_ids[1]}', label=f'tot_b{board_ids[1]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_ids[1]}', label=f'delta_toa{board_ids[1]}')
     )
     h_twc3 = hist.Hist(
-        hist.axis.Regular(50, tot_range[0], tot_range[1], name=f'tot_b{board_list[2]}', label=f'tot_b{board_list[2]}'),
-        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_list[2]}', label=f'delta_toa{board_list[2]}')
+        hist.axis.Regular(50, tot_ranges[board_ids[2]][0], tot_ranges[board_ids[2]][1], name=f'tot_b{board_ids[2]}', label=f'tot_b{board_ids[2]}'),
+        hist.axis.Regular(50, -3000, 3000, name=f'delta_toa{board_ids[2]}', label=f'delta_toa{board_ids[2]}')
     )
 
-    h_twc1.fill(input_df[f'tot_b{board_list[0]}'], del_toa_b0)
-    h_twc2.fill(input_df[f'tot_b{board_list[1]}'], del_toa_b1)
-    h_twc3.fill(input_df[f'tot_b{board_list[2]}'], del_toa_b2)
+    h_twc1.fill(input_df[f'tot_b{board_ids[0]}'], del_toa_b0)
+    h_twc2.fill(input_df[f'tot_b{board_ids[1]}'], del_toa_b1)
+    h_twc3.fill(input_df[f'tot_b{board_ids[2]}'], del_toa_b2)
 
-    b1_xrange = np.linspace(input_df[f'tot_b{board_list[0]}'].min(), input_df[f'tot_b{board_list[0]}'].max(), 100)
-    b2_xrange = np.linspace(input_df[f'tot_b{board_list[1]}'].min(), input_df[f'tot_b{board_list[1]}'].max(), 100)
-    b3_xrange = np.linspace(input_df[f'tot_b{board_list[2]}'].min(), input_df[f'tot_b{board_list[2]}'].max(), 100)
+    b1_xrange = np.linspace(input_df[f'tot_b{board_ids[0]}'].min(), input_df[f'tot_b{board_ids[0]}'].max(), 100)
+    b2_xrange = np.linspace(input_df[f'tot_b{board_ids[1]}'].min(), input_df[f'tot_b{board_ids[1]}'].max(), 100)
+    b3_xrange = np.linspace(input_df[f'tot_b{board_ids[2]}'].min(), input_df[f'tot_b{board_ids[2]}'].max(), 100)
 
-    coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+    coeff_b0 = np.polyfit(input_df[f'tot_b{board_ids[0]}'].values, del_toa_b0, poly_order)
     poly_func_b0 = np.poly1d(coeff_b0)
 
-    coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+    coeff_b1 = np.polyfit(input_df[f'tot_b{board_ids[1]}'].values, del_toa_b1, poly_order)
     poly_func_b1 = np.poly1d(coeff_b1)
 
-    coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+    coeff_b2 = np.polyfit(input_df[f'tot_b{board_ids[2]}'].values, del_toa_b2, poly_order)
     poly_func_b2 = np.poly1d(coeff_b2)
+
+    def make_legend(coeff, poly_order):
+        legend_str = ""
+        for i in range(poly_order + 1):
+            if round(coeff[i], 2) == 0:
+                # Use scientific notation
+                coeff_str = f"{coeff[i]:.2e}"
+            else:
+                # Use fixed-point notation
+                coeff_str = f"{coeff[i]:.2f}"
+
+            # Add x
+            coeff_str = rf"{coeff_str}$x^{poly_order-i}$"
+
+            # Add sign
+            if coeff[i] > 0:
+                coeff_str = f"+{coeff_str}"
+                legend_str += coeff_str
+            else:
+                legend_str += coeff_str
+        return legend_str
 
     if print_func:
         print(poly_func_b0)
@@ -2178,49 +2557,78 @@ def plot_TWC(
 
     fig, axes = plt.subplots(1, 3, figsize=(38, 10))
     hep.hist2dplot(h_twc1, ax=axes[0], norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=axes[0], text="Phase-2 Preliminary", fontsize=20)
-    axes[0].plot(b1_xrange, poly_func_b0(b1_xrange), 'r-', lw=3, label='linear fit')
-    axes[0].set_xlabel('TOT1 [ps]')
-    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1 [ps]', fontsize=15)
+    hep.cms.text(loc=0, ax=axes[0], text="ETL ETROC Test Beam", fontsize=18)
+    axes[0].plot(b1_xrange, poly_func_b0(b1_xrange), 'r-', lw=3, label=make_legend(coeff_b0, poly_order=poly_order))
+    axes[0].set_xlabel('TOT1 [ps]', fontsize=25)
+    axes[0].set_ylabel('0.5*(TOA2+TOA3)-TOA1 [ps]', fontsize=25)
+    axes[0].set_title(plot_title, fontsize=16, loc='right')
     hep.hist2dplot(h_twc2, ax=axes[1], norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=axes[1], text="Phase-2 Preliminary", fontsize=20)
-    axes[1].plot(b2_xrange, poly_func_b1(b2_xrange), 'r-', lw=3, label='linear fit')
-    axes[1].set_xlabel('TOT2 [ps]')
-    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2 [ps]', fontsize=15)
+    hep.cms.text(loc=0, ax=axes[1], text="ETL ETROC Test Beam", fontsize=18)
+    axes[1].plot(b2_xrange, poly_func_b1(b2_xrange), 'r-', lw=3, label=make_legend(coeff_b1, poly_order=poly_order))
+    axes[1].set_xlabel('TOT2 [ps]', fontsize=25)
+    axes[1].set_ylabel('0.5*(TOA1+TOA3)-TOA2 [ps]', fontsize=25)
+    axes[1].set_title(plot_title, fontsize=16, loc='right')
     hep.hist2dplot(h_twc3, ax=axes[2], norm=colors.LogNorm())
-    hep.cms.text(loc=0, ax=axes[2], text="Phase-2 Preliminary", fontsize=20)
-    axes[2].plot(b3_xrange, poly_func_b2(b3_xrange), 'r-', lw=3, label='linear fit')
-    axes[2].set_xlabel('TOT3 [ps]')
-    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3 [ps]', fontsize=15)
+    hep.cms.text(loc=0, ax=axes[2], text="ETL ETROC Test Beam", fontsize=18)
+    axes[2].plot(b3_xrange, poly_func_b2(b3_xrange), 'r-', lw=3, label=make_legend(coeff_b2, poly_order=poly_order))
+    axes[2].set_xlabel('TOT3 [ps]', fontsize=25)
+    axes[2].set_ylabel('0.5*(TOA1+TOA2)-TOA3 [ps]', fontsize=25)
+    axes[2].set_title(plot_title, fontsize=16, loc='right')
 
-    if distance is not None:
-        axes[0].fill_between(b1_xrange, y1=poly_func_b0(b1_xrange)-boundary_cut*np.std(distance[0]), y2=poly_func_b0(b1_xrange)+boundary_cut*np.std(distance[0]),
-                        facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
-        axes[1].fill_between(b2_xrange, y1=poly_func_b1(b2_xrange)-boundary_cut*np.std(distance[1]), y2=poly_func_b1(b2_xrange)+boundary_cut*np.std(distance[1]),
-                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
-        axes[2].fill_between(b3_xrange, y1=poly_func_b2(b3_xrange)-boundary_cut*np.std(distance[2]), y2=poly_func_b2(b3_xrange)+boundary_cut*np.std(distance[2]),
-                facecolor='red', alpha=0.35, label=fr'{boundary_cut}$\sigma$ boundary')
+    axes[0].legend(loc='best')
+    axes[1].legend(loc='best')
+    axes[2].legend(loc='best')
 
-        axes[0].legend(loc='best')
-        axes[1].legend(loc='best')
-        axes[2].legend(loc='best')
-
-    plt.tight_layout()
+    if save_mother_dir is not None:
+        save_dir = save_mother_dir / 'twc_fit'
+        save_dir.mkdir(exist_ok=True)
+        fig.savefig(save_dir / f"twc_fit.png")
+        fig.savefig(save_dir / f"twc_fit.pdf")
+        plt.close(fig)
 
 ## --------------------------------------
 def plot_resolution_with_pulls(
         input_df: pd.DataFrame,
         board_ids: list[int],
-        fig_title: list[str],
-        fig_tag: str = '',
+        board_names: list[str],
+        tb_loc: str,
+        fig_tag: list[str],
+        hist_range: list[int] = [20, 95],
         hist_bins: int = 15,
-        draw_arithmetic_mean: bool = False,
         slides_friendly: bool = False,
+        print_fit_results: bool = False,
+        constraint_ylim: bool = False,
+        save_mother_dir: Path | None = None,
     ):
+    """Make summary plot of the board resolution plot with a gaussian fit.
+
+    Parameters
+    ----------
+    input_df: pd.DataFrame
+        Pandas dataframe includes bootstrap results.
+    board_ids: list[int]
+        A list of board IDs to make plots.
+    board_names: list[str]
+        A list of board names.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    fig_tag: list[str]
+        Additional information to show in the plot as legend title.
+    hist_range: list[int], optional
+        Set the histogram range. Default value is [20, 95].
+    hist_bins: int, optional
+        Adjust the histogram bins. Default value is 15.
+    slide_friendly: bool, optional
+        If it is True, draw plots in a single figure. Recommend this option, when you try to add plots on the slides.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'time_resolution_results'.
+    """
+
     import matplotlib.gridspec as gridspec
     from lmfit.models import GaussianModel
     from lmfit.lineshapes import gaussian
 
+    plot_title = load_fig_title(tb_loc)
     mod = GaussianModel(nan_policy='omit')
 
     hists = {}
@@ -2229,9 +2637,7 @@ def plot_resolution_with_pulls(
     means = {}
 
     for key in board_ids:
-        hist_x_min = 20
-        hist_x_max = 95
-        hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_x_min, hist_x_max, name="time_resolution", label=r'Time Resolution [ps]'))
+        hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_range[0], hist_range[1], name="time_resolution", label=r'Time Resolution [ps]'))
         hists[key].fill(input_df[f'res{key}'].values)
         means[key] = np.mean(input_df[f'res{key}'].values)
         centers = hists[key].axes[0].centers
@@ -2241,6 +2647,10 @@ def plot_resolution_with_pulls(
         pars = mod.guess(fit_vals, x=fit_range)
         out = mod.fit(fit_vals, pars, x=fit_range, weights=1/np.sqrt(fit_vals))
         fit_params[key] = out
+
+        if print_fit_results:
+            print(key)
+            print(out.fit_report())
 
         ### Calculate pull
         pulls = (hists[key].values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
@@ -2270,20 +2680,17 @@ def plot_resolution_with_pulls(
                 continue
 
             centers = hists[i].axes[0].centers
-            hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
-            main_ax.set_title(f'{fig_title[i]} {fig_tag}', loc="right", size=11)
+            hep.cms.text(loc=0, ax=main_ax, text="ETL ETROC Test Beam", fontsize=20)
+            main_ax.set_title(f'{plot_title} {fig_tag[i]}', loc="right", size=18)
 
             main_ax.errorbar(centers, hists[i].values(), np.sqrt(hists[i].variances()),
                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
                             ms=6, capsize=1, capthick=2, alpha=0.8)
 
-            if draw_arithmetic_mean:
-                main_ax.vlines(means[i], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
-
-            main_ax.set_ylabel('Counts', fontsize=20)
+            main_ax.set_ylabel('Counts', fontsize=18)
             main_ax.set_ylim(-5, 190)
-            main_ax.tick_params(axis='x', labelsize=20)
-            main_ax.tick_params(axis='y', labelsize=20)
+            main_ax.tick_params(axis='x', labelsize=18)
+            main_ax.tick_params(axis='y', labelsize=18)
 
             x_min = centers[0]
             x_max = centers[-1]
@@ -2301,9 +2708,9 @@ def plot_resolution_with_pulls(
                 model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
 
             main_ax.plot(x_range, fit_params[i].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
-                        label=fr"$\mu$:{fit_params[i].params['center'].value:.2f} $\pm$ {fit_params[i].params['center'].stderr:.2f}")
+                        label=fr"$\mu$:{fit_params[i].params['center'].value:.2f} $\pm$ {fit_params[i].params['center'].stderr:.2f} ps")
             main_ax.plot(np.NaN, np.NaN, color='none',
-                        label=fr"$\sigma$: {abs(fit_params[i].params['sigma'].value):.2f} $\pm$ {abs(fit_params[i].params['sigma'].stderr):.2f}")
+                        label=fr"$\sigma$: {abs(fit_params[i].params['sigma'].value):.2f} $\pm$ {abs(fit_params[i].params['sigma'].stderr):.2f} ps")
 
             main_ax.fill_between(
                 x_range,
@@ -2311,9 +2718,9 @@ def plot_resolution_with_pulls(
                 fit_params[i].eval(x=x_range) + model_uncert,
                 color="hotpink",
                 alpha=0.2,
-                label='Uncertainty'
+                label='Fit Uncertainty'
             )
-            main_ax.legend(fontsize=18, loc='best')
+            main_ax.legend(fontsize=18, loc='best', title=fig_tag[i], title_fontsize=18)
 
             width = (x_max - x_min) / len(pulls_dict[i])
             sub_ax.axhline(1, c='black', lw=0.75)
@@ -2322,15 +2729,24 @@ def plot_resolution_with_pulls(
             sub_ax.bar(centers, pulls_dict[i], width=width, fc='royalblue')
             sub_ax.set_ylim(-2, 2)
             sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
-            sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
+            sub_ax.set_xlabel('Pixel Time Resolution [ps]', fontsize=20)
             sub_ax.tick_params(axis='x', which='both', labelsize=20)
             sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+
+        plt.tight_layout()
+
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'time_resolution_results'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"board_res.png")
+            fig.savefig(save_dir / f"board_res.pdf")
+            plt.close(fig)
 
         del hists, fit_params, pulls_dict, mod
 
     else:
         for idx in hists.keys():
-            fig = plt.figure(figsize=(10, 9))
+            fig = plt.figure(figsize=(11, 10))
             grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
 
             main_ax = fig.add_subplot(grid[0])
@@ -2338,25 +2754,23 @@ def plot_resolution_with_pulls(
             plt.setp(main_ax.get_xticklabels(), visible=False)
 
             centers = hists[idx].axes[0].centers
-            hep.cms.text(loc=0, ax=main_ax, text="Phase-2 Preliminary", fontsize=20)
-            main_ax.set_title(f'{fig_title[idx]} {fig_tag}', loc="right", size=11)
+            hep.cms.text(loc=0, ax=main_ax, text="ETL ETROC Test Beam", fontsize=18)
+            main_ax.set_title(f'{plot_title}', loc="right", size=16)
 
             main_ax.errorbar(centers, hists[idx].values(), np.sqrt(hists[idx].variances()),
                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
                             ms=6, capsize=1, capthick=2, alpha=0.8)
 
-            if draw_arithmetic_mean:
-                main_ax.vlines(means[idx], ymin=-5, ymax=max(hists[i].values())+20, colors='red', linestyles='dashed', label=f'Mean: {means[i]:.2f}')
-
-            main_ax.set_ylabel('Counts', fontsize=20)
-            main_ax.set_ylim(-5, 190)
+            main_ax.set_ylabel('Counts', fontsize=25)
             main_ax.tick_params(axis='x', labelsize=20)
             main_ax.tick_params(axis='y', labelsize=20)
+            if constraint_ylim:
+                main_ax.set_ylim(-5, 190)
 
             x_min = centers[0]
             x_max = centers[-1]
 
-            x_range = np.linspace(x_min, x_max, 200)
+            x_range = np.linspace(x_min, x_max, 500)
             popt = [par for name, par in fit_params[idx].best_values.items()]
             pcov = fit_params[idx].covar
 
@@ -2369,9 +2783,9 @@ def plot_resolution_with_pulls(
                 model_uncert = np.zeros_like(np.sqrt(hists[i].variances()))
 
             main_ax.plot(x_range, fit_params[idx].eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
-                        label=fr"$\mu$:{fit_params[idx].params['center'].value:.2f} $\pm$ {fit_params[idx].params['center'].stderr:.2f}")
+                        label=fr"$\mu$:{fit_params[idx].params['center'].value:.2f} $\pm$ {fit_params[idx].params['center'].stderr:.2f} ps")
             main_ax.plot(np.NaN, np.NaN, color='none',
-                        label=fr"$\sigma$: {abs(fit_params[idx].params['sigma'].value):.2f} $\pm$ {abs(fit_params[idx].params['sigma'].stderr):.2f}")
+                        label=fr"$\sigma$: {abs(fit_params[idx].params['sigma'].value):.2f} $\pm$ {abs(fit_params[idx].params['sigma'].stderr):.2f} ps")
 
             main_ax.fill_between(
                 x_range,
@@ -2379,9 +2793,9 @@ def plot_resolution_with_pulls(
                 fit_params[idx].eval(x=x_range) + model_uncert,
                 color="hotpink",
                 alpha=0.2,
-                label='Uncertainty'
+                label='Fit Uncertainty'
             )
-            main_ax.legend(fontsize=18, loc='best')
+            main_ax.legend(fontsize=18, loc='best', title=fig_tag[idx], title_fontsize=18)
 
             width = (x_max - x_min) / len(pulls_dict[idx])
             sub_ax.axhline(1, c='black', lw=0.75)
@@ -2390,31 +2804,44 @@ def plot_resolution_with_pulls(
             sub_ax.bar(centers, pulls_dict[idx], width=width, fc='royalblue')
             sub_ax.set_ylim(-2, 2)
             sub_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1], fontsize=20)
-            sub_ax.set_xlabel(r'Time Resolution [ps]', fontsize=20)
+            sub_ax.set_xlabel('Pixel Time Resolution [ps]', fontsize=25)
             sub_ax.tick_params(axis='x', which='both', labelsize=20)
             sub_ax.set_ylabel('Pulls', fontsize=20, loc='center')
+
+            plt.tight_layout()
+
+            if save_mother_dir is not None:
+                save_dir = save_mother_dir / 'time_resolution_results'
+                save_dir.mkdir(exist_ok=True)
+                fig.savefig(save_dir / f"board_res_{board_names[idx]}.png")
+                fig.savefig(save_dir / f"board_res_{board_names[idx]}.pdf")
+                plt.close(fig)
 
         del hists, fit_params, pulls_dict, mod
 
 ## --------------------------------------
 def plot_resolution_table(
         input_df: pd.DataFrame,
-        chipLabels: list[int],
-        fig_title: list[str],
+        board_ids: list[int],
+        board_names: list[str],
+        tb_loc: str,
         fig_tag: str = '',
         min_resolution: float = 25.0,
         max_resolution: float = 75.0,
         missing_pixel_info: dict | None = None,
         slides_friendly: bool = False,
         show_number: bool = False,
+        save_mother_dir: Path | None = None,
     ):
 
     from matplotlib import colormaps
     cmap = colormaps['viridis']
     cmap.set_under(color='lightgrey')
 
+    plot_title = load_fig_title(tb_loc)
+
     tables = {}
-    for board_id in chipLabels:
+    for board_id in board_ids:
         board_info = input_df[[f'row{board_id}', f'col{board_id}', f'res{board_id}', f'err{board_id}']]
 
         res = board_info.groupby([f'row{board_id}', f'col{board_id}']).apply(lambda x: np.average(x[f'res{board_id}'], weights=1/x[f'err{board_id}']**2)).reset_index()
@@ -2448,6 +2875,7 @@ def plot_resolution_table(
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             cbar.set_label('Time Resolution (ps)', fontsize=20)
+            cbar.ax.tick_params(labelsize=18)
 
             if show_number:
                 for i in range(16):
@@ -2455,36 +2883,45 @@ def plot_resolution_table(
                         value = tables[idx][0].iloc[i, j]
                         error = tables[idx][1].iloc[i, j]
                         if value == -1: continue
-                        text_color = 'black'
+                        text_color = 'black' if value > 0.66*(min_resolution + max_resolution) else 'white'
                         text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
-                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=18, rotation=45)
 
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-            ax.set_xlabel('Column (col)', fontsize=20)
-            ax.set_ylabel('Row (row)', fontsize=20)
+            hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+            ax.set_xlabel('Column (col)', fontsize=18)
+            ax.set_ylabel('Row (row)', fontsize=18)
             ticks = range(0, 16)
             ax.set_xticks(ticks)
             ax.set_yticks(ticks)
-            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=18)
-            ax.tick_params(axis='x', which='both', length=5, labelsize=20)
-            ax.tick_params(axis='y', which='both', length=5, labelsize=20)
+            ax.set_title(f"{plot_title} | {fig_tag[idx]}", loc="right", size=18)
+            ax.tick_params(axis='x', which='both', length=5, labelsize=18)
+            ax.tick_params(axis='y', which='both', length=5, labelsize=18)
             ax.invert_xaxis()
             ax.invert_yaxis()
             plt.minorticks_off()
 
         plt.tight_layout()
+
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'time_resolution_results'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"resolution_map.png")
+            fig.savefig(save_dir / f"resolution_map.pdf")
+            plt.close(fig)
         del tables
 
     else:
         for idx in tables.keys():
             # Create a heatmap to visualize the count of hits
-            fig, ax = plt.subplots(dpi=100, figsize=(20, 20))
+            fig, ax = plt.subplots(dpi=100, figsize=(15, 15))
             ax.cla()
             im = ax.imshow(tables[idx][0], cmap=cmap, interpolation="nearest", vmin=min_resolution, vmax=max_resolution)
 
             # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cbar.set_label('Time Resolution (ps)', fontsize=20)
+            cbar.set_label('Time Resolution (ps)', fontsize=18)
+            cbar.ax.tick_params(labelsize=18)
+
 
             if show_number:
                 for i in range(16):
@@ -2492,28 +2929,35 @@ def plot_resolution_table(
                         value = tables[idx][0].iloc[i, j]
                         error = tables[idx][1].iloc[i, j]
                         if value == -1: continue
-                        text_color = 'black'
+                        text_color = 'black' if value > 0.66*(min_resolution + max_resolution) else 'white'
                         text = str(rf"{value:.1f}""\n"fr"$\pm$ {error:.1f}")
-                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+                        plt.text(j, i, text, va='center', ha='center', color=text_color, fontsize=15, rotation=45)
 
             if missing_pixel_info is not None:
                 for jdx in range(len(missing_pixel_info[idx]['res'])):
                     text = str(rf"{float(missing_pixel_info[idx]['res'][jdx]):.1f}""\n"fr"$\pm$ {float(missing_pixel_info[idx]['err'][jdx]):.1f}")
-                    plt.text(int(missing_pixel_info[idx]['col'][jdx]), int(missing_pixel_info[idx]['row'][jdx]), text, va='center', ha='center', color=text_color, fontsize=20, rotation=45)
+                    plt.text(int(missing_pixel_info[idx]['col'][jdx]), int(missing_pixel_info[idx]['row'][jdx]), text, va='center', ha='center', color='black', fontsize=15 , rotation=45)
 
-            hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=25)
-            ax.set_xlabel('Column (col)', fontsize=20)
-            ax.set_ylabel('Row (row)', fontsize=20)
+            hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+            ax.set_xlabel('Column', fontsize=25)
+            ax.set_ylabel('Row', fontsize=25)
             ticks = range(0, 16)
             ax.set_xticks(ticks)
             ax.set_yticks(ticks)
-            ax.set_title(f"{fig_title[idx]}, Resolution map {fig_tag}", loc="right", size=20)
-            ax.tick_params(axis='x', which='both', length=5, labelsize=17)
-            ax.tick_params(axis='y', which='both', length=5, labelsize=17)
+            ax.set_title(f"{plot_title} | {fig_tag[idx]}", loc="right", size=16)
+            ax.tick_params(axis='x', which='both', length=5, labelsize=18)
+            ax.tick_params(axis='y', which='both', length=5, labelsize=18)
             ax.invert_xaxis()
             ax.invert_yaxis()
             plt.minorticks_off()
             plt.tight_layout()
+
+            if save_mother_dir is not None:
+                save_dir = save_mother_dir / 'time_resolution_results'
+                save_dir.mkdir(exist_ok=True)
+                fig.savefig(save_dir / f"resolution_map_{board_names[idx]}.png")
+                fig.savefig(save_dir / f"resolution_map_{board_names[idx]}.pdf")
+                plt.close(fig)
 
         del tables
 
@@ -2665,40 +3109,40 @@ def three_board_iterative_timewalk_correction(
     input_df: pd.DataFrame,
     iterative_cnt: int,
     poly_order: int,
-    board_list: list,
+    board_ids: list,
 ):
 
     corr_toas = {}
-    corr_b0 = input_df[f'toa_b{board_list[0]}'].values
-    corr_b1 = input_df[f'toa_b{board_list[1]}'].values
-    corr_b2 = input_df[f'toa_b{board_list[2]}'].values
+    corr_b0 = input_df[f'toa_b{board_ids[0]}'].values
+    corr_b1 = input_df[f'toa_b{board_ids[1]}'].values
+    corr_b2 = input_df[f'toa_b{board_ids[2]}'].values
 
-    del_toa_b0 = (0.5*(input_df[f'toa_b{board_list[1]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[0]}']).values
-    del_toa_b1 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[2]}']) - input_df[f'toa_b{board_list[1]}']).values
-    del_toa_b2 = (0.5*(input_df[f'toa_b{board_list[0]}'] + input_df[f'toa_b{board_list[1]}']) - input_df[f'toa_b{board_list[2]}']).values
+    del_toa_b0 = (0.5*(input_df[f'toa_b{board_ids[1]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[0]}']).values
+    del_toa_b1 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[2]}']) - input_df[f'toa_b{board_ids[1]}']).values
+    del_toa_b2 = (0.5*(input_df[f'toa_b{board_ids[0]}'] + input_df[f'toa_b{board_ids[1]}']) - input_df[f'toa_b{board_ids[2]}']).values
 
     for i in range(iterative_cnt):
-        coeff_b0 = np.polyfit(input_df[f'tot_b{board_list[0]}'].values, del_toa_b0, poly_order)
+        coeff_b0 = np.polyfit(input_df[f'tot_b{board_ids[0]}'].values, del_toa_b0, poly_order)
         poly_func_b0 = np.poly1d(coeff_b0)
 
-        coeff_b1 = np.polyfit(input_df[f'tot_b{board_list[1]}'].values, del_toa_b1, poly_order)
+        coeff_b1 = np.polyfit(input_df[f'tot_b{board_ids[1]}'].values, del_toa_b1, poly_order)
         poly_func_b1 = np.poly1d(coeff_b1)
 
-        coeff_b2 = np.polyfit(input_df[f'tot_b{board_list[2]}'].values, del_toa_b2, poly_order)
+        coeff_b2 = np.polyfit(input_df[f'tot_b{board_ids[2]}'].values, del_toa_b2, poly_order)
         poly_func_b2 = np.poly1d(coeff_b2)
 
-        corr_b0 = corr_b0 + poly_func_b0(input_df[f'tot_b{board_list[0]}'].values)
-        corr_b1 = corr_b1 + poly_func_b1(input_df[f'tot_b{board_list[1]}'].values)
-        corr_b2 = corr_b2 + poly_func_b2(input_df[f'tot_b{board_list[2]}'].values)
+        corr_b0 = corr_b0 + poly_func_b0(input_df[f'tot_b{board_ids[0]}'].values)
+        corr_b1 = corr_b1 + poly_func_b1(input_df[f'tot_b{board_ids[1]}'].values)
+        corr_b2 = corr_b2 + poly_func_b2(input_df[f'tot_b{board_ids[2]}'].values)
 
         del_toa_b0 = (0.5*(corr_b1 + corr_b2) - corr_b0)
         del_toa_b1 = (0.5*(corr_b0 + corr_b2) - corr_b1)
         del_toa_b2 = (0.5*(corr_b0 + corr_b1) - corr_b2)
 
         if i == iterative_cnt-1:
-            corr_toas[f'toa_b{board_list[0]}'] = corr_b0
-            corr_toas[f'toa_b{board_list[1]}'] = corr_b1
-            corr_toas[f'toa_b{board_list[2]}'] = corr_b2
+            corr_toas[f'toa_b{board_ids[0]}'] = corr_b0
+            corr_toas[f'toa_b{board_ids[1]}'] = corr_b1
+            corr_toas[f'toa_b{board_ids[2]}'] = corr_b2
 
     return corr_toas
 
@@ -2752,163 +3196,53 @@ def four_board_iterative_timewalk_correction(
     return corr_toas
 
 ## --------------------------------------
-# def lmfit_gaussfit_with_pulls(
-#         model: str,
-#         input_data: np.array,
-#         input_hist: hist.Hist,
-#         width_factor: float,
-#         fig_title: str,
-#         chipNames: str,
-#         use_pred_uncert: bool,
-#         no_show_fit: bool,
-#         no_draw: bool,
-#         get_chisqure: bool = False,
-#         full_data: bool = False,
-#         save: bool = False,
-#     ):
-
-#     from lmfit.models import GaussianModel
-#     # from lmfit.lineshapes import gaussian
-
-#     mod = GaussianModel(nan_policy='omit')
-
-#     if full_data:
-#         fit_min = input_data.min()
-#         fit_max = input_data.max()
-#         input_hist_peak = input_hist
-#         centers = input_hist.axes[0].centers
-#     else:
-#         fit_min = input_data.mean()-width_factor*input_data.std()
-#         fit_max = input_data.mean()+width_factor*input_data.std()
-
-
-#     input_hist_peak = input_hist[(fit_min)*1j:(fit_max)*1j]
-#     centers = input_hist.axes[0].centers
-#     fit_centers = input_hist_peak.axes[0].centers
-#     # pars = mod.guess(input_hist.values(), x=centers)
-#     pars = mod.guess(input_hist_peak.values(), x=fit_centers)
-#     out = mod.fit(input_hist_peak.values(), pars, x=fit_centers, weights=1/np.sqrt(input_hist_peak.values()))
-
-#     if not no_draw:
-
-#         x_range = np.linspace(fit_min, fit_max, 500)
-#         # x_range = np.linspace(centers[0], centers[-1], 500)
-#         dely = out.eval_uncertainty(x=x_range)
-
-#         # popt = [par for name, par in out.best_values.items()]
-#         # pcov = out.covar
-
-#         # if np.isfinite(pcov).all():
-#         #     n_samples = 100
-#         #     vopts = np.random.multivariate_normal(popt, pcov, n_samples)
-#         #     # sampled_ydata = np.vstack([gaussian(fit_centers, *vopt).T for vopt in vopts])
-#         #     # sampled_ydata = np.vstack([gaussian(np.linspace(fit_min-1, fit_max+1, 500), *vopt).T for vopt in vopts])
-#         #     sampled_ydata = np.vstack([gaussian(x_range, *vopt).T for vopt in vopts])
-#         #     dely = np.nanstd(sampled_ydata, axis=0)
-#         #     # model_uncert = np.nanstd(sampled_ydata, axis=0)
-
-#         # else:
-#         #     # model_uncert = np.zeros_like(np.sqrt(input_hist.variances()))
-#         #     dely = np.zeros_like(np.sqrt(input_hist.variances()))
-
-#         ### Calculate pull
-#         if use_pred_uncert:
-#             pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(out.eval(x=centers))
-#         else:
-#             pulls = (input_hist.values() - out.eval(x=centers))/np.sqrt(input_hist.variances())
-#         pulls[np.isnan(pulls) | np.isinf(pulls)] = 0
-
-#         left_edge = centers[0]
-#         right_edge = centers[-1]
-
-#         # Pull: plot the pulls using Matplotlib bar method
-#         width = (right_edge - left_edge) / len(pulls)
-
-#         fig = plt.figure()
-
-#         if no_show_fit:
-#             grid = fig.add_gridspec(1, 1, hspace=0)
-#             main_ax = fig.add_subplot(grid[0])
-#             hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
-#             main_ax.set_title(f'{fig_title}', loc="right", size=20)
-#             main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
-#                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
-#                             ms=6, capsize=1, capthick=2, alpha=0.8)
-#             main_ax.plot(x_range, out.eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
-#                         label=fr"$\mu:{out.params['center'].value:.2f}, \sigma: {abs(out.params['sigma'].value):.2f}$")
-#             main_ax.set_ylabel('Counts')
-#             main_ax.set_ylim(-20, None)
-#             main_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ns]')
-#             plt.tight_layout()
-
-#         else:
-#             grid = fig.add_gridspec(2, 1, hspace=0, height_ratios=[3, 1])
-#             main_ax = fig.add_subplot(grid[0])
-#             subplot_ax = fig.add_subplot(grid[1], sharex=main_ax)
-#             plt.setp(main_ax.get_xticklabels(), visible=False)
-#             hep.cms.text(loc=0, ax=main_ax, text="Preliminary", fontsize=25)
-
-#             main_ax.set_title(f'{fig_title}', loc="right", size=25)
-#             main_ax.errorbar(centers, input_hist.values(), np.sqrt(input_hist.variances()),
-#                             ecolor="steelblue", mfc="steelblue", mec="steelblue", fmt="o",
-#                             ms=6, capsize=1, capthick=2, alpha=0.8)
-#             main_ax.plot(x_range, out.eval(x=x_range), color="hotpink", ls="-", lw=2, alpha=0.8,
-#                         label=fr"$\mu:{out.params['center'].value:.2f}, \sigma: {abs(out.params['sigma'].value):.2f}$")
-#             main_ax.set_ylabel('Counts')
-#             main_ax.set_ylim(-20, None)
-
-#             main_ax.fill_between(
-#                 x_range,
-#                 out.eval(x=x_range) - dely,
-#                 out.eval(x=x_range) + dely,
-#                 color="hotpink",
-#                 alpha=0.2,
-#                 label='Uncertainty'
-#             )
-#             main_ax.legend(fontsize=18, loc='upper right')
-
-#             subplot_ax.axvline(fit_min, c='red', lw=2)
-#             subplot_ax.axvline(fit_max, c='red', lw=2)
-#             subplot_ax.axhline(1, c='black', lw=0.75)
-#             subplot_ax.axhline(0, c='black', lw=1.2)
-#             subplot_ax.axhline(-1, c='black', lw=0.75)
-#             subplot_ax.bar(centers, pulls, width=width, fc='royalblue')
-#             subplot_ax.set_ylim(-2, 2)
-#             subplot_ax.set_yticks(ticks=np.arange(-1, 2), labels=[-1, 0, 1])
-#             subplot_ax.set_xlabel(r'Time Walk Corrected $\Delta$TOA [ps]')
-#             subplot_ax.set_ylabel('Pulls', fontsize=20, loc='center')
-#             subplot_ax.minorticks_off()
-
-#             plt.tight_layout()
-
-#         if (save):
-#             fig.savefig(f'./lmfit_{chipNames}.png')
-#             plt.close(fig)
-
-
-#     if get_chisqure:
-#         return [out.params['sigma'].value, out.params['sigma'].stderr, out.redchi]
-#     else:
-#         return [out.params['sigma'].value, out.params['sigma'].stderr]
-
-## --------------------------------------
-## --------------------------------------
 def fwhm_based_on_gaussian_mixture_model(
         input_data: np.array,
-        n_components: int = 2,
+        tb_loc: str,
+        tag: str,
+        hist_bins: int = 30,
+        n_components: int = 3,
         show_plot: bool = False,
         show_sub_gaussian: bool = False,
         show_fwhm_guideline: bool = False,
         show_number: bool = False,
-        title: str = '',
+        save_mother_dir: Path | None = None,
+        fname_tag: str = '',
     ):
+    """Find the sigma of delta TOA distribution and plot the distribution.
+
+    Parameters
+    ----------
+    input_data: np.array,
+        A numpy array includes delta TOA values.
+    tb_loc: str,
+        Test Beam location for the title. Available argument: desy, cern, fnal.
+    tag: str,
+        Additional string to show which boards are used for delta TOA calculation.
+    hist_bins: int
+        Bins for histogram.
+    n_components: int
+        Number of sub-gaussian to be considered for the Gaussian Mixture Model
+    show_sub_gaussian: bool, optional
+        If it is True, show sub-gaussian in the plot.
+    show_fwhm_guideline: bool, optional
+        If it is True, show horizontal and vertical lines to show how FWHM has been performed.
+    show_number: bool, optional
+        If it is True, FWHM and sigma will be shown in the plot.
+    save_mother_dir: Path, optional
+        Plot will be saved at save_mother_dir/'fwhm'.
+    fname_tag: str, optional
+        Additional tag for the file name.
+    """
 
     from sklearn.mixture import GaussianMixture
     from sklearn.metrics import silhouette_score
     from scipy.spatial import distance
 
+    plot_title = load_fig_title(tb_loc)
+
     x_range = np.linspace(input_data.min(), input_data.max(), 1000).reshape(-1, 1)
-    bins, edges = np.histogram(input_data, bins=30, density=True)
+    bins, edges = np.histogram(input_data, bins=hist_bins, density=True)
     centers = 0.5*(edges[1:] + edges[:-1])
     models = GaussianMixture(n_components=n_components).fit(input_data.reshape(-1, 1))
 
@@ -2917,8 +3251,6 @@ def fwhm_based_on_gaussian_mixture_model(
     logprob = models.score_samples(centers.reshape(-1, 1))
     pdf = np.exp(logprob)
     jensenshannon_score = distance.jensenshannon(bins, pdf)
-    # hellinger_score = hellinger_distance(bins, pdf)
-    # bhattacharyya_score = bhattacharyya_distance(bins, pdf) * (np.max(np.concatenate((bins, pdf)))-np.min(np.concatenate((bins, pdf))))/30.
 
     logprob = models.score_samples(x_range)
     pdf = np.exp(logprob)
@@ -2933,23 +3265,22 @@ def fwhm_based_on_gaussian_mixture_model(
 
     xval = x_range[np.argmax(pdf)][0]
 
-    ### Draw plot
     if show_sub_gaussian:
         # Compute PDF for each component
         responsibilities = models.predict_proba(x_range)
         pdf_individual = responsibilities * pdf[:, np.newaxis]
 
     if show_plot:
-
-        fig, ax = plt.subplots(figsize=(10,10))
+        fig, ax = plt.subplots(figsize=(11,10))
 
         # Plot data histogram
-        bins, _, _ = ax.hist(input_data, bins=30, density=True, histtype='stepfilled', alpha=0.4, label='Data')
+        bins, _, _ = ax.hist(input_data, bins=hist_bins, density=True, histtype='stepfilled', alpha=0.4, label='Data')
 
         # Plot PDF of whole model
-        hep.cms.text(loc=0, ax=ax, text="Phase-2 Preliminary", fontsize=20)
-        ax.set_title(f'{title}', loc="right", fontsize=17)
-        ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{title}}}$ [ps]')
+        hep.cms.text(loc=0, ax=ax, text="ETL ETROC Test Beam", fontsize=18)
+        ax.set_title(plot_title, loc="right", fontsize=16)
+        ax.set_xlabel(rf'$\Delta \mathrm{{TOA}}_{{{tag}}}$ [ps]', fontsize=25)
+        ax.yaxis.label.set_fontsize(25)
         if show_number:
             ax.plot(x_range, pdf, '-k', label=f'Mixture PDF, mean: {xval:.2f}')
             ax.plot(np.nan, np.nan, linestyle='none', label=f'FWHM:{fwhm[0]:.2f}, sigma:{fwhm[0]/2.355:.2f}')
@@ -2969,6 +3300,13 @@ def fwhm_based_on_gaussian_mixture_model(
         ax.legend(loc='best', fontsize=14)
         plt.tight_layout()
 
+        if save_mother_dir is not None:
+            save_dir = save_mother_dir / 'fwhm'
+            save_dir.mkdir(exist_ok=True)
+            fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.png")
+            fig.savefig(save_dir / f"fwhm_{tag}_{fname_tag}.pdf")
+            plt.close(fig)
+
     return fwhm, [silhouette_eval_score, jensenshannon_score]
 
 ## --------------- Time Walk Correction -----------------------
@@ -2980,13 +3318,13 @@ def fwhm_based_on_gaussian_mixture_model(
 def return_resolution_three_board(
         fit_params: dict,
         var: list,
-        board_list:list,
+        board_ids:list,
     ):
 
     results = {
-        board_list[0]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
-        board_list[1]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
-        board_list[2]: np.sqrt(0.5*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
+        board_ids[0]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[1]][0]**2 - fit_params[var[2]][0]**2))*1e3,
+        board_ids[1]: np.sqrt(0.5*(fit_params[var[0]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[1]][0]**2))*1e3,
+        board_ids[2]: np.sqrt(0.5*(fit_params[var[1]][0]**2 + fit_params[var[2]][0]**2 - fit_params[var[0]][0]**2))*1e3,
     }
 
     return results
@@ -2995,13 +3333,13 @@ def return_resolution_three_board(
 def return_resolution_three_board_fromFWHM(
         fit_params: dict,
         var: list,
-        board_list:list,
+        board_ids:list,
     ):
 
     results = {
-        board_list[0]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[1]]**2 - fit_params[var[2]]**2)),
-        board_list[1]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[2]]**2 - fit_params[var[1]]**2)),
-        board_list[2]: np.sqrt(0.5*(fit_params[var[1]]**2 + fit_params[var[2]]**2 - fit_params[var[0]]**2)),
+        board_ids[0]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[1]]**2 - fit_params[var[2]]**2)),
+        board_ids[1]: np.sqrt(0.5*(fit_params[var[0]]**2 + fit_params[var[2]]**2 - fit_params[var[1]]**2)),
+        board_ids[2]: np.sqrt(0.5*(fit_params[var[1]]**2 + fit_params[var[2]]**2 - fit_params[var[0]]**2)),
     }
 
     return results
@@ -3071,123 +3409,3 @@ def return_board_resolution(
 
 ## --------------- Result -----------------------
 
-
-
-## --------------- Bootstrap -----------------------
-## --------------------------------------
-def bootstrap_single_track_time_resolution(
-        list_of_pivots: list,
-        board_to_analyze: list[int],
-        iteration: int = 10,
-        sampling_fraction: float = 0.75,
-    ):
-
-    from tqdm import tqdm
-
-    final_dict = {}
-
-    for idx in board_to_analyze:
-        final_dict[f'row{idx}'] = []
-        final_dict[f'col{idx}'] = []
-        final_dict[f'res{idx}'] = []
-        final_dict[f'err{idx}'] = []
-
-    for itable in tqdm(list_of_pivots):
-
-        sum_arr = {}
-        sum_square_arr = {}
-        iteration = 100
-        sampling_fraction = 0.75
-        counter = 0
-
-        for idx in board_to_analyze:
-            sum_arr[idx] = 0
-            sum_square_arr[idx] = 0
-
-        for iloop in range(iteration):
-
-            try_df = itable.reset_index()
-            tdc_cuts = {}
-            for idx in board_to_analyze:
-                # board ID: [CAL LB, CAL UB, TOA LB, TOA UB, TOT LB, TOT UB]
-                if idx == 0:
-                    tdc_cuts[idx] = [try_df['cal'][idx].mode()[0]-3, try_df['cal'][idx].mode()[0]+3,  100, 500, 0, 600]
-                else:
-                    tdc_cuts[idx] = [try_df['cal'][idx].mode()[0]-3, try_df['cal'][idx].mode()[0]+3,  0, 1100, 0, 600]
-
-            tdc_filtered_df = tdc_event_selection_pivot(try_df, tdc_cuts)
-            del try_df, tdc_cuts
-
-            n = int(sampling_fraction*tdc_filtered_df.shape[0])
-            indices = np.random.choice(tdc_filtered_df['evt'].unique(), n, replace=False)
-            tdc_filtered_df = tdc_filtered_df.loc[tdc_filtered_df['evt'].isin(indices)]
-
-            if tdc_filtered_df.shape[0] < iteration/(3.*(1-sampling_fraction)):
-                print('Warning!! Sampling size is too small. Skipping this track')
-                break
-
-            d = {
-                'evt': tdc_filtered_df['evt'].unique(),
-            }
-
-            for idx in board_to_analyze:
-                bins = 3.125/tdc_filtered_df['cal'][idx].mean()
-                d[f'toa_b{str(idx)}'] = 12.5 - tdc_filtered_df['toa'][idx] * bins
-                d[f'tot_b{str(idx)}'] = (2*tdc_filtered_df['tot'][idx] - np.floor(tdc_filtered_df['tot'][idx]/32)) * bins
-
-            df_in_time = pd.DataFrame(data=d)
-            del d, tdc_filtered_df
-
-            corr_toas = three_board_iterative_timewalk_correction(df_in_time, 5, 3, board_list=board_to_analyze)
-
-            diffs = {}
-            for board_a in board_to_analyze:
-                for board_b in board_to_analyze:
-                    if board_b <= board_a:
-                        continue
-                    name = f"{board_a}{board_b}"
-                    diffs[name] = np.asarray(corr_toas[f'toa_b{board_a}'] - corr_toas[f'toa_b{board_b}'])
-
-            hists = {}
-            for key in diffs.keys():
-                hists[key] = hist.Hist(hist.axis.Regular(80, -1.2, 1.2, name="TWC_delta_TOA", label=r'Time Walk Corrected $\Delta$TOA [ns]'))
-                hists[key].fill(diffs[key])
-
-            try:
-                fit_params_lmfit = {}
-                for key in hists.keys():
-                    params = lmfit_gaussfit_with_pulls(diffs[key], hists[key], std_range_cut=0.4, width_factor=1.25, fig_title='',
-                                                        use_pred_uncert=True, no_show_fit=False, no_draw=True, get_chisqure=False)
-                    fit_params_lmfit[key] = params
-                del params, hists, diffs, corr_toas
-
-                resolutions = return_resolution_three_board(fit_params_lmfit, var=list(fit_params_lmfit.keys()), board_list=board_to_analyze)
-
-                if any(np.isnan(val) for key, val in resolutions.items()):
-                    print('fit results is not good, skipping this iteration')
-                    continue
-
-                for key in resolutions.keys():
-                    sum_arr[key] += resolutions[key]
-                    sum_square_arr[key] += resolutions[key]**2
-
-                counter += 1
-
-            except:
-                print('Failed, skipping')
-                del hists, diffs, corr_toas
-
-        if counter != 0:
-            for idx in board_to_analyze:
-                final_dict[f'row{idx}'].append(itable['row'][idx].unique()[0])
-                final_dict[f'col{idx}'].append(itable['col'][idx].unique()[0])
-
-            for key in sum_arr.keys():
-                mean = sum_arr[key]/counter
-                std = np.sqrt((1/(counter-1))*(sum_square_arr[key]-counter*(mean**2)))
-                final_dict[f'res{key}'].append(mean)
-                final_dict[f'err{key}'].append(std)
-        else:
-            print('Track is not validate for bootstrapping')
-
-## --------------- Bootstrap -----------------------
