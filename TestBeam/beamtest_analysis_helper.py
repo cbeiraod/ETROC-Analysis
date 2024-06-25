@@ -1454,6 +1454,33 @@ def load_fig_title(
         plot_title = r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at CERN SPS'
     elif tb_loc == 'fnal':
         plot_title = r'120 GeV p at Fermilab TB'
+    elif tb_loc == 'northwestern':
+        plot_title = r'217 MeV p at Northwestern Medicine Proton Center'
+    # The assumption for louvain is the the tb_loc will specify location and ion with the following format:
+    # louvain-Kr  - for example for louvain with Krypton ion beam
+    # louvain-Xe  - for example for louvain with Xenon ion beam
+    elif tb_loc[:7] == 'louvain':
+        ion = tb_loc[8:]
+        energy = "xx"
+        if ion == "C":
+            energy = 131
+        elif ion == "Ne":
+            energy = 238
+        elif ion == "Al":
+            energy = 250
+        elif ion == "Ar":
+            energy = 353
+        elif ion == "Cr":
+            energy = 505
+        elif ion == "Ni":
+            energy = 582
+        elif ion == "Kr":
+            energy = 769
+        elif ion == "Rh":
+            energy = 957
+        elif ion == "Xe":
+            energy = 995
+        plot_title = rf'{energy} MeV {ion} at Heavy Ion Facility'
 
     return plot_title
 
