@@ -403,8 +403,8 @@ class DecodeBinary:
             'idx': np.array(tmp['idx'], dtype=np.uint64),
             'type': np.array(tmp['type'], dtype=np.string_),
             'events': np.array(tmp['events'], dtype=np.uint32),
-            'prev_event': np.array(tmp['prev_event'], dtype=np.uint64),
-            'last_event': np.array(tmp['last_event'], dtype=np.uint64),
+            'prev_event': np.array(tmp['prev_event'], dtype=np.int64),
+            'last_event': np.array(tmp['last_event'], dtype=np.int64),
             'filler_data': np.array(tmp['filler_data'], dtype=np.string_),
         }
 
@@ -1455,11 +1455,11 @@ def load_fig_title(
     tb_loc: str,
         Location of the test beam.
         Input argument for test beam facility
-            1. 'desy'
-            2. 'cern'
-            3. 'fnal'
+            1. 'desy',
+            2. 'cern',
+            3. 'fnal',
         Input argument for SEU test facility
-            1. 'northwestern':
+            1. 'northwestern',
             2. 'louvain-{ion type}'
                 - ion type: C, Ne, Al, Ar, Cr, Ni, Kr, Rh, Xe
     """
