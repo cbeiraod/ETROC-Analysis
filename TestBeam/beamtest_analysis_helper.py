@@ -2593,6 +2593,7 @@ def plot_resolution_with_pulls(
         board_names: list[str],
         tb_loc: str,
         fig_tag: list[str],
+        hist_range: list[int] = [20, 95],
         hist_bins: int = 15,
         slides_friendly: bool = False,
         print_fit_results: bool = False,
@@ -2634,9 +2635,7 @@ def plot_resolution_with_pulls(
     means = {}
 
     for key in board_ids:
-        hist_x_min = 20
-        hist_x_max = 95
-        hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_x_min, hist_x_max, name="time_resolution", label=r'Time Resolution [ps]'))
+        hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_range[0], hist_range[1], name="time_resolution", label=r'Time Resolution [ps]'))
         hists[key].fill(input_df[f'res{key}'].values)
         means[key] = np.mean(input_df[f'res{key}'].values)
         centers = hists[key].axes[0].centers
