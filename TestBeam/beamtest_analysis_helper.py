@@ -2614,6 +2614,8 @@ def plot_resolution_with_pulls(
         Test Beam location for the title. Available argument: desy, cern, fnal.
     fig_tag: list[str]
         Additional information to show in the plot as legend title.
+    hist_range: list[int], optional
+        Set the histogram range. Default value is [20, 95].
     hist_bins: int, optional
         Adjust the histogram bins. Default value is 15.
     slide_friendly: bool, optional
