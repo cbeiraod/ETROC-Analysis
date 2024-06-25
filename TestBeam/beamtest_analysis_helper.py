@@ -240,7 +240,7 @@ class DecodeBinary:
                  board_id: list[int],
                  file_list: list[Path],
                  save_nem: Path | None = None,
-                 skip_filler: bool = False,
+                 skip_fw_filler: bool = False,
                  skip_event_df: bool = False,
                  skip_crc_df: bool = False,
                  ):
@@ -257,7 +257,7 @@ class DecodeBinary:
         self.files_to_process        = file_list
         self.save_nem                = save_nem
         self.nem_file                = None
-        self.skip_filler             = skip_filler
+        self.skip_fw_filler          = skip_fw_filler
         self.skip_event_df           = skip_event_df
         self.skip_crc_df             = skip_crc_df
 
@@ -761,12 +761,12 @@ class DecodeBinary:
 
                     # If Firmware filler
                     elif (word >> 16) == self.firmware_filler_pattern:
-                        if self.nem_file is not None and not self.skip_filler:
+                        if self.nem_file is not None and not self.skip_fw_filler:
                             self.write_to_nem(f"Filler: 0b{word & 0xffff:016b}\n")
 
                     # New firmware filler
                     elif (word >> 20) == self.firmware_filler_pattern_new:
-                        if not self.skip_filler:
+                        if not self.skip_fw_filler:
                             self.filler_data['idx'].append(self.filler_idx)
                             self.filler_data['type'].append("FW")
                             self.filler_data['events'].append(self.event_in_filler_counter)
@@ -776,29 +776,27 @@ class DecodeBinary:
                             self.filler_idx += 1
                             self.event_in_filler_counter = 0
                             self.filler_prev_event = self.event_counter
-                        if self.nem_file is not None and not self.skip_filler:
+                        if self.nem_file is not None and not self.skip_fw_filler:
                             self.write_to_nem(f"FW Filler: 0b{word & 0xfffff:020b}\n")
 
                     # Check link filler
                     elif (word >> 20) == self.check_link_filler_pattern:
-                        if not self.skip_filler:
-                            self.filler_data['idx'].append(self.filler_40_idx)
-                            self.filler_data['type'].append("40")
-                            self.filler_data['events'].append(self.event_in_filler_40_counter)
-                            self.filler_data['prev_event'].append(self.filler_40_prev_event)
-                            self.filler_data['last_event'].append(self.event_counter)
-                            self.filler_data['filler_data'].append(f"0b{word & 0xfffff:020b}")
-                            self.filler_40_idx += 1
-                            self.event_in_filler_40_counter = 0
-                            self.filler_40_prev_event = self.event_counter
-                        if self.nem_file is not None and not self.skip_filler:
+                        self.filler_data['idx'].append(self.filler_40_idx)
+                        self.filler_data['type'].append("40")
+                        self.filler_data['events'].append(self.event_in_filler_40_counter)
+                        self.filler_data['prev_event'].append(self.filler_40_prev_event)
+                        self.filler_data['last_event'].append(self.event_counter)
+                        self.filler_data['filler_data'].append(f"0b{word & 0xfffff:020b}")
+                        self.filler_40_idx += 1
+                        self.event_in_filler_40_counter = 0
+                        self.filler_40_prev_event = self.event_counter
+                        if self.nem_file is not None:
                             self.write_to_nem(f"40Hz Filler: 0b{word & 0xfffff:020b}\n")
 
                     if len(self.filler_data['idx']) > 10000:
-                        if not self.skip_filler:
-                            self.set_filler_dtype()
-                            filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
-                            self.filler_data= self.copy_dict_by_json(self.filler_data_template)
+                        self.set_filler_dtype()
+                        filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
+                        self.filler_data= self.copy_dict_by_json(self.filler_data_template)
 
                     # Reset anyway!
                     self.reset_params()
@@ -821,10 +819,9 @@ class DecodeBinary:
                         self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
                 if len(self.filler_data['idx']) > 0:
-                    if not self.skip_filler:
-                        self.set_filler_dtype()
-                        filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
-                        self.filler_data= self.copy_dict_by_json(self.filler_data_template)
+                    self.set_filler_dtype()
+                    filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
+                    self.filler_data= self.copy_dict_by_json(self.filler_data_template)
 
         self.close_file()
         return df, event_df, crc_df, filler_df
