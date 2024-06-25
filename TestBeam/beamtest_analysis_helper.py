@@ -1448,6 +1448,21 @@ def return_TWC_param(
 def load_fig_title(
     tb_loc:str
 ):
+    """Load figure title (beam info and testing location)
+
+    Parameters
+    ----------
+    tb_loc: str,
+        Location of the test beam.
+        Input argument for test beam facility
+            1. 'desy'
+            2. 'cern'
+            3. 'fnal'
+        Input argument for SEU test facility
+            1. 'northwestern':
+            2. 'louvain-{ion type}'
+                - ion type: C, Ne, Al, Ar, Cr, Ni, Kr, Rh, Xe
+    """
     if tb_loc == 'desy':
         plot_title = r'4 GeV $e^{-}$ at DESY TB'
     elif tb_loc == 'cern':
@@ -1481,6 +1496,9 @@ def load_fig_title(
         elif ion == "Xe":
             energy = 995
         plot_title = rf'{energy} MeV {ion} at Heavy Ion Facility'
+    else:
+        print('Unknown location. Please add info into the function. Return empty string')
+        plot_title = ""
 
     return plot_title
 
@@ -1508,7 +1526,6 @@ def return_hist(
 def return_event_hist(
         input_df: pd.DataFrame,
 ):
-
     h = hist.Hist(hist.axis.Regular(8, 0, 8, name="HA", label="Hamming Count"),
                   hist.axis.Regular(2, 0, 2, name="CRC_mismatch", label="CRC Mismatch"))
 
