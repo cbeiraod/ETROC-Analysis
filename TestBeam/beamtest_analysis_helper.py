@@ -243,6 +243,7 @@ class DecodeBinary:
                  skip_fw_filler: bool = False,
                  skip_event_df: bool = False,
                  skip_crc_df: bool = False,
+                 verbose: bool = False,
                  ):
         self.firmware_key            = firmware_key
         self.header_pattern          = 0xc3a3c3a
@@ -260,6 +261,7 @@ class DecodeBinary:
         self.skip_fw_filler          = skip_fw_filler
         self.skip_event_df           = skip_event_df
         self.skip_crc_df             = skip_crc_df
+        self.verbose                 = verbose
 
         self.file_count = 0
         self.line_count = 0
@@ -632,6 +634,8 @@ class DecodeBinary:
                             (word >> 8) & 0xff,
                             (word ) & 0xff,
                         ]
+                        if self.verbose:
+                            print('Event header found')
                         continue
 
                     # Event Header Line Two Found
@@ -657,22 +661,30 @@ class DecodeBinary:
                         # print(self.event_number)
                         if self.nem_file is not None:
                             self.write_to_nem(f"EH 0b{self.version:04b} {self.event_number} {self.words_in_event} {self.event_type:02b}\n")
+                        if self.verbose:
+                            print('Event header Two found')
                         continue
 
                     # Event Header Line Two NOT Found after the Header
                     elif(self.in_event and (self.words_in_event == -1) and (word >> 28 != self.firmware_key)):
                         # print('Event Header Line Two NOT Found after the Header')
                         self.reset_params()
+                        if self.verbose:
+                            print('Event Header Line Two NOT Found after the Header')
                         continue
 
                     # Event Trailer NOT Found after the required number of ethernet words was read
                     elif(self.in_event and (self.eth_words_in_event==self.current_word) and (word >> 26 != self.trailer_pattern)):
                         # print('Event Trailer NOT Found after the required number of ethernet words was read')
                         self.reset_params()
+                        if self.verbose:
+                            print('Event Trailer NOT Found')
                         continue
 
                     # Event Trailer Found - DO NOT CONTINUE
                     elif(self.in_event and (self.eth_words_in_event==self.current_word) and (word >> 26 == self.trailer_pattern)):
+                        if self.verbose:
+                            print('Event Trailer Found')
                         for key in self.data_to_load:
                             for board in self.data:
                                 self.data_to_load[key] += self.data[board][key]
