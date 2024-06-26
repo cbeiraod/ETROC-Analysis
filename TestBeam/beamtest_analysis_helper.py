@@ -659,8 +659,6 @@ class DecodeBinary:
                         # print(self.event_number)
                         if self.nem_file is not None:
                             self.write_to_nem(f"EH 0b{self.version:04b} {self.event_number} {self.words_in_event} {self.event_type:02b}\n")
-                        if self.verbose:
-                            print('Event header Two found')
                         continue
 
                     # Event Header Line Two NOT Found after the Header
