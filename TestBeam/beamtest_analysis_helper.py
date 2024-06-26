@@ -634,8 +634,6 @@ class DecodeBinary:
                             (word >> 8) & 0xff,
                             (word ) & 0xff,
                         ]
-                        if self.verbose:
-                            print('Event header found')
                         continue
 
                     # Event Header Line Two Found
@@ -683,8 +681,6 @@ class DecodeBinary:
 
                     # Event Trailer Found - DO NOT CONTINUE
                     elif(self.in_event and (self.eth_words_in_event==self.current_word) and (word >> 26 == self.trailer_pattern)):
-                        if self.verbose:
-                            print('Event Trailer Found')
                         for key in self.data_to_load:
                             for board in self.data:
                                 self.data_to_load[key] += self.data[board][key]
