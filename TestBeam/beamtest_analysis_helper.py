@@ -306,6 +306,7 @@ class DecodeBinary:
         self.event_data_template = {
             'evt': [],
             'bcid': [],
+            'hits_counter': [],
             'l1a_counter': [],
             'fpga_evt_number': [],
             'hamming_count': [],
@@ -387,6 +388,7 @@ class DecodeBinary:
         self.event_data_to_load = {
             'evt': np.array(tmp['evt'], dtype=np.uint64),
             'bcid': np.array(tmp['bcid'], dtype=np.uint16),
+            'hits_counter': np.array(tmp['hits_counter'], dtype=np.uint32),
             'l1a_counter': np.array(tmp['l1a_counter'], dtype=np.uint8),
             'fpga_evt_number': np.array(tmp['fpga_evt_number'], dtype=np.uint64),
             'hamming_count': np.array(tmp['hamming_count'], dtype=np.uint8),
@@ -693,6 +695,7 @@ class DecodeBinary:
                             data = bytes(self.CRCdata)
                             check = self.CRCcalculator.checksum(data)
 
+                            hits_count = (word >> 14) & 0xfff
                             overflow_count = (word >> 11) & 0x7
                             hamming_count  = (word >> 8) & 0x7
 
@@ -701,6 +704,7 @@ class DecodeBinary:
 
                             self.event_data['evt'].append(self.event_counter)
                             self.event_data['bcid'].append(self.bcid)
+                            self.event_data['hits_counter'].append(hits_count)
                             self.event_data['l1a_counter'].append(self.l1acounter)
                             self.event_data['fpga_evt_number'].append(self.event_number)
                             self.event_data['hamming_count'].append(hamming_count)
