@@ -839,6 +839,88 @@ class DecodeBinary:
 
 ## --------------- Text converting to DataFrame -----------------------
 ## --------------------------------------
+def process_qinj_nem_files(idir):
+        data_format = {
+            'bcid': [],
+            'l1a_counter': [],
+            'board': [],
+            'ea': [],
+            'charge': [],
+            'threshold': [],
+            'row': [],
+            'col': [],
+            'toa': [],
+            'tot': [],
+            'cal': [],
+        }
+
+        info = idir.name.split('_')
+        thres = int(info[-1])
+        charge = int(info[-3])
+        files = list(idir.glob('TDC*nem'))
+
+        for ifile in files:
+            with open(ifile, 'r') as infile:
+                for line in infile:
+                    parts = line.split()
+                    if parts[0] == 'EH' or parts[0] == 'T' or parts[0] == 'ET':
+                        continue
+                    elif parts[0] == 'H':
+                        bcid = int(parts[-1])
+                        l1a_counter = int(parts[2])
+                    elif parts[0] == 'D':
+                        data_format['bcid'].append(bcid)
+                        data_format['l1a_counter'].append(l1a_counter)
+                        data_format['board'].append(int(parts[1]))
+                        data_format['ea'].append(int(parts[2]))
+                        data_format['charge'].append(charge)
+                        data_format['threshold'].append(thres)
+                        data_format['row'].append(int(parts[-5]))
+                        data_format['col'].append(int(parts[-4]))
+                        data_format['toa'].append(int(parts[-3]))
+                        data_format['tot'].append(int(parts[-2]))
+                        data_format['cal'].append(int(parts[-1]))
+
+        return pd.DataFrame(data_format)
+
+## --------------------------------------
+def toSingleDataFrame_newEventModel_moneyplot(
+        directories: list,
+        minimum_stats: int = 100,
+    ):
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    results = []
+    with tqdm(directories) as pbar:
+        with ProcessPoolExecutor() as process_executor:
+            # Each input results in multiple threading jobs being created:
+            futures = [
+                process_executor.submit(process_qinj_nem_files, idir)
+                    for idir in directories
+            ]
+            for future in as_completed(futures):
+                pbar.update(1)
+                tmp_df = future.result()
+                if tmp_df.shape[0] >= minimum_stats:
+                    results.append(tmp_df)
+
+    df = pd.concat(results, ignore_index=True)
+
+    df['bcid'] = df['bcid'].astype(np.uint16)
+    df['l1a_counter'] = df['l1a_counter'].astype(np.uint8)
+    df['board'] = df['board'].astype(np.uint8)
+    df['ea'] = df['ea'].astype(np.uint8)
+    df['charge'] = df['charge'].astype(np.uint8)
+    df['threshold'] = df['threshold'].astype(np.uint16)
+    df['row'] = df['row'].astype(np.uint8)
+    df['col'] = df['col'].astype(np.uint8)
+    df['toa'] = df['toa'].astype(np.uint16)
+    df['tot'] = df['tot'].astype(np.uint16)
+    df['cal'] = df['cal'].astype(np.uint16)
+
+    return df
+
+## --------------------------------------
 def toSingleDataFrame_newEventModel(
         files: list,
         do_blockMix: bool = False,
