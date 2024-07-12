@@ -1,19 +1,16 @@
-import numpy as np
-import pandas as pd
 from natsort import natsorted
 from glob import glob
-import hist
-import copy
 from pathlib import Path
-import os
 from tqdm import tqdm
+
+import numpy as np
+import pandas as pd
+import hist
+import os
 import pickle
 import json
 
 import matplotlib
-# from mpl_toolkits.mplot3d import Axes3D
-# from matplotlib.collections import PolyCollection
-# from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.ticker as ticker
