@@ -881,7 +881,21 @@ def process_qinj_nem_files(idir):
                         data_format['tot'].append(int(parts[-2]))
                         data_format['cal'].append(int(parts[-1]))
 
-        return pd.DataFrame(data_format)
+        single_df = pd.DataFrame(data).astype({
+            'bcid': 'uint16',
+            'l1a_counter': 'uint8',
+            'board': 'uint8',
+            'ea': 'uint8',
+            'charge': 'uint8',
+            'threshold': 'uint16',
+            'row': 'uint8',
+            'col': 'uint8',
+            'toa': 'uint16',
+            'tot': 'uint16',
+            'cal': 'uint16'
+        })
+
+        return single_df
 
 ## --------------------------------------
 def toSingleDataFrame_newEventModel_moneyplot(
@@ -905,19 +919,6 @@ def toSingleDataFrame_newEventModel_moneyplot(
                     results.append(tmp_df)
 
     df = pd.concat(results, ignore_index=True)
-
-    df['bcid'] = df['bcid'].astype(np.uint16)
-    df['l1a_counter'] = df['l1a_counter'].astype(np.uint8)
-    df['board'] = df['board'].astype(np.uint8)
-    df['ea'] = df['ea'].astype(np.uint8)
-    df['charge'] = df['charge'].astype(np.uint8)
-    df['threshold'] = df['threshold'].astype(np.uint16)
-    df['row'] = df['row'].astype(np.uint8)
-    df['col'] = df['col'].astype(np.uint8)
-    df['toa'] = df['toa'].astype(np.uint16)
-    df['tot'] = df['tot'].astype(np.uint16)
-    df['cal'] = df['cal'].astype(np.uint16)
-
     return df
 
 ## --------------------------------------
