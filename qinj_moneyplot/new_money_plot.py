@@ -18,7 +18,7 @@ hep.style.use('CMS')
 
 def cal_code_filtering(input_df: pd.DataFrame):
     cal_table = input_df.pivot_table(index=["row", "col", "charge", "threshold"], columns=["board"], values=["cal"], aggfunc=lambda x: x.mode().iat[0])
-    cal_table = cal_table.reset_index().set_index([('row', ''), ('col', ''), ('charge', ''), ('threshold', '')]).stack().reset_index()
+    cal_table = cal_table.reset_index().set_index([('row', ''), ('col', ''), ('charge', ''), ('threshold', '')]).stack(future_stack=True).reset_index()
     cal_table.columns = ['row', 'col', 'charge', 'threshold', 'board', 'cal_mode']
     merged_df = pd.merge(input_df, cal_table, on=['board', 'row', 'col', 'charge','threshold'])
     cal_condition = abs(merged_df['cal'] - merged_df['cal_mode']) <= 3
@@ -31,7 +31,7 @@ def cal_code_filtering(input_df: pd.DataFrame):
 
 def tot_code_filtering(input_df: pd.DataFrame):
     tot_table = input_df.pivot_table(index=["row", "col", "charge", "threshold"], columns=["board"], values=["tot"], aggfunc=lambda x: x.mode().iat[0])
-    tot_table = tot_table.reset_index().set_index([('row', ''), ('col', ''), ('charge', ''), ('threshold', '')]).stack().reset_index()
+    tot_table = tot_table.reset_index().set_index([('row', ''), ('col', ''), ('charge', ''), ('threshold', '')]).stack(future_stack=True).reset_index()
     tot_table.columns = ['row', 'col', 'charge', 'threshold', 'board', 'tot_mode']
     merged_df = pd.merge(input_df, tot_table, on=['board', 'row', 'col', 'charge','threshold'])
     tot_condition = abs(merged_df['tot'] - merged_df['tot_mode']) <= 100
@@ -42,7 +42,7 @@ def tot_code_filtering(input_df: pd.DataFrame):
 
     return tot_filtered_df
 
-def make_cal_plots(input_df: pd.DataFrame, board_name: str):
+def make_cal_plots(input_df: pd.DataFrame, board_name: str, run_name: str):
     row_col_combinations = input_df.index.to_frame(index=False)[['row', 'col']].drop_duplicates(subset=['row', 'col'])
 
     for (row, col) in row_col_combinations.values:
@@ -72,10 +72,11 @@ def make_cal_plots(input_df: pd.DataFrame, board_name: str):
         axes[1].legend()
 
         plt.tight_layout()
-        fig.savefig(f'{board_name}/{board_name}_Row_{row}_Col_{col}_CAL.png')
-        fig.savefig(f'{board_name}/{board_name}_Row_{row}_Col_{col}_CAL.pdf')
+        fig.savefig(f'{board_name}/{board_name}_{run_name}_Row_{row}_Col_{col}_CAL.png')
+        fig.savefig(f'{board_name}/{board_name}_{run_name}_Row_{row}_Col_{col}_CAL.pdf')
+        plt.close(fig)
 
-def make_toa_plots(input_df: pd.DataFrame, board_name: str):
+def make_toa_plots(input_df: pd.DataFrame, board_name: str, run_name: str):
     row_col_combinations = input_df.index.to_frame(index=False)[['row', 'col']].drop_duplicates(subset=['row', 'col'])
 
     for (row, col) in row_col_combinations.values:
@@ -104,10 +105,11 @@ def make_toa_plots(input_df: pd.DataFrame, board_name: str):
         axes[1].legend()
 
         plt.tight_layout()
-        fig.savefig(f'{board_name}/{board_name}_Row_{row}_Col_{col}_TOA.png')
-        fig.savefig(f'{board_name}/{board_name}_Row_{row}_Col_{col}_TOA.pdf')
+        fig.savefig(f'{board_name}/{board_name}_{run_name}_Row_{row}_Col_{col}_TOA.png')
+        fig.savefig(f'{board_name}/{board_name}_{run_name}_Row_{row}_Col_{col}_TOA.pdf')
+        plt.close(fig)
 
-def make_tot_plots(input_df: pd.DataFrame, board_name: str):
+def make_tot_plots(input_df: pd.DataFrame, board_name: str, run_name: str):
     row_col_combinations = input_df.index.to_frame(index=False)[['row', 'col']].drop_duplicates(subset=['row', 'col'])
 
     for (row, col) in row_col_combinations.values:
@@ -136,8 +138,9 @@ def make_tot_plots(input_df: pd.DataFrame, board_name: str):
         axes[1].legend()
 
         plt.tight_layout()
-        fig.savefig(f'{board_name}/{board_name}_Row_{row}_Col_{col}_TOT.png')
-        fig.savefig(f'{board_name}/{board_name}_Row_{row}_Col_{col}_TOT.pdf')
+        fig.savefig(f'{board_name}/{board_name}_{run_name}_Row_{row}_Col_{col}_TOT.png')
+        fig.savefig(f'{board_name}/{board_name}_{run_name}_Row_{row}_Col_{col}_TOT.pdf')
+        plt.close(fig)
 
 
 #############################################
@@ -158,16 +161,6 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        '-o',
-        '--outname',
-        metavar = 'OUTNAME',
-        type = str,
-        help = 'output file name',
-        required = True,
-        dest = 'outname',
-    )
-
-    parser.add_argument(
         '--board_name',
         metavar = 'BOARD NAME',
         type = str,
@@ -176,30 +169,49 @@ if __name__ == "__main__":
         dest = 'board_name',
     )
 
+    parser.add_argument(
+        '--run_name',
+        metavar = 'RUN NAME',
+        type = str,
+        help = 'run name',
+        required = True,
+        dest = 'run_name',
+    )
+
     args = parser.parse_args()
 
     dirs = natsorted(list(Path(f'{args.dirname}').glob(f'{args.board_name}_VRef_SCurve_TDC_Pixel_*_QInj_*_Threshold_*')))
+    if len(dirs) == 0:
+        print('No input found')
+        sys.exit()
+
     print(dirs[:3])
     print(dirs[-3:])
 
     current_dir = Path('./')
     outdir = current_dir / f'{args.board_name}'
     outdir.mkdir(exist_ok=True)
+    outfile = current_dir / f'{args.board_name}_{args.run_name}_qinj_moneyplot.feather'
 
-    if not Path(args.outname).exists():
+    if not outfile.exists():
         df = toSingleDataFrame_newEventModel_moneyplot(directories=dirs)
-        df.to_feather(f'{args.outname}_qinj_moneyplot.feather')
+        df.to_feather(outfile)
     else:
-        df = pd.read_feather(args.outname)
+        df = pd.read_feather(outfile)
 
     ### Drop unnecessary columns
-    df.drop(columns=['ea', 'bcid', 'l1a_counter'], inplace=True)
+    try:
+        df.drop(columns=['ea', 'bcid', 'l1a_counter'], inplace=True)
+    except:
+        pass
 
     cal_filtered_df = cal_code_filtering(df)
     del df
+    print('CAL filtered!')
 
     tot_filtered_df = tot_code_filtering(cal_filtered_df)
     del cal_filtered_df
+    print('TOT filtered!')
 
     ### Calculate mean and std
     grouped = tot_filtered_df.groupby(['row', 'col', 'charge', 'threshold'])
@@ -212,7 +224,15 @@ if __name__ == "__main__":
         tot_std=('tot', 'std'),
     )
 
-    ### Drawing plots
-    make_cal_plots(agg_df, args.board_name)
-    make_toa_plots(agg_df, args.board_name)
-    make_tot_plots(agg_df, args.board_name)
+    if not agg_df.empty:
+        agg_df.to_pickle(f'{args.board_name}_{args.run_name}_TDC_Summary.pickle')
+
+        ### Drawing plots
+        make_cal_plots(agg_df, args.board_name, args.run_name)
+        print('CAL plots are saved')
+        make_toa_plots(agg_df, args.board_name, args.run_name)
+        print('TOA plots are saved')
+        make_tot_plots(agg_df, args.board_name, args.run_name)
+        print('TOT plots are saved')
+    else:
+        print('Summary df is empty')
