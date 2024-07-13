@@ -881,7 +881,7 @@ def process_qinj_nem_files(idir):
                         data_format['tot'].append(int(parts[-2]))
                         data_format['cal'].append(int(parts[-1]))
 
-        single_df = pd.DataFrame(data).astype({
+        single_df = pd.DataFrame(data_format).astype({
             'bcid': 'uint16',
             'l1a_counter': 'uint8',
             'board': 'uint8',
