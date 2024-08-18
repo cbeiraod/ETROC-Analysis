@@ -178,8 +178,8 @@ class DecodeBinary:
             'idx': np.array(tmp['idx'], dtype=np.uint64),
             'type': np.array(tmp['type'], dtype=np.string_),
             'events': np.array(tmp['events'], dtype=np.uint32),
-            'prev_event': np.array(tmp['prev_event'], dtype=np.uint64),
-            'last_event': np.array(tmp['last_event'], dtype=np.uint64),
+            'prev_event': np.array(tmp['prev_event'], dtype=np.int32),
+            'last_event': np.array(tmp['last_event'], dtype=np.int32),
             'filler_data': np.array(tmp['filler_data'], dtype=np.string_),
         }
 
