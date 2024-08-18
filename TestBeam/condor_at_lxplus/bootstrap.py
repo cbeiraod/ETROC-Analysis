@@ -230,7 +230,7 @@ def bootstrap(
 
     while True:
 
-        if counter > 15000:
+        if counter > 10000:
             print("Loop is over maximum. Escaping bootstrap loop")
             break
 
@@ -351,7 +351,7 @@ def time_df_bootstrap(
 
     while True:
 
-        if counter > 15000:
+        if counter > 10000:
             print("Loop is over maximum. Escaping bootstrap loop")
             break
 
