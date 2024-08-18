@@ -64,6 +64,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--file_pattern',
+    metavar = 'glob-pattern',
+    help = "Put the file pattern for glob, if you want to process part of dataset. Example: 'run*_loop_[0-9].pickle run*_loop_1[0-9].pickle run*_loop_2[0-4].pickle'",
+    default = 'run*_loop*.pickle',
+    dest = 'file_pattern',
+)
+
+parser.add_argument(
     '--distance_factor',
     metavar = 'NUM',
     type = float,
@@ -197,7 +205,13 @@ def convert_to_time_df(input_file):
 
     return data_dict, data_in_time
 
-files = natsorted(list(Path(args.dirname).glob('run*pickle')))
+
+print(f'Will process based on the pattern: {args.file_pattern}\n')
+
+files = []
+patterns = args.file_pattern.split()
+for pattern in patterns:
+    files += natsorted(list(Path(args.dirname).glob(pattern)))
 
 if len(files) == 0:
     print('No input files')
