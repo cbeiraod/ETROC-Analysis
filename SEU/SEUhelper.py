@@ -41,7 +41,7 @@ run_db = {
     "14Feb2024": {},
 }
 
-def plotVRefPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}):
+def plotVRefPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}, run_info = {}):
     figure, axis = plt.subplots(
                     nrows = 2,
                     ncols = 1,
@@ -51,8 +51,8 @@ def plotVRefPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: 
                 )
 
     figure.suptitle(title)
-    mplhep.cms.text(loc=0, ax=axis[0], text='Preliminary', fontsize=25)
-    mplhep.cms.text(loc=0, ax=axis[1], text='Preliminary', fontsize=25)
+    mplhep.cms.text(loc=0, ax=axis[0], text='ETL ETROC SEU Testing', fontsize=25)
+    mplhep.cms.text(loc=0, ax=axis[1], text='ETL ETROC SEU Testing', fontsize=25)
 
     dataframe.plot(
                     x = 'Time',
@@ -68,8 +68,8 @@ def plotVRefPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: 
                     ax=axis[1],
                 )
 
-    axis[0].title.set_text('VRef Voltage over Time')
-    axis[1].title.set_text('VRef Current over Time')
+    axis[0].set_title('VRef Voltage over Time', loc="right", fontsize=25)
+    axis[1].set_title('VRef Current over Time', loc="right", fontsize=25)
 
     date_form = DateFormatter("%H:%M")
     axis[0].xaxis.set_major_formatter(date_form)
@@ -88,6 +88,7 @@ def plotVRefPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: 
         axis[0].axvline(
             x = times_to_plot[key],
             color = color,
+            marker=".",
         )
         axis[0].text(times_to_plot[key], .5, key, transform=trans, rotation=90, va='center')
 
@@ -95,8 +96,23 @@ def plotVRefPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: 
         axis[1].axvline(
             x = times_to_plot[key],
             color = color,
+            marker=".",
         )
         axis[1].text(times_to_plot[key], .5, key, transform=trans, rotation=90, va='center')
+    if(len(run_info)!=0):
+        for run_dict in run_info:
+
+            trans = axis[0].get_xaxis_transform()
+            axis[0].axvline(x = run_dict["start"],color = "g",)
+            axis[0].axvline(x = run_dict["stop"],color = "r",)
+            axis[0].axvline(x = run_dict["pre_config_times"],color = "y",ls="--")
+            axis[0].axvline(x = run_dict["post_config_times"],color = "y",ls="--")
+
+            trans = axis[1].get_xaxis_transform()
+            axis[1].axvline(x = run_dict["start"],color = "g",)
+            axis[1].axvline(x = run_dict["stop"],color = "r",)
+            axis[1].axvline(x = run_dict["pre_config_times"],color = "y",ls="--")
+            axis[1].axvline(x = run_dict["post_config_times"],color = "y",ls="--")
 
     plt.savefig(fname=save_to/"VRef.pdf")
     if show:
@@ -104,7 +120,7 @@ def plotVRefPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: 
     else:
         plt.clf()
 
-def plotBoardPower(board: str, channels: dict[str, str], dataframe: pandas.DataFrame, title: str, save_to: Path, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}):
+def plotBoardPower(board: str, channels: dict[str, str], dataframe: pandas.DataFrame, title: str, save_to: Path, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}, run_info={}):
     figure, axis = plt.subplots(
                     nrows = 2,
                     ncols = 2,
@@ -114,10 +130,10 @@ def plotBoardPower(board: str, channels: dict[str, str], dataframe: pandas.DataF
                 )
 
     figure.suptitle(title)
-    mplhep.cms.text(loc=0, ax=axis[0][0], text='Preliminary', fontsize=25)
-    mplhep.cms.text(loc=0, ax=axis[0][1], text='Preliminary', fontsize=25)
-    mplhep.cms.text(loc=0, ax=axis[1][0], text='Preliminary', fontsize=25)
-    mplhep.cms.text(loc=0, ax=axis[1][1], text='Preliminary', fontsize=25)
+    mplhep.cms.text(loc=0, ax=axis[0][0], text='ETL ETROC SEU Testing', fontsize=25)
+    mplhep.cms.text(loc=0, ax=axis[0][1], text='ETL ETROC SEU Testing', fontsize=25)
+    mplhep.cms.text(loc=0, ax=axis[1][0], text='ETL ETROC SEU Testing', fontsize=25)
+    mplhep.cms.text(loc=0, ax=axis[1][1], text='ETL ETROC SEU Testing', fontsize=25)
 
     if ':' not in channels["Digital"]:
         digital_df = dataframe.loc[dataframe['Channel'] == channels["Digital"]].copy()
@@ -161,12 +177,12 @@ def plotBoardPower(board: str, channels: dict[str, str], dataframe: pandas.DataF
     axis[1][0].yaxis.get_major_formatter().set_useOffset(False)
     axis[1][1].yaxis.get_major_formatter().set_useOffset(False)
 
-    axis[0][0].title.set_text(f'{board} Analog Voltage over Time')
-    axis[0][1].title.set_text(f'{board} Analog Current over Time')
-    axis[1][0].title.set_text(f'{board} Digital Voltage over Time')
-    axis[1][1].title.set_text(f'{board} Digital Current over Time')
+    axis[0][0].set_title(f'{board} Analog Voltage over Time', loc="right", fontsize=25)
+    axis[0][1].set_title(f'{board} Analog Current over Time', loc="right", fontsize=25)
+    axis[1][0].set_title(f'{board} Digital Voltage over Time', loc="right", fontsize=25)
+    axis[1][1].set_title(f'{board} Digital Current over Time', loc="right", fontsize=25)
 
-    date_form = DateFormatter("%H:%M")
+    date_form = DateFormatter("%m-%d\n%H:%M")
     axis[0][0].xaxis.set_major_formatter(date_form)
     axis[0][1].xaxis.set_major_formatter(date_form)
     axis[1][0].xaxis.set_major_formatter(date_form)
@@ -214,6 +230,33 @@ def plotBoardPower(board: str, channels: dict[str, str], dataframe: pandas.DataF
             color = color,
         )
         axis[1][1].text(times_to_plot[key], .5, key, transform=trans, rotation=90, va='center')
+    
+    if(len(run_info)!=0):
+        for run_dict in run_info:
+
+            trans = axis[0][0].get_xaxis_transform()
+            axis[0][0].axvline(x = run_dict["start"],color = "g",)
+            axis[0][0].axvline(x = run_dict["stop"],color = "r",)
+            axis[0][0].axvline(x = run_dict["pre_config_times"],color = "y",ls="--")
+            axis[0][0].axvline(x = run_dict["post_config_times"],color = "y",ls="--")
+
+            trans = axis[1][1].get_xaxis_transform()
+            axis[1][1].axvline(x = run_dict["start"],color = "g",)
+            axis[1][1].axvline(x = run_dict["stop"],color = "r",)
+            axis[1][1].axvline(x = run_dict["pre_config_times"],color = "y",ls="--")
+            axis[1][1].axvline(x = run_dict["post_config_times"],color = "y",ls="--")
+
+            trans = axis[0][1].get_xaxis_transform()
+            axis[0][1].axvline(x = run_dict["start"],color = "g",)
+            axis[0][1].axvline(x = run_dict["stop"],color = "r",)
+            axis[0][1].axvline(x = run_dict["pre_config_times"],color = "y",ls="--")
+            axis[0][1].axvline(x = run_dict["post_config_times"],color = "y",ls="--")
+
+            trans = axis[1][0].get_xaxis_transform()
+            axis[1][0].axvline(x = run_dict["start"],color = "g",)
+            axis[1][0].axvline(x = run_dict["stop"],color = "r",)
+            axis[1][0].axvline(x = run_dict["pre_config_times"],color = "y",ls="--")
+            axis[1][0].axvline(x = run_dict["post_config_times"],color = "y",ls="--")
 
     board_safe = board.replace(" ", "_")
     plt.savefig(fname=save_to/f"{board_safe}.pdf")
@@ -222,7 +265,7 @@ def plotBoardPower(board: str, channels: dict[str, str], dataframe: pandas.DataF
     else:
         plt.clf()
 
-def plotWSPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}, filename = "WaveformSampler"):
+def plotWSPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}, run_info = {}, filename = "WaveformSampler"):
     figure, axis = plt.subplots(
                     nrows = 2,
                     ncols = 1,
@@ -232,8 +275,8 @@ def plotWSPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bo
                 )
 
     figure.suptitle(title)
-    mplhep.cms.text(loc=0, ax=axis[0], text='Preliminary', fontsize=25)
-    mplhep.cms.text(loc=0, ax=axis[1], text='Preliminary', fontsize=25)
+    mplhep.cms.text(loc=0, ax=axis[0], text='ETL ETROC SEU Testing', fontsize=25)
+    mplhep.cms.text(loc=0, ax=axis[1], text='ETL ETROC SEU Testing', fontsize=25)
 
     dataframe.plot(
                     x = 'Time',
@@ -249,8 +292,8 @@ def plotWSPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bo
                     ax=axis[1],
                 )
 
-    axis[0].title.set_text('Waveform Sampler Voltage over Time')
-    axis[1].title.set_text('Waveform Sampler Current over Time')
+    axis[0].set_title('Waveform Sampler Voltage over Time', loc="right", fontsize=25)
+    axis[1].set_title('Waveform Sampler Current over Time', loc="right", fontsize=25)
 
     date_form = DateFormatter("%H:%M")
     axis[0].xaxis.set_major_formatter(date_form)
@@ -278,6 +321,21 @@ def plotWSPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bo
             color = color,
         )
         axis[1].text(times_to_plot[key], .5, key, transform=trans, rotation=90, va='center')
+    
+    if(len(run_info)!=0):
+        for run_dict in run_info:
+
+            trans = axis[0].get_xaxis_transform()
+            axis[0].axvline(x = run_dict["start"],color = "g",)
+            axis[0].axvline(x = run_dict["stop"],color = "r",)
+            axis[0].axvline(x = run_dict["pre_config_times"],color = "y",ls="--")
+            axis[0].axvline(x = run_dict["post_config_times"],color = "y",ls="--")
+
+            trans = axis[1].get_xaxis_transform()
+            axis[1].axvline(x = run_dict["start"],color = "g",)
+            axis[1].axvline(x = run_dict["stop"],color = "r",)
+            axis[1].axvline(x = run_dict["pre_config_times"],color = "y",ls="--")
+            axis[1].axvline(x = run_dict["post_config_times"],color = "y",ls="--")
 
     plt.savefig(fname=save_to/(filename+".pdf"))
     if show:
@@ -347,7 +405,12 @@ def makePerRunPlots(
     run_df = run_df.loc[run_df['Time'] <= record_end].copy()
 
     plotVRefPower(run_df.loc[run_df['Channel'] == "VRef"], f'{run_to_plot_info["name"]} VRef', run_dir, times_to_plot=times_to_plot)
-    plotWSPower(run_df.loc[run_df['Channel'] == "WS"], f'{run_to_plot_info["name"]} Waveform Sampler', run_dir, times_to_plot=times_to_plot)
+
+    if 'WS' in run_df['Channel'].unique():
+        plotWSPower(run_df.loc[run_df['Channel'] == "WS"], f'{run_to_plot_info["name"]} Waveform Sampler', run_dir, times_to_plot=times_to_plot)
+    else:
+        plotWSPower(run_df.loc[run_df['Channel'] == "WSAnalog"],  f'{run_to_plot_info["name"]} Waveform Sampler Analog',  run_dir, times_to_plot=times_to_plot, filename="WaveformSamplerAnalog")
+        plotWSPower(run_df.loc[run_df['Channel'] == "WSDigital"], f'{run_to_plot_info["name"]} Waveform Sampler Digital', run_dir, times_to_plot=times_to_plot, filename="WaveformSamplerDigital")
 
     for board in run_to_plot_info["boards"]:
         plotBoardPower(board, power_connections[board], run_df, f'{run_to_plot_info["name"]} {board} Power over Time', run_dir, times_to_plot=times_to_plot)

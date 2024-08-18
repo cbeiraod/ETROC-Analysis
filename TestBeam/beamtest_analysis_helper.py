@@ -1,19 +1,16 @@
-import numpy as np
-import pandas as pd
 from natsort import natsorted
 from glob import glob
-import hist
-import copy
 from pathlib import Path
-import os
 from tqdm import tqdm
+
+import numpy as np
+import pandas as pd
+import hist
+import os
 import pickle
 import json
 
 import matplotlib
-# from mpl_toolkits.mplot3d import Axes3D
-# from matplotlib.collections import PolyCollection
-# from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.ticker as ticker
@@ -240,9 +237,10 @@ class DecodeBinary:
                  board_id: list[int],
                  file_list: list[Path],
                  save_nem: Path | None = None,
-                 skip_filler: bool = False,
+                 skip_fw_filler: bool = False,
                  skip_event_df: bool = False,
                  skip_crc_df: bool = False,
+                 verbose: bool = False,
                  ):
         self.firmware_key            = firmware_key
         self.header_pattern          = 0xc3a3c3a
@@ -257,9 +255,10 @@ class DecodeBinary:
         self.files_to_process        = file_list
         self.save_nem                = save_nem
         self.nem_file                = None
-        self.skip_filler             = skip_filler
+        self.skip_fw_filler          = skip_fw_filler
         self.skip_event_df           = skip_event_df
         self.skip_crc_df             = skip_crc_df
+        self.verbose                 = verbose
 
         self.file_count = 0
         self.line_count = 0
@@ -306,6 +305,7 @@ class DecodeBinary:
         self.event_data_template = {
             'evt': [],
             'bcid': [],
+            'hits_counter': [],
             'l1a_counter': [],
             'fpga_evt_number': [],
             'hamming_count': [],
@@ -387,6 +387,7 @@ class DecodeBinary:
         self.event_data_to_load = {
             'evt': np.array(tmp['evt'], dtype=np.uint64),
             'bcid': np.array(tmp['bcid'], dtype=np.uint16),
+            'hits_counter': np.array(tmp['hits_counter'], dtype=np.uint32),
             'l1a_counter': np.array(tmp['l1a_counter'], dtype=np.uint8),
             'fpga_evt_number': np.array(tmp['fpga_evt_number'], dtype=np.uint64),
             'hamming_count': np.array(tmp['hamming_count'], dtype=np.uint8),
@@ -403,8 +404,8 @@ class DecodeBinary:
             'idx': np.array(tmp['idx'], dtype=np.uint64),
             'type': np.array(tmp['type'], dtype=np.string_),
             'events': np.array(tmp['events'], dtype=np.uint32),
-            'prev_event': np.array(tmp['prev_event'], dtype=np.uint64),
-            'last_event': np.array(tmp['last_event'], dtype=np.uint64),
+            'prev_event': np.array(tmp['prev_event'], dtype=np.int64),
+            'last_event': np.array(tmp['last_event'], dtype=np.int64),
             'filler_data': np.array(tmp['filler_data'], dtype=np.string_),
         }
 
@@ -661,12 +662,16 @@ class DecodeBinary:
                     elif(self.in_event and (self.words_in_event == -1) and (word >> 28 != self.firmware_key)):
                         # print('Event Header Line Two NOT Found after the Header')
                         self.reset_params()
+                        if self.verbose:
+                            print('Event Header Line Two NOT Found after the Header')
                         continue
 
                     # Event Trailer NOT Found after the required number of ethernet words was read
                     elif(self.in_event and (self.eth_words_in_event==self.current_word) and (word >> 26 != self.trailer_pattern)):
                         # print('Event Trailer NOT Found after the required number of ethernet words was read')
                         self.reset_params()
+                        if self.verbose:
+                            print('Event Trailer NOT Found')
                         continue
 
                     # Event Trailer Found - DO NOT CONTINUE
@@ -693,6 +698,7 @@ class DecodeBinary:
                             data = bytes(self.CRCdata)
                             check = self.CRCcalculator.checksum(data)
 
+                            hits_count = (word >> 14) & 0xfff
                             overflow_count = (word >> 11) & 0x7
                             hamming_count  = (word >> 8) & 0x7
 
@@ -701,6 +707,7 @@ class DecodeBinary:
 
                             self.event_data['evt'].append(self.event_counter)
                             self.event_data['bcid'].append(self.bcid)
+                            self.event_data['hits_counter'].append(hits_count)
                             self.event_data['l1a_counter'].append(self.l1acounter)
                             self.event_data['fpga_evt_number'].append(self.event_number)
                             self.event_data['hamming_count'].append(hamming_count)
@@ -761,12 +768,12 @@ class DecodeBinary:
 
                     # If Firmware filler
                     elif (word >> 16) == self.firmware_filler_pattern:
-                        if self.nem_file is not None and not self.skip_filler:
+                        if self.nem_file is not None and not self.skip_fw_filler:
                             self.write_to_nem(f"Filler: 0b{word & 0xffff:016b}\n")
 
                     # New firmware filler
                     elif (word >> 20) == self.firmware_filler_pattern_new:
-                        if not self.skip_filler:
+                        if not self.skip_fw_filler:
                             self.filler_data['idx'].append(self.filler_idx)
                             self.filler_data['type'].append("FW")
                             self.filler_data['events'].append(self.event_in_filler_counter)
@@ -776,29 +783,27 @@ class DecodeBinary:
                             self.filler_idx += 1
                             self.event_in_filler_counter = 0
                             self.filler_prev_event = self.event_counter
-                        if self.nem_file is not None and not self.skip_filler:
+                        if self.nem_file is not None and not self.skip_fw_filler:
                             self.write_to_nem(f"FW Filler: 0b{word & 0xfffff:020b}\n")
 
                     # Check link filler
                     elif (word >> 20) == self.check_link_filler_pattern:
-                        if not self.skip_filler:
-                            self.filler_data['idx'].append(self.filler_40_idx)
-                            self.filler_data['type'].append("40")
-                            self.filler_data['events'].append(self.event_in_filler_40_counter)
-                            self.filler_data['prev_event'].append(self.filler_40_prev_event)
-                            self.filler_data['last_event'].append(self.event_counter)
-                            self.filler_data['filler_data'].append(f"0b{word & 0xfffff:020b}")
-                            self.filler_40_idx += 1
-                            self.event_in_filler_40_counter = 0
-                            self.filler_40_prev_event = self.event_counter
-                        if self.nem_file is not None and not self.skip_filler:
+                        self.filler_data['idx'].append(self.filler_40_idx)
+                        self.filler_data['type'].append("40")
+                        self.filler_data['events'].append(self.event_in_filler_40_counter)
+                        self.filler_data['prev_event'].append(self.filler_40_prev_event)
+                        self.filler_data['last_event'].append(self.event_counter)
+                        self.filler_data['filler_data'].append(f"0b{word & 0xfffff:020b}")
+                        self.filler_40_idx += 1
+                        self.event_in_filler_40_counter = 0
+                        self.filler_40_prev_event = self.event_counter
+                        if self.nem_file is not None:
                             self.write_to_nem(f"40Hz Filler: 0b{word & 0xfffff:020b}\n")
 
                     if len(self.filler_data['idx']) > 10000:
-                        if not self.skip_filler:
-                            self.set_filler_dtype()
-                            filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
-                            self.filler_data= self.copy_dict_by_json(self.filler_data_template)
+                        self.set_filler_dtype()
+                        filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
+                        self.filler_data= self.copy_dict_by_json(self.filler_data_template)
 
                     # Reset anyway!
                     self.reset_params()
@@ -821,10 +826,9 @@ class DecodeBinary:
                         self.event_data_to_load = self.copy_dict_by_json(self.event_data_template)
 
                 if len(self.filler_data['idx']) > 0:
-                    if not self.skip_filler:
-                        self.set_filler_dtype()
-                        filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
-                        self.filler_data= self.copy_dict_by_json(self.filler_data_template)
+                    self.set_filler_dtype()
+                    filler_df = pd.concat([filler_df, pd.DataFrame(self.filler_data)], ignore_index=True)
+                    self.filler_data= self.copy_dict_by_json(self.filler_data_template)
 
         self.close_file()
         return df, event_df, crc_df, filler_df
@@ -835,67 +839,86 @@ class DecodeBinary:
 
 ## --------------- Text converting to DataFrame -----------------------
 ## --------------------------------------
-def toSingleDataFrame(
-        files: list,
-        do_blockMix: bool = False,
-        do_savedf: bool = False,
+def process_qinj_nem_files(idir):
+        data_format = {
+            'bcid': [],
+            'l1a_counter': [],
+            'board': [],
+            'ea': [],
+            'charge': [],
+            'threshold': [],
+            'row': [],
+            'col': [],
+            'toa': [],
+            'tot': [],
+            'cal': [],
+        }
+
+        info = idir.name.split('_')
+        thres = int(info[-1])
+        charge = int(info[-3])
+        files = list(idir.glob('TDC*nem'))
+
+        for ifile in files:
+            with open(ifile, 'r') as infile:
+                for line in infile:
+                    parts = line.split()
+                    if parts[0] == 'EH' or parts[0] == 'T' or parts[0] == 'ET':
+                        continue
+                    elif parts[0] == 'H':
+                        bcid = int(parts[-1])
+                        l1a_counter = int(parts[2])
+                    elif parts[0] == 'D':
+                        data_format['bcid'].append(bcid)
+                        data_format['l1a_counter'].append(l1a_counter)
+                        data_format['board'].append(int(parts[1]))
+                        data_format['ea'].append(int(parts[2]))
+                        data_format['charge'].append(charge)
+                        data_format['threshold'].append(thres)
+                        data_format['row'].append(int(parts[-5]))
+                        data_format['col'].append(int(parts[-4]))
+                        data_format['toa'].append(int(parts[-3]))
+                        data_format['tot'].append(int(parts[-2]))
+                        data_format['cal'].append(int(parts[-1]))
+
+        single_df = pd.DataFrame(data_format).astype({
+            'bcid': 'uint16',
+            'l1a_counter': 'uint8',
+            'board': 'uint8',
+            'ea': 'uint8',
+            'charge': 'uint8',
+            'threshold': 'uint16',
+            'row': 'uint8',
+            'col': 'uint8',
+            'toa': 'uint16',
+            'tot': 'uint16',
+            'cal': 'uint16'
+        })
+
+        return single_df
+
+## --------------------------------------
+def toSingleDataFrame_newEventModel_moneyplot(
+        directories: list,
+        minimum_stats: int = 100,
     ):
-    evt = -1
-    previous_bcid = -1
-    df_count = 0
-    d = {
-        'evt': [],
-        'board': [],
-        'row': [],
-        'col': [],
-        'toa': [],
-        'tot': [],
-        'cal': [],
-    }
+    from concurrent.futures import ProcessPoolExecutor, as_completed
 
-    files = natsorted(files)
-    df = pd.DataFrame(d)
+    results = []
+    with tqdm(directories) as pbar:
+        with ProcessPoolExecutor() as process_executor:
+            # Each input results in multiple threading jobs being created:
+            futures = [
+                process_executor.submit(process_qinj_nem_files, idir)
+                    for idir in directories
+            ]
+            for future in as_completed(futures):
+                pbar.update(1)
+                tmp_df = future.result()
+                if tmp_df.shape[0] >= minimum_stats:
+                    results.append(tmp_df)
 
-    if do_blockMix:
-        files = files[1:]
-
-    for ifile in files:
-        file_d = json.loads(json.dumps(d))
-        with open(ifile, 'r') as infile:
-            for line in infile:
-                if line.split(' ')[2] == 'HEADER':
-                    current_bcid = line.strip().split(' ')[-1]
-                    if current_bcid != previous_bcid or df_count>=3:
-                            evt += 1
-                            df_count = 0
-                    previous_bcid = current_bcid
-                    df_count += 1
-                elif line.split(' ')[2] == 'DATA':
-                    id  = int(line.split(' ')[1])
-                    col = int(line.split(' ')[8])
-                    row = int(line.split(' ')[6])
-                    toa = int(line.split(' ')[10])
-                    tot = int(line.split(' ')[12])
-                    cal = int(line.split(' ')[14])
-                    file_d['evt'].append(evt)
-                    file_d['board'].append(id)
-                    file_d['row'].append(row)
-                    file_d['col'].append(col)
-                    file_d['toa'].append(toa)
-                    file_d['tot'].append(tot)
-                    file_d['cal'].append(cal)
-                elif line.split(' ')[2] == 'TRAILER':
-                    pass
-        if len(file_d['evt']) > 0:
-            file_df = pd.DataFrame(file_d)
-            df = pd.concat((df, file_df), ignore_index=True)
-            del file_df
-        del file_d
-
-    ## Under develop
-    if do_savedf:
-        pass
-
+    df = pd.concat(results, ignore_index=True)
     return df
 
 ## --------------------------------------
@@ -972,84 +995,6 @@ def toSingleDataFrame_newEventModel(
         pass
 
     return df
-
-## --------------------------------------
-def toSingleDataFramePerDirectory(
-        root: str,
-        path_pattern: str,
-        data_qinj: bool = False,
-        save_to_csv: bool = False,
-        debugging: bool = False,
-    ):
-
-    evt = -1
-    previous_bcid = -1
-    df_count = 0
-    name_pattern = "*translated*.dat"
-    if data_qinj:
-        name_pattern = "*translated_[1-9]*.dat"
-
-    dirs = glob(f"{root}/{path_pattern}")
-    dirs = natsorted(dirs)
-    print(dirs[:3])
-
-    if debugging:
-        dirs = dirs[:2]
-
-    d = {
-        'evt': [],
-        'board': [],
-        'row': [],
-        'col': [],
-        'toa': [],
-        'tot': [],
-        'cal': [],
-    }
-
-    for dir in dirs:
-        df = pd.DataFrame(d)
-        name = dir.split('/')[-1]
-        files = glob(f"{dir}/{name_pattern}")
-
-        for ifile in files:
-            file_d = json.loads(json.dumps(d))
-            with open(ifile, 'r') as infile:
-                for line in infile.readlines():
-                    if line.split(' ')[2] == 'HEADER':
-                        current_bcid = line.strip().split(' ')[-1]
-                        if current_bcid != previous_bcid or df_count>=3:
-                            evt += 1
-                            df_count = 0
-                        previous_bcid = current_bcid
-                        df_count += 1
-                    elif line.split(' ')[2] == 'DATA':
-                        id  = int(line.split(' ')[1])
-                        col = int(line.split(' ')[6])
-                        row = int(line.split(' ')[8])
-                        toa = int(line.split(' ')[10])
-                        tot = int(line.split(' ')[12])
-                        cal = int(line.split(' ')[14])
-                        file_d['evt'].append(evt)
-                        file_d['board'].append(id)
-                        file_d['row'].append(row)
-                        file_d['col'].append(col)
-                        file_d['toa'].append(toa)
-                        file_d['tot'].append(tot)
-                        file_d['cal'].append(cal)
-                    elif line.split(' ')[2] == 'TRAILER':
-                        pass
-            if len(file_d['evt']) > 0:
-                file_df = pd.DataFrame(file_d)
-                df = pd.concat((df, file_df), ignore_index=True)
-
-        df = df.astype('int')
-        if data_qinj:
-            df.drop(columns=['evt', 'board'], inplace=True)
-        if save_to_csv:
-            df.to_csv(name+'.csv', index=False)
-        else:
-            df.to_parquet(name+'.pqt', index=False)
-        del df
 
 ## --------------------------------------
 def toSingleDataFramePerDirectory_newEventModel(
@@ -1451,12 +1396,57 @@ def return_TWC_param(
 def load_fig_title(
     tb_loc:str
 ):
+    """Load figure title (beam info and testing location)
+
+    Parameters
+    ----------
+    tb_loc: str,
+        Location of the test beam.
+        Input argument for test beam facility
+            1. 'desy',
+            2. 'cern',
+            3. 'fnal',
+        Input argument for SEU test facility
+            1. 'northwestern',
+            2. 'louvain-{ion type}'
+                - ion type: C, Ne, Al, Ar, Cr, Ni, Kr, Rh, Xe
+    """
     if tb_loc == 'desy':
         plot_title = r'4 GeV $e^{-}$ at DESY TB'
     elif tb_loc == 'cern':
         plot_title = r'120 GeV (1/3 p; 2/3 $\pi^{+}$) at CERN SPS'
     elif tb_loc == 'fnal':
         plot_title = r'120 GeV p at Fermilab TB'
+    elif tb_loc == 'northwestern':
+        plot_title = r'217 MeV p at Northwestern Medicine Proton Center'
+    # The assumption for louvain is the the tb_loc will specify location and ion with the following format:
+    # louvain-Kr  - for example for louvain with Krypton ion beam
+    # louvain-Xe  - for example for louvain with Xenon ion beam
+    elif tb_loc[:7] == 'louvain':
+        ion = tb_loc[8:]
+        energy = "xx"
+        if ion == "C":
+            energy = 131
+        elif ion == "Ne":
+            energy = 238
+        elif ion == "Al":
+            energy = 250
+        elif ion == "Ar":
+            energy = 353
+        elif ion == "Cr":
+            energy = 505
+        elif ion == "Ni":
+            energy = 582
+        elif ion == "Kr":
+            energy = 769
+        elif ion == "Rh":
+            energy = 957
+        elif ion == "Xe":
+            energy = 995
+        plot_title = rf'{energy} MeV {ion} at Heavy Ion Facility'
+    else:
+        print('Unknown location. Please add info into the function. Return empty string')
+        plot_title = ""
 
     return plot_title
 
@@ -1484,9 +1474,8 @@ def return_hist(
 def return_event_hist(
         input_df: pd.DataFrame,
 ):
-
-    h = hist.Hist(hist.axis.Regular(8, 0, 7, name="HA", label="Hamming Count"),
-                  hist.axis.Regular(2, 0, 1, name="CRC_mismatch", label="CRC Mismatch"))
+    h = hist.Hist(hist.axis.Regular(8, 0, 8, name="HA", label="Hamming Count"),
+                  hist.axis.Regular(2, 0, 2, name="CRC_mismatch", label="CRC Mismatch"))
 
     h.fill(input_df["hamming_count"].values, input_df["CRC_mismatch"].values)
 
@@ -1499,7 +1488,7 @@ def return_crc_hist(
         chipLabels: list[int],
 ):
     h = {chipNames[board_idx]: hist.Hist(
-            hist.axis.Regular(2, 0, 1, name="CRC_mismatch", label="CRC Mismatch"),
+            hist.axis.Regular(2, 0, 2, name="CRC_mismatch", label="CRC Mismatch"),
         )
     for board_idx in range(len(chipLabels))}
 
@@ -1588,12 +1577,10 @@ def plot_BL_and_NW(
                 im = ax.imshow(pivot_table, interpolation="nearest", vmin=300, vmax=500)
             elif config_dict[iboard]['chip_type'] == "F":
                 im = ax.imshow(pivot_table, interpolation="nearest", vmin=50, vmax=250)
-
             # # Add color bar
             cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, extend='both')
             cbar.set_label('Baseline', fontsize=25)
             cbar.ax.tick_params(labelsize=18)
-
         elif which_val == 'noise_width':
             im = ax.imshow(pivot_table, interpolation="nearest", vmin=0, vmax=16)
 
@@ -1615,7 +1602,7 @@ def plot_BL_and_NW(
         ticks = range(0, 16)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
-        ax.set_title(f"{config_dict[iboard]['plot_title'].replace('_', ' ')} HV{HVs[config_dict[iboard]['channel']]}V 24C", loc="right", size=16)
+        ax.set_title(f"{config_dict[iboard]['plot_title'].replace('_', ' ')} HV{HVs[config_dict[iboard]['channel']]}V", loc="right", size=16)
         ax.tick_params(axis='x', which='both', length=5, labelsize=17)
         ax.tick_params(axis='y', which='both', length=5, labelsize=17)
         ax.invert_xaxis()
@@ -2598,6 +2585,7 @@ def plot_resolution_with_pulls(
         board_names: list[str],
         tb_loc: str,
         fig_tag: list[str],
+        hist_range: list[int] = [20, 95],
         hist_bins: int = 15,
         slides_friendly: bool = False,
         print_fit_results: bool = False,
@@ -2618,6 +2606,8 @@ def plot_resolution_with_pulls(
         Test Beam location for the title. Available argument: desy, cern, fnal.
     fig_tag: list[str]
         Additional information to show in the plot as legend title.
+    hist_range: list[int], optional
+        Set the histogram range. Default value is [20, 95].
     hist_bins: int, optional
         Adjust the histogram bins. Default value is 15.
     slide_friendly: bool, optional
@@ -2639,9 +2629,7 @@ def plot_resolution_with_pulls(
     means = {}
 
     for key in board_ids:
-        hist_x_min = 20
-        hist_x_max = 95
-        hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_x_min, hist_x_max, name="time_resolution", label=r'Time Resolution [ps]'))
+        hists[key] = hist.Hist(hist.axis.Regular(hist_bins, hist_range[0], hist_range[1], name="time_resolution", label=r'Time Resolution [ps]'))
         hists[key].fill(input_df[f'res{key}'].values)
         means[key] = np.mean(input_df[f'res{key}'].values)
         centers = hists[key].axes[0].centers
