@@ -258,15 +258,18 @@ print('====== Merging is finished ======\n')
 print('====== Saving data by track ======')
 
 def save_data(ikey, merged_data, merged_data_in_time, track_dir, time_dir):
-    board_ids = merged_data[ikey].columns.get_level_values('board').unique().tolist()
-    row_cols = {
-        board_id: (merged_data[ikey]['row'][board_id].unique()[0], merged_data[ikey]['col'][board_id].unique()[0])
-        for board_id in board_ids
-    }
-    outname = f"track_{ikey}" + ''.join([f"_R{row}C{col}" for board_id, (row, col) in row_cols.items()])
+    if not merged_data[ikey].empty:
+        board_ids = merged_data[ikey].columns.get_level_values('board').unique().tolist()
+        row_cols = {
+            board_id: (merged_data[ikey]['row'][board_id].unique()[0], merged_data[ikey]['col'][board_id].unique()[0])
+            for board_id in board_ids
+        }
+        outname = f"track_{ikey}" + ''.join([f"_R{row}C{col}" for board_id, (row, col) in row_cols.items()])
 
-    merged_data[ikey].to_pickle(track_dir / f'{outname}.pkl')
-    merged_data_in_time[ikey].to_pickle(time_dir / f'{outname}.pkl')
+        merged_data[ikey].to_pickle(track_dir / f'{outname}.pkl')
+        merged_data_in_time[ikey].to_pickle(time_dir / f'{outname}.pkl')
+    else:
+        print('Empty dataframe found, skip')
 
 with ThreadPoolExecutor(max_workers=6) as executor:
     list(tqdm(executor.map(lambda ikey: save_data(ikey, merged_data, merged_data_in_time, track_dir, time_dir), merged_data.keys()), total=len(merged_data)))
