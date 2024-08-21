@@ -81,4 +81,4 @@ for kfile in new_files:
 print('=================================')
 
 ## Remove temp output directory
-outdir.unlink()
+outdir.rmdir()
