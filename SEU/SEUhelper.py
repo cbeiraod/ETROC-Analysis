@@ -39,6 +39,9 @@ import io
 run_db = {
     "27Jan2024": {},
     "14Feb2024": {},
+    "24Apr2024": {},
+    "11May2024": {},
+    "28Jun2024": {},
 }
 
 def plotVRefPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}, run_info = {}):
@@ -230,7 +233,7 @@ def plotBoardPower(board: str, channels: dict[str, str], dataframe: pandas.DataF
             color = color,
         )
         axis[1][1].text(times_to_plot[key], .5, key, transform=trans, rotation=90, va='center')
-    
+
     if(len(run_info)!=0):
         for run_dict in run_info:
 
@@ -321,7 +324,7 @@ def plotWSPower(dataframe: pandas.DataFrame, title: str, save_to: Path, show: bo
             color = color,
         )
         axis[1].text(times_to_plot[key], .5, key, transform=trans, rotation=90, va='center')
-    
+
     if(len(run_info)!=0):
         for run_dict in run_info:
 
@@ -386,6 +389,11 @@ def makePerRunPlots(
             times_to_plot[f'Save {run_to_plot_info["boards"][board_idx]} Pre-Run Config'] = run_to_plot_info["pre_config_times"][board_idx]
         if run_to_plot_info["post_config_times"][board_idx] is not None:
             times_to_plot[f'Save {run_to_plot_info["boards"][board_idx]} Post-Run Config'] = run_to_plot_info["post_config_times"][board_idx]
+        if "intermediate_config_times" in run_to_plot_info:
+            if run_to_plot_info["intermediate_config_times"][board_idx] is not None:
+                for config_idx in range(len(run_to_plot_info["intermediate_config_times"][board_idx])):
+                    if run_to_plot_info["intermediate_config_times"][board_idx][config_idx] is not None:
+                        times_to_plot[f'Intermediate {run_to_plot_info["boards"][board_idx]} Config {config_idx}'] = run_to_plot_info["intermediate_config_times"][board_idx][config_idx]
 
     record_start = min(times_to_plot.values())
     record_end = max(times_to_plot.values())
@@ -431,6 +439,87 @@ def plotPixelsOverTime(data_df: pandas.DataFrame, var: str, title: str, scan_lis
         filtered_df: pandas.DataFrame = data_df.loc[(data_df['row'] == row) & (data_df['col'] == col)]
 
         axis.plot(filtered_df['Time'], filtered_df[var], '.-', label=f'Row {row}, Col {col}')
+
+    axis.legend(shadow=False, fancybox=True)
+
+    for key in times_to_plot:
+        color = 'c'
+        if key == "Run Start":
+            color = 'g'
+        if key == "Run Stop":
+            color = 'r'
+        if "Config" in key:
+            color = 'y'
+
+        trans = axis.get_xaxis_transform()
+        axis.axvline(
+            x = times_to_plot[key],
+            color = color,
+        )
+        axis.text(times_to_plot[key], .5, key, transform=trans, rotation=90, va='center')
+
+    plt.savefig(fname=save_to)
+    if show:
+        plt.show()
+    else:
+        plt.clf()
+
+def plotDFOverTime(data_df: pandas.DataFrame, var: str, title: str, label: str, save_to: Path, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}, time_format: str = "%H:%M"):
+    figure, axis = plt.subplots(figsize=(16,7), layout='constrained',)
+
+    mplhep.cms.text(loc=0, ax=axis, text="Preliminary", fontsize=25)
+    #date_form = DateFormatter("%Y-%m-%d %H:%M")
+    date_form = DateFormatter(time_format)
+    axis.xaxis.set_major_formatter(date_form)
+    #plt.xticks(rotation=60)
+
+    axis.title.set_text(title)
+
+    axis.plot(data_df['Time'], data_df[var], '.-', label=label)
+
+    axis.legend(shadow=False, fancybox=True)
+
+    for key in times_to_plot:
+        color = 'c'
+        if key == "Run Start":
+            color = 'g'
+        if key == "Run Stop":
+            color = 'r'
+        if "Config" in key:
+            color = 'y'
+
+        trans = axis.get_xaxis_transform()
+        axis.axvline(
+            x = times_to_plot[key],
+            color = color,
+        )
+        axis.text(times_to_plot[key], .5, key, transform=trans, rotation=90, va='center')
+
+    plt.savefig(fname=save_to)
+    if show:
+        plt.show()
+    else:
+        plt.clf()
+
+def plotADCOverTime(data_df: pandas.DataFrame, active_channels: list[int], title: str, save_to: Path, use_calibrated: bool = False, show: bool = False, times_to_plot: dict[str, datetime.datetime] = {}, time_format: str = "%H:%M"):
+    figure, axis = plt.subplots(figsize=(16,7), layout='constrained',)
+    axis.set_prop_cycle(color=['#e41a1c','#fdbf6f','#d95f02', '#377eb8','#4daf4a','#b2df8a',]) # TODO: add more colors
+
+    mplhep.cms.text(loc=0, ax=axis, text="Preliminary", fontsize=25)
+    #date_form = DateFormatter("%Y-%m-%d %H:%M")
+    date_form = DateFormatter(time_format)
+    axis.xaxis.set_major_formatter(date_form)
+    #plt.xticks(rotation=60)
+
+    axis.title.set_text(title)
+
+    for channel in active_channels:
+        filtered_df: pandas.DataFrame = data_df.loc[data_df['channel'] == channel].copy()
+
+        if use_calibrated:
+            axis.plot(filtered_df['Time'], filtered_df['calibrated'], '.-', label=f'Channel {channel}')
+        else:
+            axis.plot(filtered_df['Time'], filtered_df['voltage'], '.-', label=f'Channel {channel}')
 
     axis.legend(shadow=False, fancybox=True)
 
